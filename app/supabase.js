@@ -13,9 +13,9 @@ function getClient() {
 
 const isReady = () => !!getClient();
 
-async function signUp(email, password, name) {
+async function signUp(email, password, name, phone) {
   const c = getClient();
-  const { data, error } = await c.auth.signUp({ email, password, options: { data: { name } } });
+  const { data, error } = await c.auth.signUp({ email, password, options: { data: { name, phone } } });
   if (error) throw new Error(error.message);
   return data; // { user, session } (session is null until email is confirmed)
 }

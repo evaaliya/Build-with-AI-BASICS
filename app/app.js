@@ -8,10 +8,11 @@ import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blo
 import { fingerprintOf, findMatch } from './recognition.js';
 import * as supabase from './supabase.js';
 import { t, setLang, getLang, applyI18n, LANGS } from './i18n.js';
+import { HOUSES } from './houses.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat'];
+const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -62,6 +63,7 @@ function show(viewId) {
   if (viewId === 'animals') renderAnimals();
   if (viewId === 'feed') renderFeed();
   if (viewId === 'chat') renderChat();
+  if (viewId === 'map') setTimeout(initMap, 0);
   window.scrollTo(0, 0);
 }
 
@@ -76,6 +78,7 @@ function setAuthMode(mode) {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
   $('#nameField').classList.toggle('hidden', mode === 'signin');
+  $('#phoneField').classList.toggle('hidden', mode === 'signin');
   $('#authSubmit').textContent = mode === 'signin' ? t('signIn') : t('createAccount');
 }
 
@@ -91,14 +94,15 @@ async function handleAuthSubmit(e) {
     try {
       if (authMode === 'signin') {
         const { user } = await supabase.signIn(email, pass);
-        const profile = { id: user.id, name: user.user_metadata?.name || email.split('@')[0], phone: email };
+        const profile = { id: user.id, name: user.user_metadata?.name || email.split('@')[0], phone: user.user_metadata?.phone || email };
         upsertProfile(profile);
         $('#authForm').reset();
         enterApp(profile);
       } else {
-        const { user, session } = await supabase.signUp(email, pass, name);
+        const phone = $('#authPhone').value.trim();
+        const { user, session } = await supabase.signUp(email, pass, name, phone);
         if (session) {
-          const profile = { id: user.id, name, phone: email };
+          const profile = { id: user.id, name, phone: phone || email };
           upsertProfile(profile);
           $('#authForm').reset();
           enterApp(profile);
@@ -230,7 +234,7 @@ function showAnimalDetail(id) {
     (a.photo ? `<img src="${a.photo}" alt="">` : '') +
     `<h3>${esc(a.name)}</h3>` +
     `<div class="muted">${typeName(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</div>` +
-    `<div class="muted">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}</div>` +
+    `<div class="muted">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}${owner && owner.phone ? ' · ' + esc(owner.phone) : ''}</div>` +
     (a.notes ? `<p>${esc(a.notes)}</p>` : '');
   renderReminders();
   show('animal-detail');
@@ -437,7 +441,7 @@ async function restoreSession() {
         const profile = {
           id: user.id,
           name: user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'user'),
-          phone: user.email || '',
+          phone: user.user_metadata?.phone || user.email || '',
         };
         upsertProfile(profile);
         enterApp(profile);
@@ -470,6 +474,30 @@ function applyLanguage() {
   else if (currentView === 'chat') renderChat();
   else if (currentView === 'animal-detail' && currentAnimalId) showAnimalDetail(currentAnimalId);
   else if (currentView === 'register') resetCaptureBtn();
+}
+
+let map = null;
+
+function initMap() {
+  if (map || !window.L) return;
+  map = L.map('map').setView([43.18807, 74.34209], 16);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+    maxZoom: 19,
+  }).addTo(map);
+  for (const h of HOUSES) {
+    const icon = L.divIcon({
+      className: 'house-marker',
+      html: '<div class="house-icon">🏠</div>',
+      iconSize: [34, 34],
+      iconAnchor: [17, 34],
+      popupAnchor: [0, -30],
+    });
+    const photo = h.photo ? `<img src="${h.photo}" alt="">` : '<div class="house-no-photo">🧑‍🌾</div>';
+    L.marker([h.lat, h.lng], { icon })
+      .addTo(map)
+      .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
+  }
 }
 
 function boot() {

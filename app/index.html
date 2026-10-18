@@ -13,6 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="supabase-config.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <div id="app">
@@ -43,6 +45,10 @@
             <label id="nameField" class="hidden">
               <span data-i18n="name">Name</span>
               <input id="authName" type="text" autocomplete="name" data-i18n-ph="yourName" placeholder="Your name">
+            </label>
+            <label id="phoneField" class="hidden">
+              <span data-i18n="phone">Phone</span>
+              <input id="authPhone" type="tel" autocomplete="tel" data-i18n-ph="phonePh" placeholder="+996 …">
             </label>
             <label>
               <span data-i18n="email">Email</span>
@@ -193,6 +199,11 @@
           <button id="sendBtn" class="btn primary" data-i18n="send">Send</button>
         </div>
       </section>
+      <!-- Map -->
+      <section id="view-map" class="view hidden">
+        <div class="view-head"><h2 data-i18n="villageMap">Village map</h2></div>
+        <div id="map" class="map-box"></div>
+      </section>
     </main>
 
     <nav id="bottomnav" class="bottomnav hidden">
@@ -200,6 +211,7 @@
       <button data-view="animals"><span class="nav-emoji">🐄</span><span data-i18n="animals">Animals</span></button>
       <button data-view="feed"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
       <button data-view="chat"><span class="nav-emoji">💬</span><span data-i18n="chatNav">Chat</span></button>
+      <button data-view="map"><span class="nav-emoji">🗺️</span><span data-i18n="mapNav">Map</span></button>
     </nav>
   </div>
 

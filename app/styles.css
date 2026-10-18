@@ -278,6 +278,19 @@ textarea { resize: vertical; min-height: 64px; }
 .chat-input input { flex: 1; }
 #voiceBtn.recording { background: var(--danger); color: #fff; }
 
+/* Map */
+.map-box { height: 60vh; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.house-marker { background: none; border: none; }
+.house-icon { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.house-popup { text-align: center; }
+.house-popup img, .house-no-photo {
+  width: 60px; height: 60px; border-radius: 50%; object-fit: cover;
+  margin: 0 auto 6px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); font-size: 1.6rem;
+}
+.house-popup strong { display: block; }
+.house-popup div { color: var(--muted); font-size: 0.85rem; }
+
 /* Animals list + detail */
 .clickable { cursor: pointer; }
 #animalSearch { margin-bottom: 12px; }
