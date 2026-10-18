@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="supabase-config.js"></script>
 </head>
 <body>
   <div id="app">
@@ -42,8 +44,8 @@
               <input id="authName" type="text" autocomplete="name" placeholder="Your name">
             </label>
             <label>
-              <span>Phone or email</span>
-              <input id="authPhone" type="text" autocomplete="username" placeholder="e.g. +91…" required>
+              <span>Email</span>
+              <input id="authEmail" type="email" autocomplete="username" placeholder="you@example.com" required>
             </label>
             <label>
               <span>Password</span>

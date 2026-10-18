@@ -2,10 +2,11 @@
 
 import {
   signUp, signIn, signOut, getSession, getTheme, setTheme,
-  getAnimals, addAnimal, getUsers, getPosts, addPost, getMessages, addMessage, updateAnimal,
+  getAnimals, addAnimal, getUsers, getPosts, addPost, getMessages, addMessage, updateAnimal, upsertProfile,
 } from './store.js';
 import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
 import { fingerprintOf, findMatch } from './recognition.js';
+import * as supabase from './supabase.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -74,17 +75,46 @@ function setAuthMode(mode) {
   $('#authSubmit').textContent = mode === 'signin' ? 'Sign in' : 'Create account';
 }
 
-function handleAuthSubmit(e) {
+async function handleAuthSubmit(e) {
   e.preventDefault();
   const name = $('#authName').value.trim();
-  const phone = $('#authPhone').value.trim();
+  const email = $('#authEmail').value.trim();
   const pass = $('#authPass').value;
-  $('#authError').classList.add('hidden');
+  const errEl = $('#authError');
+  errEl.classList.add('hidden');
 
-  const res = authMode === 'signin' ? signIn(phone, pass) : signUp(name, phone, pass);
+  if (supabase.isReady()) {
+    try {
+      if (authMode === 'signin') {
+        const { user } = await supabase.signIn(email, pass);
+        const profile = { id: user.id, name: user.user_metadata?.name || email.split('@')[0], phone: email };
+        upsertProfile(profile);
+        $('#authForm').reset();
+        enterApp(profile);
+      } else {
+        const { user, session } = await supabase.signUp(email, pass, name);
+        if (session) {
+          const profile = { id: user.id, name, phone: email };
+          upsertProfile(profile);
+          $('#authForm').reset();
+          enterApp(profile);
+        } else {
+          errEl.textContent = 'Check your email to confirm your account, then sign in.';
+          errEl.classList.remove('hidden');
+        }
+      }
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  // Local fallback (no Supabase configured).
+  const res = authMode === 'signin' ? signIn(email, pass) : signUp(name, email, pass);
   if (!res.ok) {
-    $('#authError').textContent = res.error;
-    $('#authError').classList.remove('hidden');
+    errEl.textContent = res.error;
+    errEl.classList.remove('hidden');
     return;
   }
   $('#authForm').reset();
@@ -390,6 +420,27 @@ async function onScan() {
   }
 }
 
+async function restoreSession() {
+  if (supabase.isReady()) {
+    try {
+      const user = await supabase.getCurrentUser();
+      if (user) {
+        const profile = {
+          id: user.id,
+          name: user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'user'),
+          phone: user.email || '',
+        };
+        upsertProfile(profile);
+        enterApp(profile);
+        return;
+      }
+    } catch {}
+  }
+  const session = getSession();
+  if (session) enterApp(session);
+  else show('auth');
+}
+
 function boot() {
   applyTheme(getTheme());
 
@@ -399,7 +450,10 @@ function boot() {
     applyTheme(t);
   });
 
-  $('#signOutBtn').addEventListener('click', () => {
+  $('#signOutBtn').addEventListener('click', async () => {
+    if (supabase.isReady()) {
+      try { await supabase.signOut(); } catch {}
+    }
     signOut();
     stopAllCameras();
     $('#signOutBtn').classList.add('hidden');
@@ -437,9 +491,7 @@ function boot() {
   $('#reminderForm').addEventListener('submit', handleAddReminder);
 
   setAuthMode('signin');
-  const session = getSession();
-  if (session) enterApp(session);
-  else show('auth');
+  restoreSession();
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

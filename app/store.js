@@ -65,6 +65,15 @@ function setSession(user) { write(KEYS.session, user); }
 const getSession = () => read(KEYS.session, null);
 function signOut() { localStorage.removeItem(KEYS.session); }
 
+// Upsert a profile so owner lookups work for Supabase users too.
+function upsertProfile(profile) {
+  const users = getUsers();
+  const i = users.findIndex((u) => u.id === profile.id);
+  if (i >= 0) users[i] = { ...users[i], ...profile };
+  else users.push({ id: profile.id, name: profile.name, phone: profile.phone || '', passHash: '', createdAt: Date.now() });
+  write(KEYS.users, users);
+}
+
 // ---- animals ----
 const getAnimals = () => read(KEYS.animals, []);
 
@@ -109,7 +118,7 @@ const getTheme = () => read(KEYS.theme, 'light');
 function setTheme(t) { write(KEYS.theme, t); }
 
 export {
-  signUp, signIn, signOut, getSession, getUsers,
+  signUp, signIn, signOut, getSession, getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
   getPosts, addPost, getMessages, addMessage,
   getTheme, setTheme,
