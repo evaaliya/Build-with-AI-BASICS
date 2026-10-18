@@ -47,7 +47,10 @@
             </label>
             <label>
               <span>Password</span>
-              <input id="authPass" type="password" autocomplete="current-password" required>
+              <div class="password-wrap">
+                <input id="authPass" type="password" autocomplete="current-password" required>
+                <button type="button" id="togglePass" class="eye-btn" aria-label="Show password">👁️</button>
+              </div>
             </label>
             <p id="authError" class="error hidden"></p>
             <button type="submit" id="authSubmit" class="btn primary">Sign in</button>

@@ -417,6 +417,12 @@ function boot() {
   });
 
   $('#authForm').addEventListener('submit', handleAuthSubmit);
+  $('#togglePass').addEventListener('click', () => {
+    const inp = $('#authPass');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    $('#togglePass').textContent = show ? '🙈' : '👁️';
+  });
   $('#scanBtn').addEventListener('click', onScan);
   $('#addAnimalBtn').addEventListener('click', () => show('register'));
   $('#captureFaceBtn').addEventListener('click', captureFace);
