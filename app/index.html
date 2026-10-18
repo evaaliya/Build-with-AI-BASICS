@@ -22,6 +22,7 @@
       <div class="brand">Moo <span class="brand-emoji">🐄</span></div>
       <div class="topbar-right">
         <span id="greeting" class="greeting hidden"></span>
+        <button id="profileBtn" class="icon-btn hidden" data-i18n-aria="myFarm" aria-label="My farm">👤</button>
         <button id="langToggle" class="icon-btn" data-i18n-aria="language" aria-label="Language">EN</button>
         <button id="themeToggle" class="icon-btn" data-i18n-aria="toggleTheme" aria-label="Toggle theme">🌙</button>
         <button id="signOutBtn" class="icon-btn hidden" data-i18n-aria="signOut" aria-label="Sign out">⎋</button>
@@ -99,7 +100,7 @@
           </label>
           <label>
             <span data-i18n="breed">Breed</span>
-            <input id="regBreed" type="text" data-i18n-ph="breedPh" placeholder="e.g. Gir, Merino…">
+            <select id="regBreed"></select>
           </label>
           <label>
             <span data-i18n="notes">Notes</span>
@@ -199,6 +200,16 @@
           <button id="sendBtn" class="btn primary" data-i18n="send">Send</button>
         </div>
       </section>
+      <!-- Profile / My farm -->
+      <section id="view-profile" class="view hidden">
+        <div class="view-head"><h2 data-i18n="myFarm">My farm</h2></div>
+        <div id="profileCard" class="card"></div>
+        <div class="view-head" style="margin-top:16px"><h3 data-i18n="myAnimals">My animals</h3></div>
+        <button id="addMyAnimalBtn" class="btn primary big" data-i18n="addAnimal">+ Add animal</button>
+        <div id="myAnimalsList" class="list"></div>
+        <p id="myAnimalsEmpty" class="placeholder hidden" data-i18n="noMyAnimals">No animals yet. Add your first one.</p>
+      </section>
+
       <!-- Map -->
       <section id="view-map" class="view hidden">
         <div class="view-head"><h2 data-i18n="villageMap">Village map</h2></div>

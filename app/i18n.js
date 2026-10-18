@@ -79,6 +79,14 @@ const STRINGS = {
   chatNav: { en: 'Chat', ru: 'Чат', ky: 'Чат' },
   mapNav: { en: 'Map', ru: 'Карта', ky: 'Карта' },
   villageMap: { en: 'Village map', ru: 'Карта села', ky: 'Айыл картасы' },
+  myFarm: { en: 'My farm', ru: 'Моё хозяйство', ky: 'Менин чарбам' },
+  myAnimals: { en: 'My animals', ru: 'Мои животные', ky: 'Менин жаныбарларым' },
+  address: { en: 'Address', ru: 'Адрес', ky: 'Дареги' },
+  addressPh: { en: 'e.g. Central street 1', ru: 'напр. Центральная 1', ky: 'мис. Борбордук 1' },
+  save: { en: 'Save', ru: 'Сохранить', ky: 'Сактоо' },
+  addAnimal: { en: '+ Add animal', ru: '+ Добавить животное', ky: '+ Жаныбар кошуу' },
+  noMyAnimals: { en: 'No animals yet. Add your first one.', ru: 'Животных пока нет. Добавь первое.', ky: 'Жаныбарлар жок. Биринчисин кошуңуз.' },
+  selectBreed: { en: 'Select breed', ru: 'Выбери породу', ky: 'Породаны тандаңыз' },
 };
 
 const LANGS = [

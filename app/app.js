@@ -12,7 +12,7 @@ import { HOUSES } from './houses.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map'];
+const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map', 'profile'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -64,6 +64,7 @@ function show(viewId) {
   if (viewId === 'feed') renderFeed();
   if (viewId === 'chat') renderChat();
   if (viewId === 'map') setTimeout(initMap, 0);
+  if (viewId === 'profile') renderProfile();
   window.scrollTo(0, 0);
 }
 
@@ -134,6 +135,7 @@ function enterApp(user) {
   renderGreeting();
   $('#greeting').classList.remove('hidden');
   $('#signOutBtn').classList.remove('hidden');
+  $('#profileBtn').classList.remove('hidden');
   $('#bottomnav').classList.remove('hidden');
   show('scan');
 }
@@ -474,6 +476,7 @@ function applyLanguage() {
   else if (currentView === 'chat') renderChat();
   else if (currentView === 'animal-detail' && currentAnimalId) showAnimalDetail(currentAnimalId);
   else if (currentView === 'register') resetCaptureBtn();
+  else if (currentView === 'profile') renderProfile();
 }
 
 let map = null;
@@ -498,6 +501,62 @@ function initMap() {
       .addTo(map)
       .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
   }
+}
+
+const BREEDS = {
+  cow: ['Alatau', 'Aulieata', 'Kyrgyz', 'Holstein', 'Simmental', 'Brown Swiss', 'Black-and-White', 'Hereford', 'Aberdeen Angus', 'Kalmyk', 'Charolais', 'Limousin'],
+  sheep: ['Kyrgyz fine-wool', 'Alai', 'Gissar', 'Edilbay', 'Merino', 'Romanov', 'Tien Shan'],
+  horse: ['Kyrgyz', 'New Kyrgyz', 'Don', 'Akhal-Teke', 'Oryol Trotter', 'Budyonny'],
+};
+
+function populateBreedOptions(type) {
+  const sel = $('#regBreed');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = t('selectBreed');
+  ph.disabled = true;
+  ph.selected = true;
+  sel.appendChild(ph);
+  for (const b of (BREEDS[type] || [])) {
+    const o = document.createElement('option');
+    o.value = b;
+    o.textContent = b;
+    sel.appendChild(o);
+  }
+  const other = document.createElement('option');
+  other.value = 'other';
+  other.textContent = t('other');
+  sel.appendChild(other);
+}
+
+function renderProfile() {
+  if (!currentUser) return;
+  const profile = currentUser;
+  const myAnimals = getAnimals().filter((a) => a.ownerId === profile.id);
+  $('#profileCard').innerHTML =
+    `<h3>${esc(profile.name)}</h3>` +
+    `<div class="muted">${esc(profile.phone || '')}</div>` +
+    `<label style="margin-top:10px"><span>${t('address')}</span>` +
+    `<input id="profileAddress" type="text" placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
+    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>`;
+  $('#myAnimalsList').innerHTML = '';
+  $('#myAnimalsEmpty').classList.toggle('hidden', myAnimals.length > 0);
+  for (const a of myAnimals) {
+    const el = document.createElement('div');
+    el.className = 'list-item clickable';
+    const img = a.photo ? `<img src="${a.photo}" alt="">` : '<div class="no-photo">🐄</div>';
+    el.innerHTML = img + `<div class="list-item-body"><strong>${esc(a.name)}</strong><span>${typeName(a.type)}</span></div>`;
+    el.addEventListener('click', () => showAnimalDetail(a.id));
+    $('#myAnimalsList').appendChild(el);
+  }
+  $('#saveProfileBtn').addEventListener('click', () => {
+    profile.address = $('#profileAddress').value.trim();
+    upsertProfile(profile);
+    currentUser = profile;
+    renderProfile();
+  });
 }
 
 function boot() {
@@ -525,6 +584,7 @@ function boot() {
     signOut();
     stopAllCameras();
     $('#signOutBtn').classList.add('hidden');
+    $('#profileBtn').classList.add('hidden');
     $('#greeting').classList.add('hidden');
     show('auth');
   });
@@ -557,6 +617,10 @@ function boot() {
   $('#animalSearch').addEventListener('input', renderAnimals);
   $('#backToAnimals').addEventListener('click', () => show('animals'));
   $('#reminderForm').addEventListener('submit', handleAddReminder);
+  $('#profileBtn').addEventListener('click', () => show('profile'));
+  $('#addMyAnimalBtn').addEventListener('click', () => show('register'));
+  $('#regType').addEventListener('change', () => populateBreedOptions($('#regType').value));
+  populateBreedOptions('cow');
 
   setAuthMode('signin');
   restoreSession();
