@@ -205,3 +205,74 @@ form input:focus { outline: 2px solid var(--primary); border-color: transparent;
 }
 .bottomnav button span { font-size: 1.3rem; }
 .bottomnav button.active { color: var(--primary); font-weight: 700; }
+
+/* View header + list */
+.view-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.view-head h2 { margin: 0; font-size: 1.3rem; }
+
+.list { display: flex; flex-direction: column; gap: 10px; }
+.list-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow);
+}
+.list-item img, .no-photo {
+  width: 56px; height: 56px; border-radius: 12px; object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); font-size: 1.6rem; flex-shrink: 0;
+}
+.list-item-body { display: flex; flex-direction: column; min-width: 0; }
+.list-item-body strong { font-size: 1.05rem; }
+.list-item-body span { color: var(--muted); font-size: 0.85rem; }
+
+/* Register form */
+select, textarea {
+  width: 100%; padding: 12px 14px; font-size: 1rem;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--text); font-family: inherit;
+}
+textarea { resize: vertical; min-height: 64px; }
+
+.capture-box { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 16px; }
+.capture-box video, .capture-box img {
+  width: 100%; border-radius: var(--radius); background: #000;
+  aspect-ratio: 4 / 3; object-fit: cover; display: block;
+}
+
+/* Scan result */
+.muted { color: var(--muted); }
+.result-match {
+  margin-top: 12px; padding: 14px;
+  background: var(--surface-2); border-radius: 12px;
+}
+.result-match .match-head { font-weight: 700; color: var(--primary); }
+.result-match.low .match-head { color: var(--accent); }
+.result-match .match-name { font-size: 1.25rem; font-weight: 700; margin-top: 4px; }
+.result-match .match-name span { color: var(--muted); font-weight: 400; }
+.result-match .match-owner { margin-top: 4px; }
+.result-match .match-conf { margin-top: 4px; color: var(--muted); font-size: 0.85rem; }
+
+/* Feed */
+#postForm { margin-bottom: 16px; }
+#postPreview { margin-top: 8px; max-height: 160px; border-radius: 10px; display: block; }
+.post img { width: 100%; border-radius: 10px; margin-bottom: 10px; }
+.post-note { font-weight: 600; }
+.post-meta { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+/* Chat */
+.chat-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 55vh; overflow-y: auto; }
+.msg { max-width: 80%; padding: 10px 12px; background: var(--surface-2); border-radius: 14px; align-self: flex-start; }
+.msg.mine { align-self: flex-end; background: var(--primary); color: var(--primary-ink); }
+.msg .msg-author { font-size: 0.75rem; opacity: 0.75; }
+.msg .msg-text { margin-top: 2px; }
+.msg audio { max-width: 200px; margin-top: 4px; }
+.chat-input { display: flex; gap: 8px; align-items: center; }
+.chat-input input { flex: 1; }
+#voiceBtn.recording { background: var(--danger); color: #fff; }
+
+/* Animals list + detail */
+.clickable { cursor: pointer; }
+#animalSearch { margin-bottom: 12px; }
+#backToAnimals { margin-bottom: 12px; }
+#animalDetail img { width: 100%; border-radius: 12px; margin-bottom: 10px; }
+#animalDetail h3 { margin: 0 0 2px; }

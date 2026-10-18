@@ -1,0 +1,17 @@
+{
+  "name": "Moo — find who owns that animal",
+  "short_name": "Moo",
+  "description": "Identify a stray cow, sheep, or horse by its face and find its owner.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f1e6",
+  "theme_color": "#3b6e4f",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

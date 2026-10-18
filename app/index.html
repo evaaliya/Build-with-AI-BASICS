@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#3b6e4f">
   <title>Moo — find who owns that animal</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
@@ -68,27 +71,121 @@
 
       <!-- Register animal -->
       <section id="view-register" class="view hidden">
-        <p class="placeholder">Register an animal — coming next.</p>
+        <div class="view-head"><h2>Register an animal</h2></div>
+        <form id="registerForm">
+          <label>
+            <span>Name</span>
+            <input id="regName" type="text" placeholder="e.g. Lakshmi" required>
+          </label>
+          <label>
+            <span>Type</span>
+            <select id="regType">
+              <option value="cow">Cow 🐄</option>
+              <option value="sheep">Sheep 🐑</option>
+              <option value="horse">Horse 🐴</option>
+            </select>
+          </label>
+          <label>
+            <span>Breed</span>
+            <input id="regBreed" type="text" placeholder="e.g. Gir, Merino…">
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea id="regNotes" placeholder="Markings, temperament…"></textarea>
+          </label>
+          <div class="capture-box">
+            <video id="registerCamera" autoplay playsinline muted></video>
+            <img id="regPreview" class="hidden" alt="Captured face">
+            <button type="button" id="captureFaceBtn" class="btn">📷 Capture face</button>
+          </div>
+          <p id="registerError" class="error hidden"></p>
+          <button type="submit" id="saveAnimalBtn" class="btn primary big" disabled>Save animal</button>
+        </form>
       </section>
 
       <!-- Animals list -->
       <section id="view-animals" class="view hidden">
-        <p class="placeholder">Animal list — coming next.</p>
+        <div class="view-head">
+          <h2>Animals</h2>
+          <button id="addAnimalBtn" class="btn primary">+ Add</button>
+        </div>
+        <input id="animalSearch" type="search" placeholder="Search by name or type…">
+        <div id="animalList" class="list"></div>
+        <p id="animalsEmpty" class="placeholder">No animals yet. Tap “+ Add” to register one.</p>
       </section>
 
       <!-- Animal detail -->
       <section id="view-animal-detail" class="view hidden">
-        <p class="placeholder">Animal detail — coming next.</p>
+        <button id="backToAnimals" class="btn">← Back</button>
+        <div id="animalDetail" class="card"></div>
+        <div class="view-head" style="margin-top:16px"><h3>Reminders</h3></div>
+        <div id="reminderList" class="list"></div>
+        <p id="reminderEmpty" class="placeholder hidden">No reminders yet.</p>
+        <form id="reminderForm" class="card">
+          <label>
+            <span>Type</span>
+            <select id="remKind">
+              <option>Vaccination</option>
+              <option>Heat cycle</option>
+              <option>Vet visit</option>
+              <option>Weighing</option>
+            </select>
+          </label>
+          <label>
+            <span>Date</span>
+            <input id="remDate" type="date" required>
+          </label>
+          <label>
+            <span>Note</span>
+            <input id="remNote" type="text">
+          </label>
+          <button type="submit" class="btn primary">Add reminder</button>
+        </form>
       </section>
 
       <!-- Feed -->
       <section id="view-feed" class="view hidden">
-        <p class="placeholder">Lost &amp; found feed — coming next.</p>
+        <div class="view-head"><h2>Lost &amp; found</h2></div>
+        <form id="postForm" class="card">
+          <label>
+            <span>Photo of the animal</span>
+            <input id="postPhoto" type="file" accept="image/*">
+            <img id="postPreview" class="hidden" alt="Preview">
+          </label>
+          <label>
+            <span>Note</span>
+            <input id="postNote" type="text" placeholder="Is anyone looking for this…" required>
+          </label>
+          <label>
+            <span>Type</span>
+            <select id="postType">
+              <option value="cow">Cow 🐄</option>
+              <option value="sheep">Sheep 🐑</option>
+              <option value="horse">Horse 🐴</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            <span>Location</span>
+            <input id="postLocation" type="text" placeholder="e.g. near the orchard">
+          </label>
+          <button type="submit" class="btn primary big">Post</button>
+        </form>
+        <div id="postList" class="list"></div>
+        <p id="feedEmpty" class="placeholder hidden">No lost animals posted yet.</p>
       </section>
 
       <!-- Chat -->
       <section id="view-chat" class="view hidden">
-        <p class="placeholder">Chat — coming next.</p>
+        <div class="view-head"><h2>Village chat</h2></div>
+        <div id="chatList" class="chat-list"></div>
+        <p id="chatEmpty" class="placeholder hidden">No messages yet. Say hello.</p>
+        <p id="chatError" class="error hidden"></p>
+        <div class="chat-input">
+          <button id="voiceBtn" class="btn" aria-label="Record voice">🎤</button>
+          <input id="chatText" type="text" placeholder="Type a message…">
+          <button id="sendBtn" class="btn primary">Send</button>
+        </div>
       </section>
     </main>
 

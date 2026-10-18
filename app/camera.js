@@ -1,25 +1,37 @@
-// Moo — camera helpers.
+// Moo — camera helpers. Supports multiple video elements (one active at a time).
 
-let stream = null;
+const streams = new Map(); // videoEl -> MediaStream
 
 async function startCamera(videoEl) {
+  if (streams.has(videoEl)) return streams.get(videoEl);
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     throw new Error('Camera is not available in this browser.');
   }
-  stream = await navigator.mediaDevices.getUserMedia({
+  const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: 'environment' },
     audio: false,
   });
   videoEl.srcObject = stream;
   await videoEl.play();
+  streams.set(videoEl, stream);
   return stream;
 }
 
-function stopCamera() {
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop());
-    stream = null;
+function stopCamera(videoEl) {
+  const s = streams.get(videoEl);
+  if (s) {
+    s.getTracks().forEach((t) => t.stop());
+    streams.delete(videoEl);
   }
+  if (videoEl) videoEl.srcObject = null;
+}
+
+function stopAllCameras() {
+  for (const [el, s] of streams) {
+    s.getTracks().forEach((t) => t.stop());
+    if (el) el.srcObject = null;
+  }
+  streams.clear();
 }
 
 // Capture the current video frame to a canvas.
@@ -44,4 +56,31 @@ function toSquare(canvas, size = 224) {
   return out;
 }
 
-export { startCamera, stopCamera, captureFrame, toSquare };
+// ---- audio (voice notes) ----
+async function recordAudio() {
+  const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const rec = new MediaRecorder(audioStream);
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.start();
+  return {
+    stop: () => new Promise((resolve) => {
+      rec.onstop = () => {
+        audioStream.getTracks().forEach((t) => t.stop());
+        resolve(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
+      };
+      rec.stop();
+    }),
+  };
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+}
+
+export { startCamera, stopCamera, stopAllCameras, captureFrame, toSquare, recordAudio, blobToDataURL };

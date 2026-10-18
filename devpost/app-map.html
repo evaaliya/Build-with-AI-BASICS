@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moo — App Map</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.55; }
+  code { background: rgba(128,128,128,.16); padding: 1px 5px; border-radius: 5px; }
+  pre { background: rgba(128,128,128,.12); padding: 12px; border-radius: 8px; overflow-x: auto; }
+  details { margin: 12px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  .stop { border-left: 3px solid #3b6e4f; padding-left: 12px; margin: 14px 0; }
+  svg { max-width: 100%; height: auto; }
+  h1, h2 { line-height: 1.2; }
+  .muted { opacity: .7; }
+</style>
+</head>
+<body>
+<h1>Moo — App Map</h1>
+<p class="muted">A take-home guide to the code, generated after the build. This is a snapshot and can drift.</p>
+
+<h2>What it is</h2>
+<p><strong>Moo</strong> identifies a stray cow, sheep, or horse by its face and shows its owner. A free in-browser model (MobileNet) turns each animal's face into a 1280-number "fingerprint"; scanning compares fingerprints by similarity. Everything lives in the browser's <code>localStorage</code> for the POC.</p>
+
+<h2>One action, traced</h2>
+<p><strong>Scan an animal</strong> → the camera captures a frame → <code>fingerprintOf()</code> turns it into numbers → <code>findMatch()</code> finds the closest registered animal → the name and owner appear.</p>
+
+<svg viewBox="0 0 720 110" role="img" aria-label="Scan flow: camera to fingerprint to match to owner" style="width:100%">
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b6e4f"/></marker></defs>
+  <g font-family="system-ui" font-size="12" text-anchor="middle">
+    <rect x="10" y="25" width="120" height="60" rx="10" fill="#3b6e4f"/>
+    <text x="70" y="59" fill="#fff">Camera frame</text>
+    <path d="M130 55 H205" stroke="#3b6e4f" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="210" y="25" width="150" height="60" rx="10" fill="#8a5a2b"/>
+    <text x="285" y="59" fill="#fff">fingerprintOf()</text>
+    <path d="M360 55 H435" stroke="#3b6e4f" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="440" y="25" width="140" height="60" rx="10" fill="#3b6e4f"/>
+    <text x="510" y="59" fill="#fff">findMatch()</text>
+    <path d="M580 55 H645" stroke="#3b6e4f" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="650" y="25" width="60" height="60" rx="10" fill="#c99a62"/>
+    <text x="680" y="59" fill="#111">owner</text>
+  </g>
+</svg>
+
+<h2>Code route</h2>
+<div class="stop">
+  <p><strong>1. <code>app/app.js</code> → <code>onScan()</code></strong><br>
+  The Scan button's handler. Captures a frame, calls <code>fingerprintOf()</code>, then <code>findMatch()</code>, and renders the result card.</p>
+</div>
+<div class="stop">
+  <p><strong>2. <code>app/recognition.js</code> → <code>fingerprintOf()</code> and <code>findMatch()</code></strong><br>
+  <code>fingerprintOf()</code> loads MobileNet and returns the 1280-number fingerprint. <code>findMatch()</code> compares it to every stored animal with cosine similarity.</p>
+</div>
+<div class="stop">
+  <p><strong>3. <code>app/store.js</code> → <code>addAnimal()</code> / <code>getAnimals()</code></strong><br>
+  Where animals (and their fingerprints) are saved to and read from <code>localStorage</code>.</p>
+</div>
+
+<h2>To change this, start here</h2>
+<ul>
+  <li><strong>Add a species</strong> — edit the <code>&lt;select&gt;</code> options in <code>app/index.html</code> (register form).</li>
+  <li><strong>Tune recognition</strong> — the confidence threshold is <code>0.6</code> in <code>onScan()</code> in <code>app/app.js</code>.</li>
+  <li><strong>Go multi-user</strong> — replace the <code>localStorage</code> calls in <code>app/store.js</code> with Firebase (see <code>README.md</code>).</li>
+</ul>
+
+<h2>A practice to reuse</h2>
+<p>There is no free "animal Face ID" API, so the build used the honest stand-in: an <strong>embedding + nearest-neighbor</strong> match (recorded in <code>devpost/spec.md &gt; Decisions and Open Issues</code>). When a "magic" API doesn't exist, a small model that turns inputs into numbers and compares them is a reusable pattern.</p>
+
+<h2>Run it</h2>
+<pre><code>cd app
+python3 -m http.server 8000
+# then open http://localhost:8000</code></pre>
+
+<p class="muted">Source commit: pending (see checklist). Paths and symbols refer to the finished code.</p>
+</body>
+</html>
