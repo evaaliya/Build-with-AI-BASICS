@@ -291,6 +291,9 @@ textarea { resize: vertical; min-height: 64px; }
 .house-popup strong { display: block; }
 .house-popup div { color: var(--muted); font-size: 0.85rem; }
 
+#vetCard { margin-bottom: 12px; }
+#addHouseBtn { margin-bottom: 10px; }
+
 /* Animals list + detail */
 .clickable { cursor: pointer; }
 #animalSearch { margin-bottom: 12px; }

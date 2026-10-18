@@ -119,7 +119,7 @@
       <!-- Animals list -->
       <section id="view-animals" class="view hidden">
         <div class="view-head">
-          <h2 data-i18n="animals">Animals</h2>
+          <h2 data-i18n="myAnimals">My animals</h2>
           <button id="addAnimalBtn" class="btn primary" data-i18n="add">+ Add</button>
         </div>
         <input id="animalSearch" type="search" data-i18n-ph="search" placeholder="Search by name or type…">
@@ -191,6 +191,7 @@
       <!-- Chat -->
       <section id="view-chat" class="view hidden">
         <div class="view-head"><h2 data-i18n="villageChat">Village chat</h2></div>
+        <div id="vetCard" class="card"></div>
         <div id="chatList" class="chat-list"></div>
         <p id="chatEmpty" class="placeholder hidden" data-i18n="noMessages">No messages yet. Say hello.</p>
         <p id="chatError" class="error hidden"></p>
@@ -213,13 +214,14 @@
       <!-- Map -->
       <section id="view-map" class="view hidden">
         <div class="view-head"><h2 data-i18n="villageMap">Village map</h2></div>
+        <button id="addHouseBtn" class="btn primary" data-i18n="addHouse">+ Add house</button>
         <div id="map" class="map-box"></div>
       </section>
     </main>
 
     <nav id="bottomnav" class="bottomnav hidden">
       <button data-view="scan" class="active"><span class="nav-emoji">📷</span><span data-i18n="scan">Scan</span></button>
-      <button data-view="animals"><span class="nav-emoji">🐄</span><span data-i18n="animals">Animals</span></button>
+      <button data-view="animals"><span class="nav-emoji">🐄</span><span data-i18n="myAnimals">My animals</span></button>
       <button data-view="feed"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
       <button data-view="chat"><span class="nav-emoji">💬</span><span data-i18n="chatNav">Chat</span></button>
       <button data-view="map"><span class="nav-emoji">🗺️</span><span data-i18n="mapNav">Map</span></button>

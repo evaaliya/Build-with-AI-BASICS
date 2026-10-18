@@ -25,7 +25,7 @@ const STRINGS = {
   bestGuess: { en: 'Best guess', ru: 'Возможно', ky: 'Балким' },
   owner: { en: 'Owner', ru: 'Владелец', ky: 'Ээси' },
   matchPercent: { en: 'match', ru: 'совпадение', ky: 'дал келүү' },
-  noAnimalsScan: { en: 'No registered animals yet — add one from the Animals tab.', ru: 'Зарегистрированных животных пока нет — добавь во вкладке «Животные».', ky: 'Катталган жаныбарлар жок — «Жаныбарлар» бөлүмүнөн кошуңуз.' },
+  noAnimalsScan: { en: 'No registered animals yet. Add one first.', ru: 'Зарегистрированных животных пока нет. Добавь первое.', ky: 'Катталган жаныбарлар жок. Алгач кошуңуз.' },
   notSure: { en: 'Not sure? Check the Feed to report a lost animal.', ru: 'Не уверен? Загляни в ленту, чтобы сообщить о потерянном животном.', ky: 'Ишенбей жатасызбы? Жоголгон жаныбарды билдирүү үчүн лентаны караңыз.' },
   unknown: { en: 'unknown', ru: 'неизвестно', ky: 'белгисиз' },
   someone: { en: 'someone', ru: 'кто-то', ky: 'кимдир бирөө' },
@@ -87,6 +87,10 @@ const STRINGS = {
   addAnimal: { en: '+ Add animal', ru: '+ Добавить животное', ky: '+ Жаныбар кошуу' },
   noMyAnimals: { en: 'No animals yet. Add your first one.', ru: 'Животных пока нет. Добавь первое.', ky: 'Жаныбарлар жок. Биринчисин кошуңуз.' },
   selectBreed: { en: 'Select breed', ru: 'Выбери породу', ky: 'Породаны тандаңыз' },
+  vet: { en: 'Veterinarian', ru: 'Ветеринар', ky: 'Ветеринар' },
+  addHouse: { en: '+ Add house', ru: '+ Добавить дом', ky: '+ Үй кошуу' },
+  tapToPlace: { en: 'Tap the map to place a house', ru: 'Нажми на карту, чтобы поставить дом', ky: 'Үйдү коюу үчүн картаны басыңыз' },
+  houseName: { en: 'House owner name', ru: 'Имя владельца дома', ky: 'Үй ээсинин аты' },
 };
 
 const LANGS = [

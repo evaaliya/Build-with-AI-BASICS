@@ -207,8 +207,9 @@ function handleRegisterSubmit(e) {
 // ---- animals list ----
 function renderAnimals() {
   const q = ($('#animalSearch').value || '').trim().toLowerCase();
-  const list = getAnimals().filter((a) =>
-    !q || a.name.toLowerCase().includes(q) || a.type.toLowerCase().includes(q));
+  const list = getAnimals()
+    .filter((a) => a.ownerId === (currentUser ? currentUser.id : null))
+    .filter((a) => !q || a.name.toLowerCase().includes(q) || a.type.toLowerCase().includes(q));
   const wrap = $('#animalList');
   wrap.innerHTML = '';
   $('#animalsEmpty').classList.toggle('hidden', list.length > 0);
@@ -323,6 +324,10 @@ function handlePostSubmit(e) {
 
 // ---- chat ----
 function renderChat() {
+  $('#vetCard').innerHTML = `<strong>🩺 ${t('vet')}</strong>` +
+    `<div class="muted">${esc(VET.name)}</div>` +
+    `<div class="muted">${esc(VET.address)}</div>` +
+    `<div class="muted">${esc(VET.phone)}</div>`;
   const msgs = getMessages();
   const wrap = $('#chatList');
   const me = getSession();
@@ -480,27 +485,62 @@ function applyLanguage() {
 }
 
 let map = null;
+let houses = [];
+let addingHouse = false;
+
+const VET = { name: 'Dr. Aibek', address: 'Village clinic', phone: '+996 …', lat: 43.18807, lng: 74.34209 };
+
+function loadHouses() {
+  try {
+    const raw = localStorage.getItem('moo_houses');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return HOUSES.slice();
+}
+
+function saveHouses() { localStorage.setItem('moo_houses', JSON.stringify(houses)); }
+
+function houseIcon(emoji) {
+  return L.divIcon({ className: 'house-marker', html: `<div class="house-icon">${emoji}</div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
+}
+
+function addHouseMarker(h) {
+  const photo = h.photo ? `<img src="${h.photo}" alt="">` : '<div class="house-no-photo">🧑‍🌾</div>';
+  L.marker([h.lat, h.lng], { icon: houseIcon('🏠') })
+    .addTo(map)
+    .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
+}
 
 function initMap() {
   if (map || !window.L) return;
+  houses = loadHouses();
   map = L.map('map').setView([43.18807, 74.34209], 16);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
-  for (const h of HOUSES) {
-    const icon = L.divIcon({
-      className: 'house-marker',
-      html: '<div class="house-icon">🏠</div>',
-      iconSize: [34, 34],
-      iconAnchor: [17, 34],
-      popupAnchor: [0, -30],
-    });
-    const photo = h.photo ? `<img src="${h.photo}" alt="">` : '<div class="house-no-photo">🧑‍🌾</div>';
-    L.marker([h.lat, h.lng], { icon })
-      .addTo(map)
-      .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
-  }
+  for (const h of houses) addHouseMarker(h);
+  // Veterinarian marker (visible to everyone).
+  L.marker([VET.lat, VET.lng], { icon: houseIcon('🏥') })
+    .addTo(map)
+    .bindPopup(`<div class="house-popup"><div class="house-no-photo">🩺</div><strong>${esc(VET.name)}</strong><div>${esc(VET.address)}</div><div>${esc(VET.phone)}</div></div>`);
+  map.on('click', (e) => {
+    if (!addingHouse) return;
+    const { lat, lng } = e.latlng;
+    const name = prompt(t('houseName'));
+    if (!name) return;
+    const address = prompt(t('address')) || '';
+    houses.push({ lat, lng, name, address, photo: null });
+    saveHouses();
+    addHouseMarker({ lat, lng, name, address, photo: null });
+    toggleAddHouse();
+  });
+}
+
+function toggleAddHouse() {
+  addingHouse = !addingHouse;
+  const btn = $('#addHouseBtn');
+  if (btn) btn.textContent = addingHouse ? t('tapToPlace') : t('addHouse');
 }
 
 const BREEDS = {
@@ -621,6 +661,7 @@ function boot() {
   $('#addMyAnimalBtn').addEventListener('click', () => show('register'));
   $('#regType').addEventListener('change', () => populateBreedOptions($('#regType').value));
   populateBreedOptions('cow');
+  $('#addHouseBtn').addEventListener('click', toggleAddHouse);
 
   setAuthMode('signin');
   restoreSession();
