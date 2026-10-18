@@ -1,7 +1,7 @@
 // Moo — app: theme, accounts, scan, register, and the animal list.
 
 import {
-  signUp, signIn, signOut, getSession, getTheme, setTheme,
+  signUp, signIn, signOut, getSession, setSession, getTheme, setTheme,
   getAnimals, addAnimal, getUsers, getPosts, addPost, getMessages, addMessage, updateAnimal, upsertProfile,
 } from './store.js';
 import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
@@ -132,6 +132,7 @@ async function handleAuthSubmit(e) {
 
 function enterApp(user) {
   currentUser = user;
+  setSession(user);
   renderGreeting();
   $('#greeting').classList.remove('hidden');
   $('#signOutBtn').classList.remove('hidden');

@@ -118,7 +118,7 @@ const getTheme = () => read(KEYS.theme, 'light');
 function setTheme(t) { write(KEYS.theme, t); }
 
 export {
-  signUp, signIn, signOut, getSession, getUsers, upsertProfile,
+  signUp, signIn, signOut, getSession, setSession, getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
   getPosts, addPost, getMessages, addMessage,
   getTheme, setTheme,
