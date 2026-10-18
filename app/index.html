@@ -20,8 +20,9 @@
       <div class="brand">Moo <span class="brand-emoji">🐄</span></div>
       <div class="topbar-right">
         <span id="greeting" class="greeting hidden"></span>
-        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme">🌙</button>
-        <button id="signOutBtn" class="icon-btn hidden" aria-label="Sign out">⎋</button>
+        <button id="langToggle" class="icon-btn" data-i18n-aria="language" aria-label="Language">EN</button>
+        <button id="themeToggle" class="icon-btn" data-i18n-aria="toggleTheme" aria-label="Toggle theme">🌙</button>
+        <button id="signOutBtn" class="icon-btn hidden" data-i18n-aria="signOut" aria-label="Sign out">⎋</button>
       </div>
     </header>
 
@@ -32,26 +33,26 @@
           <div class="auth-hero">
             <div class="logo">🐄</div>
             <h1>Moo</h1>
-            <p>Point at an animal. Find its owner.</p>
+            <p data-i18n="tagline">Point at an animal. Find its owner.</p>
           </div>
           <form id="authForm">
             <div id="authTabs" class="auth-tabs">
-              <button type="button" data-mode="signin" class="active">Sign in</button>
-              <button type="button" data-mode="signup">Create account</button>
+              <button type="button" data-mode="signin" class="active" data-i18n="signIn">Sign in</button>
+              <button type="button" data-mode="signup" data-i18n="createAccount">Create account</button>
             </div>
             <label id="nameField" class="hidden">
-              <span>Name</span>
-              <input id="authName" type="text" autocomplete="name" placeholder="Your name">
+              <span data-i18n="name">Name</span>
+              <input id="authName" type="text" autocomplete="name" data-i18n-ph="yourName" placeholder="Your name">
             </label>
             <label>
-              <span>Email</span>
-              <input id="authEmail" type="email" autocomplete="username" placeholder="you@example.com" required>
+              <span data-i18n="email">Email</span>
+              <input id="authEmail" type="email" autocomplete="username" data-i18n-ph="emailPh" placeholder="you@example.com" required>
             </label>
             <label>
-              <span>Password</span>
+              <span data-i18n="password">Password</span>
               <div class="password-wrap">
                 <input id="authPass" type="password" autocomplete="current-password" required>
-                <button type="button" id="togglePass" class="eye-btn" aria-label="Show password">👁️</button>
+                <button type="button" id="togglePass" class="eye-btn" data-i18n-aria="showPassword" aria-label="Show password">👁️</button>
               </div>
             </label>
             <p id="authError" class="error hidden"></p>
@@ -68,35 +69,35 @@
             <div class="frame-circle"></div>
             <p id="cameraError" class="error overlay hidden"></p>
           </div>
-          <p class="hint">Point the camera at the animal's face, then tap Scan.</p>
-          <button id="scanBtn" class="btn primary big">Scan</button>
+          <p class="hint" data-i18n="scanHint">Point the camera at the animal's face, then tap Scan.</p>
+          <button id="scanBtn" class="btn primary big" data-i18n="scan">Scan</button>
           <div id="scanResult" class="card hidden"></div>
         </div>
       </section>
 
       <!-- Register animal -->
       <section id="view-register" class="view hidden">
-        <div class="view-head"><h2>Register an animal</h2></div>
+        <div class="view-head"><h2 data-i18n="registerAnimal">Register an animal</h2></div>
         <form id="registerForm">
           <label>
-            <span>Name</span>
-            <input id="regName" type="text" placeholder="e.g. Lakshmi" required>
+            <span data-i18n="name">Name</span>
+            <input id="regName" type="text" data-i18n-ph="namePh" placeholder="e.g. Lakshmi" required>
           </label>
           <label>
-            <span>Type</span>
+            <span data-i18n="type">Type</span>
             <select id="regType">
-              <option value="cow">Cow 🐄</option>
-              <option value="sheep">Sheep 🐑</option>
-              <option value="horse">Horse 🐴</option>
+              <option value="cow" data-i18n="cow">Cow 🐄</option>
+              <option value="sheep" data-i18n="sheep">Sheep 🐑</option>
+              <option value="horse" data-i18n="horse">Horse 🐴</option>
             </select>
           </label>
           <label>
-            <span>Breed</span>
-            <input id="regBreed" type="text" placeholder="e.g. Gir, Merino…">
+            <span data-i18n="breed">Breed</span>
+            <input id="regBreed" type="text" data-i18n-ph="breedPh" placeholder="e.g. Gir, Merino…">
           </label>
           <label>
-            <span>Notes</span>
-            <textarea id="regNotes" placeholder="Markings, temperament…"></textarea>
+            <span data-i18n="notes">Notes</span>
+            <textarea id="regNotes" data-i18n-ph="notesPh" placeholder="Markings, temperament…"></textarea>
           </label>
           <div class="capture-box">
             <video id="registerCamera" autoplay playsinline muted></video>
@@ -104,101 +105,101 @@
             <button type="button" id="captureFaceBtn" class="btn">📷 Capture face</button>
           </div>
           <p id="registerError" class="error hidden"></p>
-          <button type="submit" id="saveAnimalBtn" class="btn primary big" disabled>Save animal</button>
+          <button type="submit" id="saveAnimalBtn" class="btn primary big" data-i18n="saveAnimal" disabled>Save animal</button>
         </form>
       </section>
 
       <!-- Animals list -->
       <section id="view-animals" class="view hidden">
         <div class="view-head">
-          <h2>Animals</h2>
-          <button id="addAnimalBtn" class="btn primary">+ Add</button>
+          <h2 data-i18n="animals">Animals</h2>
+          <button id="addAnimalBtn" class="btn primary" data-i18n="add">+ Add</button>
         </div>
-        <input id="animalSearch" type="search" placeholder="Search by name or type…">
+        <input id="animalSearch" type="search" data-i18n-ph="search" placeholder="Search by name or type…">
         <div id="animalList" class="list"></div>
-        <p id="animalsEmpty" class="placeholder">No animals yet. Tap “+ Add” to register one.</p>
+        <p id="animalsEmpty" class="placeholder" data-i18n="noAnimals">No animals yet. Tap “+ Add” to register one.</p>
       </section>
 
       <!-- Animal detail -->
       <section id="view-animal-detail" class="view hidden">
-        <button id="backToAnimals" class="btn">← Back</button>
+        <button id="backToAnimals" class="btn" data-i18n="back">← Back</button>
         <div id="animalDetail" class="card"></div>
-        <div class="view-head" style="margin-top:16px"><h3>Reminders</h3></div>
+        <div class="view-head" style="margin-top:16px"><h3 data-i18n="reminders">Reminders</h3></div>
         <div id="reminderList" class="list"></div>
-        <p id="reminderEmpty" class="placeholder hidden">No reminders yet.</p>
+        <p id="reminderEmpty" class="placeholder hidden" data-i18n="noReminders">No reminders yet.</p>
         <form id="reminderForm" class="card">
           <label>
-            <span>Type</span>
+            <span data-i18n="type">Type</span>
             <select id="remKind">
-              <option>Vaccination</option>
-              <option>Heat cycle</option>
-              <option>Vet visit</option>
-              <option>Weighing</option>
+              <option data-i18n="vaccination">Vaccination</option>
+              <option data-i18n="heatCycle">Heat cycle</option>
+              <option data-i18n="vetVisit">Vet visit</option>
+              <option data-i18n="weighing">Weighing</option>
             </select>
           </label>
           <label>
-            <span>Date</span>
+            <span data-i18n="date">Date</span>
             <input id="remDate" type="date" required>
           </label>
           <label>
-            <span>Note</span>
+            <span data-i18n="note">Note</span>
             <input id="remNote" type="text">
           </label>
-          <button type="submit" class="btn primary">Add reminder</button>
+          <button type="submit" class="btn primary" data-i18n="addReminder">Add reminder</button>
         </form>
       </section>
 
       <!-- Feed -->
       <section id="view-feed" class="view hidden">
-        <div class="view-head"><h2>Lost &amp; found</h2></div>
+        <div class="view-head"><h2 data-i18n="lostFound">Lost &amp; found</h2></div>
         <form id="postForm" class="card">
           <label>
-            <span>Photo of the animal</span>
+            <span data-i18n="photo">Photo of the animal</span>
             <input id="postPhoto" type="file" accept="image/*">
             <img id="postPreview" class="hidden" alt="Preview">
           </label>
           <label>
-            <span>Note</span>
-            <input id="postNote" type="text" placeholder="Is anyone looking for this…" required>
+            <span data-i18n="note">Note</span>
+            <input id="postNote" type="text" data-i18n-ph="lookingFor" placeholder="Is anyone looking for this…" required>
           </label>
           <label>
-            <span>Type</span>
+            <span data-i18n="type">Type</span>
             <select id="postType">
-              <option value="cow">Cow 🐄</option>
-              <option value="sheep">Sheep 🐑</option>
-              <option value="horse">Horse 🐴</option>
-              <option value="other">Other</option>
+              <option value="cow" data-i18n="cow">Cow 🐄</option>
+              <option value="sheep" data-i18n="sheep">Sheep 🐑</option>
+              <option value="horse" data-i18n="horse">Horse 🐴</option>
+              <option value="other" data-i18n="other">Other</option>
             </select>
           </label>
           <label>
-            <span>Location</span>
-            <input id="postLocation" type="text" placeholder="e.g. near the orchard">
+            <span data-i18n="location">Location</span>
+            <input id="postLocation" type="text" data-i18n-ph="locationPh" placeholder="e.g. near the orchard">
           </label>
-          <button type="submit" class="btn primary big">Post</button>
+          <button type="submit" class="btn primary big" data-i18n="post">Post</button>
         </form>
         <div id="postList" class="list"></div>
-        <p id="feedEmpty" class="placeholder hidden">No lost animals posted yet.</p>
+        <p id="feedEmpty" class="placeholder hidden" data-i18n="noPosts">No lost animals posted yet.</p>
       </section>
 
       <!-- Chat -->
       <section id="view-chat" class="view hidden">
-        <div class="view-head"><h2>Village chat</h2></div>
+        <div class="view-head"><h2 data-i18n="villageChat">Village chat</h2></div>
         <div id="chatList" class="chat-list"></div>
-        <p id="chatEmpty" class="placeholder hidden">No messages yet. Say hello.</p>
+        <p id="chatEmpty" class="placeholder hidden" data-i18n="noMessages">No messages yet. Say hello.</p>
         <p id="chatError" class="error hidden"></p>
         <div class="chat-input">
-          <button id="voiceBtn" class="btn" aria-label="Record voice">🎤</button>
-          <input id="chatText" type="text" placeholder="Type a message…">
-          <button id="sendBtn" class="btn primary">Send</button>
+          <button id="voiceBtn" class="btn" data-i18n-aria="recordVoice" aria-label="Record voice">🎤</button>
+          <input id="chatText" type="text" data-i18n-ph="typeMessage" placeholder="Type a message…">
+          <button id="sendBtn" class="btn primary" data-i18n="send">Send</button>
         </div>
       </section>
     </main>
 
     <nav id="bottomnav" class="bottomnav hidden">
-      <button data-view="scan" class="active"><span>📷</span>Scan</button>
-      <button data-view="animals"><span>🐄</span>Animals</button>
-      <button data-view="feed"><span>📣</span>Feed</button>
-      <button data-view="chat"><span>💬</span>Chat</button>
+      <button data-view="scan" class="active"><span class="nav-emoji">📷</span><span data-i18n="scan">Scan</span></button>
+      <button data-view="animals"><span class="nav-emoji">🐄</span><span data-i18n="animals">Animals</span></button>
+      <button data-view="feed"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
+      <button data-view="chat"><span class="nav-emoji">💬</span><span data-i18n="chatNav">Chat</span></button>
     </nav>
   </div>
 

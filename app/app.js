@@ -7,6 +7,7 @@ import {
 import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
 import { fingerprintOf, findMatch } from './recognition.js';
 import * as supabase from './supabase.js';
+import { t, setLang, getLang, applyI18n, LANGS } from './i18n.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -20,10 +21,12 @@ let regFingerprint = null;
 let regPhoto = null;
 let postPhotoDataUrl = null;
 let recorder = null;
+let currentView = 'auth';
+let currentUser = null;
 
 function showScanError(msg) {
   const el = $('#cameraError');
-  el.textContent = 'Camera unavailable: ' + msg;
+  el.textContent = msg;
   el.classList.remove('hidden');
 }
 
@@ -34,6 +37,7 @@ function showRegisterError(msg) {
 }
 
 function show(viewId) {
+  currentView = viewId;
   VIEWS.forEach((v) => {
     const el = $('#view-' + v);
     if (el) el.classList.toggle('hidden', v !== viewId);
@@ -46,10 +50,10 @@ function show(viewId) {
   // Phones allow only one active camera, so hand off between views.
   if (viewId === 'scan') {
     stopCamera($('#registerCamera'));
-    startCamera($('#camera')).catch((e) => showScanError(e.message));
+    startCamera($('#camera')).catch((e) => showScanError(t('cameraUnavailable') + ': ' + e.message));
   } else if (viewId === 'register') {
     stopCamera($('#camera'));
-    startCamera($('#registerCamera')).catch((e) => showRegisterError(e.message));
+    startCamera($('#registerCamera')).catch((e) => showRegisterError(t('cameraUnavailable') + ': ' + e.message));
   } else {
     stopCamera($('#camera'));
     stopCamera($('#registerCamera'));
@@ -72,7 +76,7 @@ function setAuthMode(mode) {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
   $('#nameField').classList.toggle('hidden', mode === 'signin');
-  $('#authSubmit').textContent = mode === 'signin' ? 'Sign in' : 'Create account';
+  $('#authSubmit').textContent = mode === 'signin' ? t('signIn') : t('createAccount');
 }
 
 async function handleAuthSubmit(e) {
@@ -99,7 +103,7 @@ async function handleAuthSubmit(e) {
           $('#authForm').reset();
           enterApp(profile);
         } else {
-          errEl.textContent = 'Check your email to confirm your account, then sign in.';
+          errEl.textContent = t('confirmEmail');
           errEl.classList.remove('hidden');
         }
       }
@@ -122,11 +126,16 @@ async function handleAuthSubmit(e) {
 }
 
 function enterApp(user) {
-  $('#greeting').textContent = 'Hi ' + user.name;
+  currentUser = user;
+  renderGreeting();
   $('#greeting').classList.remove('hidden');
   $('#signOutBtn').classList.remove('hidden');
   $('#bottomnav').classList.remove('hidden');
   show('scan');
+}
+
+function renderGreeting() {
+  if (currentUser) $('#greeting').textContent = t('hi') + ' ' + currentUser.name;
 }
 
 // ---- register ----
@@ -135,7 +144,7 @@ async function captureFace() {
   err.classList.add('hidden');
   const video = $('#registerCamera');
   if (!video.srcObject) {
-    err.textContent = 'Camera not started.';
+    err.textContent = t('cameraNotStarted');
     err.classList.remove('hidden');
     return;
   }
@@ -145,14 +154,14 @@ async function captureFace() {
   $('#regPreview').classList.remove('hidden');
   const btn = $('#captureFaceBtn');
   btn.disabled = true;
-  btn.textContent = 'Reading face…';
+  btn.textContent = t('readingFace');
   try {
     regFingerprint = await fingerprintOf(canvas);
-    btn.textContent = 'Face captured ✓';
+    btn.textContent = t('faceCaptured');
     $('#saveAnimalBtn').disabled = false;
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'Capture face';
+    resetCaptureBtn();
     err.textContent = e.message;
     err.classList.remove('hidden');
   }
@@ -163,7 +172,7 @@ function handleRegisterSubmit(e) {
   const err = $('#registerError');
   err.classList.add('hidden');
   if (!regFingerprint) {
-    err.textContent = "Capture the animal's face first.";
+    err.textContent = t('captureFirst');
     err.classList.remove('hidden');
     return;
   }
@@ -185,7 +194,7 @@ function handleRegisterSubmit(e) {
   $('#regPreview').classList.add('hidden');
   $('#saveAnimalBtn').disabled = true;
   $('#captureFaceBtn').disabled = false;
-  $('#captureFaceBtn').textContent = 'Capture face';
+  resetCaptureBtn();
   show('animals');
 }
 
@@ -203,7 +212,7 @@ function renderAnimals() {
     const img = a.photo ? `<img src="${a.photo}" alt="">` : '<div class="no-photo">🐄</div>';
     el.innerHTML = img +
       `<div class="list-item-body"><strong>${esc(a.name)}</strong>` +
-      `<span>${esc(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</span></div>`;
+      `<span>${typeName(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</span></div>`;
     el.addEventListener('click', () => showAnimalDetail(a.id));
     wrap.appendChild(el);
   }
@@ -220,8 +229,8 @@ function showAnimalDetail(id) {
   $('#animalDetail').innerHTML =
     (a.photo ? `<img src="${a.photo}" alt="">` : '') +
     `<h3>${esc(a.name)}</h3>` +
-    `<div class="muted">${esc(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</div>` +
-    `<div class="muted">Owner: ${owner ? esc(owner.name) : 'unknown'}</div>` +
+    `<div class="muted">${typeName(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</div>` +
+    `<div class="muted">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}</div>` +
     (a.notes ? `<p>${esc(a.notes)}</p>` : '');
   renderReminders();
   show('animal-detail');
@@ -283,7 +292,7 @@ function renderFeed() {
       (p.photo ? `<img src="${p.photo}" alt="">` : '') +
       `<div class="post-body">` +
       `<div class="post-note">${esc(p.note)}</div>` +
-      `<div class="post-meta">${esc(p.type)}${p.location ? ' · ' + esc(p.location) : ''} · by ${author ? esc(author.name) : 'someone'}</div>` +
+      `<div class="post-meta">${typeName(p.type)}${p.location ? ' · ' + esc(p.location) : ''} · ${t('by')} ${author ? esc(author.name) : t('someone')}</div>` +
       `</div>`;
     wrap.appendChild(card);
   }
@@ -318,7 +327,7 @@ function renderChat() {
     const bubble = document.createElement('div');
     bubble.className = 'msg' + (me && m.from === me.id ? ' mine' : '');
     bubble.innerHTML =
-      `<div class="msg-author">${author ? esc(author.name) : 'someone'}</div>` +
+      `<div class="msg-author">${author ? esc(author.name) : t('someone')}</div>` +
       (m.text ? `<div class="msg-text">${esc(m.text)}</div>` : '') +
       (m.audio ? `<audio controls src="${m.audio}"></audio>` : '');
     wrap.appendChild(bubble);
@@ -353,10 +362,10 @@ async function toggleVoice() {
     try {
       recorder = await recordAudio();
       btn.classList.add('recording');
-      btn.textContent = '⏹ Stop';
+      btn.textContent = '⏹ ' + t('stop');
     } catch (e) {
       btn.textContent = '🎤';
-      err.textContent = 'Microphone unavailable: ' + e.message;
+      err.textContent = t('micUnavailable') + ': ' + e.message;
       err.classList.remove('hidden');
     }
   }
@@ -375,13 +384,13 @@ async function onScan() {
   const btn = $('#scanBtn');
   const result = $('#scanResult');
   if (!video.srcObject) {
-    showScanError('Camera not started.');
+    showScanError(t('cameraNotStarted'));
     return;
   }
   btn.disabled = true;
-  btn.textContent = 'Scanning…';
+  btn.textContent = t('scanning');
   result.classList.remove('hidden');
-  result.innerHTML = '<p class="muted">Scanning…</p>';
+  result.innerHTML = '<p class="muted">' + t('scanning') + '</p>';
   try {
     const canvas = captureFrame(video);
     const fp = await fingerprintOf(canvas);
@@ -393,7 +402,7 @@ async function onScan() {
     result.appendChild(img);
 
     if (!match) {
-      result.appendChild(el('p', 'muted', 'No registered animals yet — add one from the Animals tab.'));
+      result.appendChild(el('p', 'muted', t('noAnimalsScan')));
     } else {
       const owner = getUsers().find((u) => u.id === match.animal.ownerId);
       const pct = Math.round(match.similarity * 100);
@@ -401,14 +410,14 @@ async function onScan() {
       const card = document.createElement('div');
       card.className = 'result-match' + (confident ? '' : ' low');
       card.innerHTML =
-        `<div class="match-head">${confident ? '✅ Found it' : '🤔 Best guess'}</div>` +
-        `<div class="match-name">${esc(match.animal.name)} <span>(${esc(match.animal.type)})</span></div>` +
-        `<div class="match-owner">Owner: ${owner ? esc(owner.name) : 'unknown'}` +
+        `<div class="match-head">${confident ? '✅ ' + t('foundIt') : '🤔 ' + t('bestGuess')}</div>` +
+        `<div class="match-name">${esc(match.animal.name)} <span>(${typeName(match.animal.type)})</span></div>` +
+        `<div class="match-owner">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}` +
         `${owner && owner.phone ? ' · ' + esc(owner.phone) : ''}</div>` +
-        `<div class="match-conf">${pct}% match</div>`;
+        `<div class="match-conf">${pct}% ${t('matchPercent')}</div>`;
       result.appendChild(card);
       if (!confident) {
-        result.appendChild(el('p', 'muted', 'Not sure — is this a lost animal? The Feed is coming next.'));
+        result.appendChild(el('p', 'muted', t('notSure')));
       }
     }
   } catch (e) {
@@ -416,7 +425,7 @@ async function onScan() {
     showScanError(e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Scan';
+    btn.textContent = t('scan');
   }
 }
 
@@ -441,8 +450,39 @@ async function restoreSession() {
   else show('auth');
 }
 
+function typeName(type) {
+  const map = { cow: 'cow', sheep: 'sheep', horse: 'horse', other: 'other' };
+  return t(map[type] || 'other');
+}
+
+function resetCaptureBtn() {
+  const btn = $('#captureFaceBtn');
+  if (btn) btn.textContent = '📷 ' + t('captureFace');
+}
+
+function applyLanguage() {
+  applyI18n();
+  $('#langToggle').textContent = getLang().toUpperCase();
+  setAuthMode(authMode);
+  renderGreeting();
+  if (currentView === 'animals') renderAnimals();
+  else if (currentView === 'feed') renderFeed();
+  else if (currentView === 'chat') renderChat();
+  else if (currentView === 'animal-detail' && currentAnimalId) showAnimalDetail(currentAnimalId);
+  else if (currentView === 'register') resetCaptureBtn();
+}
+
 function boot() {
   applyTheme(getTheme());
+  applyI18n();
+  $('#langToggle').textContent = getLang().toUpperCase();
+
+  $('#langToggle').addEventListener('click', () => {
+    const idx = LANGS.findIndex((l) => l.code === getLang());
+    const next = LANGS[(idx + 1) % LANGS.length];
+    setLang(next.code);
+    applyLanguage();
+  });
 
   $('#themeToggle').addEventListener('click', () => {
     const t = getTheme() === 'light' ? 'dark' : 'light';

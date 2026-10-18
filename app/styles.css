@@ -211,7 +211,7 @@ form input:focus { outline: 2px solid var(--primary); border-color: transparent;
   padding: 6px 0;
   border-radius: 12px;
 }
-.bottomnav button span { font-size: 1.3rem; }
+.bottomnav button .nav-emoji { font-size: 1.3rem; }
 .bottomnav button.active { color: var(--primary); font-weight: 700; }
 
 /* View header + list */
