@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3b6e4f">
+  <title>Moo — find who owns that animal</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">Moo <span class="brand-emoji">🐄</span></div>
+      <div class="topbar-right">
+        <span id="greeting" class="greeting hidden"></span>
+        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme">🌙</button>
+        <button id="signOutBtn" class="icon-btn hidden" aria-label="Sign out">⎋</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Auth -->
+      <section id="view-auth" class="view">
+        <div class="auth-card">
+          <div class="auth-hero">
+            <div class="logo">🐄</div>
+            <h1>Moo</h1>
+            <p>Point at an animal. Find its owner.</p>
+          </div>
+          <form id="authForm">
+            <div id="authTabs" class="auth-tabs">
+              <button type="button" data-mode="signin" class="active">Sign in</button>
+              <button type="button" data-mode="signup">Create account</button>
+            </div>
+            <label id="nameField" class="hidden">
+              <span>Name</span>
+              <input id="authName" type="text" autocomplete="name" placeholder="Your name">
+            </label>
+            <label>
+              <span>Phone or email</span>
+              <input id="authPhone" type="text" autocomplete="username" placeholder="e.g. +91…" required>
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="authPass" type="password" autocomplete="current-password" required>
+            </label>
+            <p id="authError" class="error hidden"></p>
+            <button type="submit" id="authSubmit" class="btn primary">Sign in</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Scan -->
+      <section id="view-scan" class="view hidden">
+        <div class="scan-wrap">
+          <div class="camera-box">
+            <video id="camera" autoplay playsinline muted></video>
+            <div class="frame-circle"></div>
+            <p id="cameraError" class="error overlay hidden"></p>
+          </div>
+          <p class="hint">Point the camera at the animal's face, then tap Scan.</p>
+          <button id="scanBtn" class="btn primary big">Scan</button>
+          <div id="scanResult" class="card hidden"></div>
+        </div>
+      </section>
+
+      <!-- Register animal -->
+      <section id="view-register" class="view hidden">
+        <p class="placeholder">Register an animal — coming next.</p>
+      </section>
+
+      <!-- Animals list -->
+      <section id="view-animals" class="view hidden">
+        <p class="placeholder">Animal list — coming next.</p>
+      </section>
+
+      <!-- Animal detail -->
+      <section id="view-animal-detail" class="view hidden">
+        <p class="placeholder">Animal detail — coming next.</p>
+      </section>
+
+      <!-- Feed -->
+      <section id="view-feed" class="view hidden">
+        <p class="placeholder">Lost &amp; found feed — coming next.</p>
+      </section>
+
+      <!-- Chat -->
+      <section id="view-chat" class="view hidden">
+        <p class="placeholder">Chat — coming next.</p>
+      </section>
+    </main>
+
+    <nav id="bottomnav" class="bottomnav hidden">
+      <button data-view="scan" class="active"><span>📷</span>Scan</button>
+      <button data-view="animals"><span>🐄</span>Animals</button>
+      <button data-view="feed"><span>📣</span>Feed</button>
+      <button data-view="chat"><span>💬</span>Chat</button>
+    </nav>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

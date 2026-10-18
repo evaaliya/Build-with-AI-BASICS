@@ -1,0 +1,9 @@
+{
+  "name": "moo",
+  "private": true,
+  "type": "module",
+  "description": "Moo — identify a stray cow, sheep, or horse by its face and find its owner.",
+  "scripts": {
+    "start": "python3 -m http.server 8000"
+  }
+}
