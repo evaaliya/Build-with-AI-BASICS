@@ -13,10 +13,12 @@ Moo is a dead-simple phone app (a PWA) for a village: point your camera at an an
 
 ```bash
 cd app
-python3 -m http.server 8000
+python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open `http://localhost:8000` on a phone or desktop browser. It needs the camera and, on first load, internet (for the AI model).
+Open `http://localhost:8000` in your browser. It needs the camera and, on first load, internet (for the AI model).
+
+> To also open it from a phone on the same Wi-Fi, bind to all interfaces instead: `python3 -m http.server 8000` (then visit `http://<your-Mac's-IP>:8000`).
 
 ## POC scope
 

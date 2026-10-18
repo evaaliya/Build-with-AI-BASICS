@@ -28,7 +28,7 @@ Moo is a web page that acts like an app. When you open it, a small AI model (Mob
 ## Where It Runs and How Someone Tries It
 
 - Runs in a phone or desktop browser. Needs the camera and, on first load, internet (for the model CDN).
-- Start: `cd app && python3 -m http.server 8000`, then open `http://localhost:8000`.
+- Start: `cd app && python3 -m http.server 8000 --bind 127.0.0.1`, then open `http://localhost:8000`.
 - Demo: register two or three animals, then scan them again.
 
 ## Look and Feel
