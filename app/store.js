@@ -70,7 +70,7 @@ function upsertProfile(profile) {
   const users = getUsers();
   const i = users.findIndex((u) => u.id === profile.id);
   if (i >= 0) users[i] = { ...users[i], ...profile };
-  else users.push({ id: profile.id, name: profile.name, phone: profile.phone || '', passHash: '', createdAt: Date.now() });
+  else users.push({ passHash: '', createdAt: Date.now(), ...profile });
   write(KEYS.users, users);
 }
 

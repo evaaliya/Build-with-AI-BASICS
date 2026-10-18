@@ -4,6 +4,7 @@
 // achievable stand-in (see spec.md).
 
 import { captureFrame, toSquare } from './camera.js';
+import { loadScript } from './loader.js';
 
 let model = null;
 let loading = null;
@@ -12,6 +13,8 @@ async function loadModel() {
   if (model) return model;
   if (!loading) {
     loading = (async () => {
+      if (!window.tf) await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+      if (!window.mobilenet) await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js');
       if (!window.tf || !window.mobilenet) {
         throw new Error('AI model failed to load — check your internet connection and reload.');
       }

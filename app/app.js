@@ -9,6 +9,7 @@ import { fingerprintOf, findMatch } from './recognition.js';
 import * as supabase from './supabase.js';
 import { t, setLang, getLang, applyI18n, LANGS } from './i18n.js';
 import { HOUSES } from './houses.js';
+import { loadScript, loadCSS } from './loader.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -512,8 +513,13 @@ function addHouseMarker(h) {
     .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
 }
 
-function initMap() {
-  if (map || !window.L) return;
+async function initMap() {
+  if (map) return;
+  if (!window.L) {
+    loadCSS('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css');
+    await loadScript('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js');
+  }
+  if (!window.L) return;
   houses = loadHouses();
   map = L.map('map').setView([43.18807, 74.34209], 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
