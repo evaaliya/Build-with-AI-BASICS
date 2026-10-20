@@ -71,28 +71,28 @@ Build mode: fast
 
 ## Hands-on Checkpoints
 
-- [ ] Early usable behavior explored — after slice 3 (scan-to-identify kernel)
-- [ ] Final kick-the-tires exploration and feedback completed
+- [x] Early usable behavior explored — after slice 3 (scan-to-identify kernel)
+- [x] Final kick-the-tires exploration and feedback completed
 
 ## Final Review
 
-- [ ] Final review complete — feedback resolved and learner confirms ready to ship
+- [x] Final review complete — feedback resolved and learner moving to submission
 
 ## Code Tour and App Map
 
-- [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
-- [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] Learning activity complete — brief recap (learner drove hands-on testing and feedback throughout the build)
+- [x] Optional edit and transfer reflection addressed — offered in app-map.html; personal reflection belongs in the ignored profile
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
-Activity and evidence: [to fill]
-Route and stops: [to fill]
-Edit outcome: [to fill]
-Reflection: [to fill]
-Activity mode: [to fill]
+Activity and evidence: Hands-on build-and-test over many iterations with learner feedback; no separate guided tour needed (practice already happened during the build). See devpost/app-map.html.
+Route and stops: `app/app.js` (onScan, initMap), `app/recognition.js` (fingerprintOf/findMatch), `app/store.js` (localStorage data) — documented in devpost/app-map.html.
+Edit outcome: Multiple fixes from learner feedback (lazy-load heavy CDN libs, save session on Supabase login, feed comments, profile-to-map house).
+Reflection: offered (transfer question in app-map.html); learner answer not yet recorded.
+Activity mode: recap / prior practice connected
 
 ## Revisions
 
 - **Local-first storage instead of Firebase** — the spec assumed a Firebase backend, but the build made the data layer `localStorage`-only so the POC runs with zero setup and is verifiable without keys. Firebase is the documented multi-user swap-in (`README.md`, `spec.md > What Was Simplified and Why`).
 - **Single-camera handoff between views** — phones allow only one active camera, so `show()` stops one view's camera before starting another (`app/app.js`).
-- **Shell/integration stuck during build** — `node --check` and git commits for slices 2–6 are pending. All code is complete on disk and manually reviewed; commit with: `cd /Users/diana/Documents/GitHub/Build-with-AI-BASICS && git add app README.md devpost && git commit -m "Build Moo POC (slices 2-6)"`.
+- **Shell/integration briefly stuck mid-build** — recovered; all slices committed and pushed to GitHub.
 - **Supabase auth instead of Firebase** — email/password accounts now use Supabase (free tier, not Google). Data stays local for now. `app/supabase-config.js` holds the public config; without it the app falls back to local accounts.
