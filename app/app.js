@@ -2,7 +2,7 @@
 
 import {
   signUp, signIn, signOut, getSession, setSession, getTheme, setTheme,
-  getAnimals, addAnimal, getUsers, getPosts, addPost, getMessages, addMessage, updateAnimal, upsertProfile,
+  getAnimals, addAnimal, getUsers, getPosts, addPost, addComment, getMessages, addMessage, updateAnimal, upsertProfile,
 } from './store.js';
 import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
 import { fingerprintOf, findMatch } from './recognition.js';
@@ -295,6 +295,10 @@ function renderFeed() {
   $('#feedEmpty').classList.toggle('hidden', posts.length > 0);
   for (const p of posts) {
     const author = getUsers().find((u) => u.id === p.userId);
+    const comments = (p.comments || []).map((c) => {
+      const cu = getUsers().find((u) => u.id === c.from);
+      return `<div class="comment"><strong>${cu ? esc(cu.name) : t('someone')}</strong> ${esc(c.text)}</div>`;
+    }).join('');
     const card = document.createElement('div');
     card.className = 'card post';
     card.innerHTML =
@@ -302,6 +306,11 @@ function renderFeed() {
       `<div class="post-body">` +
       `<div class="post-note">${esc(p.note)}</div>` +
       `<div class="post-meta">${typeName(p.type)}${p.location ? ' · ' + esc(p.location) : ''} · ${t('by')} ${author ? esc(author.name) : t('someone')}</div>` +
+      `</div>` +
+      `<div class="post-comments">${comments}</div>` +
+      `<div class="comment-form">` +
+      `<input type="text" class="comment-input" data-post="${p.id}" placeholder="${esc(t('addComment'))}">` +
+      `<button class="comment-btn" data-post="${p.id}">➤</button>` +
       `</div>`;
     wrap.appendChild(card);
   }
@@ -489,6 +498,8 @@ function applyLanguage() {
 let map = null;
 let houses = [];
 let addingHouse = false;
+let placingMyHouse = false;
+let houseLayer = null;
 
 const VET = { name: 'Dr. Aibek', address: 'Village clinic', phone: '+996 …', lat: 43.18807, lng: 74.34209 };
 
@@ -506,11 +517,22 @@ function houseIcon(emoji) {
   return L.divIcon({ className: 'house-marker', html: `<div class="house-icon">${emoji}</div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
 }
 
+function housePopup(h) {
+  const photo = h.photo ? `<img src="${h.photo}" alt="">` : `<div class="house-no-photo">${h.userId ? '🧑‍🌾' : '🏚️'}</div>`;
+  const badge = h.userId ? `<div class="registered-badge">✓ ${t('registered')}</div>` : '';
+  return `<div class="house-popup">${photo}<strong>${esc(h.name)}</strong>${badge}<div>${esc(h.address)}</div></div>`;
+}
+
 function addHouseMarker(h) {
-  const photo = h.photo ? `<img src="${h.photo}" alt="">` : '<div class="house-no-photo">🧑‍🌾</div>';
-  L.marker([h.lat, h.lng], { icon: houseIcon('🏠') })
-    .addTo(map)
-    .bindPopup(`<div class="house-popup">${photo}<strong>${esc(h.name)}</strong><div>${esc(h.address)}</div></div>`);
+  L.marker([h.lat, h.lng], { icon: houseIcon(h.userId ? '🏡' : '🏠') })
+    .addTo(houseLayer)
+    .bindPopup(housePopup(h));
+}
+
+function renderHouseMarkers() {
+  if (!houseLayer) return;
+  houseLayer.clearLayers();
+  for (const h of houses) addHouseMarker(h);
 }
 
 async function initMap() {
@@ -526,22 +548,49 @@ async function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
-  for (const h of houses) addHouseMarker(h);
+  houseLayer = L.layerGroup().addTo(map);
+  renderHouseMarkers();
   // Veterinarian marker (visible to everyone).
   L.marker([VET.lat, VET.lng], { icon: houseIcon('🏥') })
     .addTo(map)
     .bindPopup(`<div class="house-popup"><div class="house-no-photo">🩺</div><strong>${esc(VET.name)}</strong><div>${esc(VET.address)}</div><div>${esc(VET.phone)}</div></div>`);
   map.on('click', (e) => {
-    if (!addingHouse) return;
     const { lat, lng } = e.latlng;
-    const name = prompt(t('houseName'));
-    if (!name) return;
-    const address = prompt(t('address')) || '';
-    houses.push({ lat, lng, name, address, photo: null });
-    saveHouses();
-    addHouseMarker({ lat, lng, name, address, photo: null });
-    toggleAddHouse();
+    if (placingMyHouse) {
+      placeMyHouseAt(lat, lng);
+      return;
+    }
+    if (addingHouse) {
+      const name = prompt(t('houseName'));
+      if (!name) return;
+      const address = prompt(t('address')) || '';
+      houses.push({ lat, lng, name, address, photo: null });
+      saveHouses();
+      renderHouseMarkers();
+      toggleAddHouse();
+    }
   });
+}
+
+function placeMyHouseAt(lat, lng) {
+  const me = currentUser;
+  if (!me) return;
+  const h = { lat, lng, name: me.name, address: me.address || '', photo: null, userId: me.id };
+  const idx = houses.findIndex((x) => x.userId === me.id);
+  if (idx >= 0) houses[idx] = { ...houses[idx], ...h };
+  else houses.push(h);
+  saveHouses();
+  renderHouseMarkers();
+  placingMyHouse = false;
+}
+
+function startPlaceMyHouse() {
+  if (!currentUser) return;
+  const addr = $('#profileAddress').value.trim();
+  currentUser.address = addr;
+  upsertProfile(currentUser);
+  placingMyHouse = true;
+  show('map');
 }
 
 function toggleAddHouse() {
@@ -587,7 +636,8 @@ function renderProfile() {
     `<div class="muted">${esc(profile.phone || '')}</div>` +
     `<label style="margin-top:10px"><span>${t('address')}</span>` +
     `<input id="profileAddress" type="text" placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
-    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>`;
+    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>` +
+    `<button id="placeMyHouseBtn" class="btn">📍 ${t('placeMyHouse')}</button>`;
   $('#myAnimalsList').innerHTML = '';
   $('#myAnimalsEmpty').classList.toggle('hidden', myAnimals.length > 0);
   for (const a of myAnimals) {
@@ -604,6 +654,7 @@ function renderProfile() {
     currentUser = profile;
     renderProfile();
   });
+  $('#placeMyHouseBtn').addEventListener('click', startPlaceMyHouse);
 }
 
 function boot() {
@@ -658,6 +709,26 @@ function boot() {
   $('#registerForm').addEventListener('submit', handleRegisterSubmit);
   $('#postForm').addEventListener('submit', handlePostSubmit);
   $('#postPhoto').addEventListener('change', onPostPhoto);
+  $('#postList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.comment-btn');
+    if (!btn) return;
+    const input = document.querySelector(`.comment-input[data-post="${btn.dataset.post}"]`);
+    const text = input ? input.value.trim() : '';
+    if (!text) return;
+    const user = getSession();
+    addComment(btn.dataset.post, { from: user.id, text });
+    renderFeed();
+  });
+  $('#postList').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest('.comment-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    const user = getSession();
+    addComment(input.dataset.post, { from: user.id, text });
+    renderFeed();
+  });
   $('#sendBtn').addEventListener('click', sendText);
   $('#chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
   $('#voiceBtn').addEventListener('click', toggleVoice);

@@ -294,6 +294,13 @@ textarea { resize: vertical; min-height: 64px; }
 #vetCard { margin-bottom: 12px; }
 #addHouseBtn { margin-bottom: 10px; }
 
+.post-comments { margin-top: 8px; }
+.comment { font-size: 0.9rem; padding: 5px 0; border-top: 1px solid var(--border); }
+.comment strong { color: var(--primary); }
+.comment-form { display: flex; gap: 6px; margin-top: 8px; }
+.comment-form input { flex: 1; }
+.registered-badge { color: var(--primary); font-size: 0.8rem; font-weight: 700; }
+
 /* Animals list + detail */
 .clickable { cursor: pointer; }
 #animalSearch { margin-bottom: 12px; }

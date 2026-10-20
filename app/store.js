@@ -102,6 +102,16 @@ function addPost(post) {
   return post;
 }
 
+function addComment(postId, comment) {
+  const list = getPosts();
+  const p = list.find((x) => x.id === postId);
+  if (!p) return null;
+  p.comments = p.comments || [];
+  p.comments.push({ id: uid(), from: comment.from, text: comment.text, createdAt: Date.now() });
+  write(KEYS.posts, list);
+  return p;
+}
+
 // ---- messages ----
 const getMessages = () => read(KEYS.messages, []);
 
@@ -120,6 +130,6 @@ function setTheme(t) { write(KEYS.theme, t); }
 export {
   signUp, signIn, signOut, getSession, setSession, getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
-  getPosts, addPost, getMessages, addMessage,
+  getPosts, addPost, addComment, getMessages, addMessage,
   getTheme, setTheme,
 };

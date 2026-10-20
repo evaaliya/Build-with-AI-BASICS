@@ -91,6 +91,9 @@ const STRINGS = {
   addHouse: { en: '+ Add house', ru: '+ Добавить дом', ky: '+ Үй кошуу' },
   tapToPlace: { en: 'Tap the map to place a house', ru: 'Нажми на карту, чтобы поставить дом', ky: 'Үйдү коюу үчүн картаны басыңыз' },
   houseName: { en: 'House owner name', ru: 'Имя владельца дома', ky: 'Үй ээсинин аты' },
+  placeMyHouse: { en: 'Place my house on the map', ru: 'Поставить мой дом на карту', ky: 'Үйүмдү картага коюу' },
+  registered: { en: 'registered', ru: 'зарегистрирован', ky: 'катталган' },
+  addComment: { en: 'Add a comment…', ru: 'Добавить комментарий…', ky: 'Комментарий кошуу…' },
 };
 
 const LANGS = [
