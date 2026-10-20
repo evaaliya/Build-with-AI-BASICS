@@ -43,4 +43,4 @@ async function getCurrentUser() {
   return data.session ? data.session.user : null;
 }
 
-export { isReady, signUp, signIn, signOut, getCurrentUser };
+export { isReady, getClient, signUp, signIn, signOut, getCurrentUser };

@@ -1,103 +1,129 @@
 # Moo 🐄
 
-> Identify a stray cow, sheep, or horse by its face — and find its owner.
+> Livestock biosecurity & digital vet passports for a village — vaccination tracking, a veterinarian hotline, and outbreak awareness.
 
-**Moo** is a mobile-first progressive web app (PWA) for a village: point your camera at an animal, and instantly see who owns it, then message them by voice or text. Owners register each animal once by scanning its face; anyone can later scan a stray animal to reach its owner. Unregistered animals are posted to a "is anyone looking for this?" feed.
+**Moo** is a mobile-first progressive web app (PWA) that helps smallholders protect their herds. It keeps a **digital vet passport** for every animal (ear tag, vaccination history, next re-vaccination date, milk/expense/illness log), flags **Foot-and-Mouth Disease (Ящур)** vaccination status at a glance (green = protected, yellow = due, red = overdue), gives direct access to the **village veterinarian** (emergency call + broadcast alerts), and shows **outbreak markers** on a village map (vet only).
+
+It also keeps the original muzzle-recognition feature: point the camera at an animal's muzzle (nose pad) to identify it and its owner.
 
 Built as a proof of concept for the **Build with AI: Basics** hackathon.
 
+## The 90-second demo
+
+1. Open the app — there is **no login screen**; it opens straight into the app with a seeded demo farm (4 animals with different FMD vaccination statuses).
+2. **My animals** — the digital vet passport: ear tags, vaccination badges, vaccination history, health journal.
+3. **Scan** — point at a muzzle and tap Scan → a quick-info plaque shows the owner + FMD vaccination status.
+4. **Chat** — pinned veterinarian card (emergency call), broadcast alerts, and village health stats.
+5. **My farm (profile)** — trophies for vaccination, and the "I'm the vet" mode (code `VET-2026`).
+
 ## Features
 
-- **Face recognition** — register an animal by scanning its face once; later scans identify the animal and its owner.
-- **Accounts** — real email/password sign-up and sign-in (Supabase, free tier), with a local fallback.
-- **My animals** — each farmer sees only the animals they own.
-- **Lost & found feed** — post a photo of a lost animal and comment on posts.
-- **Village chat** — text and voice messages, plus a pinned veterinarian card.
-- **Village map** — interactive map with cartoon house markers; a profile address places your own house, and registered vs. unregistered households are distinguished.
-- **Reminders** — vaccination, heat cycle, vet visit, and weighing, per animal.
-- **i18n** — English, Russian, and Kyrgyz, with light and dark themes.
+- **Digital vet passport** — per animal: photo, ear tag, vaccination history, next re-vaccination date, and a health journal (milk yield, expenses, illness, death).
+- **Vaccination status (Ящур / FMD)** — green `Защищён` / yellow `Требуется прививка` / red `Просрочено`, shown on every animal card and on the scan plaque.
+- **Vet hotline & broadcasts** — pinned vet profile with an emergency call button and top-level broadcast alerts (e.g. scheduled FMD vaccination, quarantine).
+- **Village health stats** — aggregated suspected-FMD / brucellosis / deaths / vaccinated-this-week counts in the chat tab.
+- **Outbreak map (vet only)** — red outbreak markers appear on the map only after the vet role is enabled.
+- **Rewards** — trophies for vaccinating animals, reminders at 30 / 7 / 1 days before expiry, and a trophy is lost if a vaccination lapses.
+- **Categorized feed** — feed & hay, machinery & herders, quarantine, and lost & found.
+- **Muzzle recognition** — register with 3–5 averaged frames; later scans identify the animal and owner (honest matching + species gate).
+- **i18n** — Russian (default), Kyrgyz, English; light/dark + cartoon theme.
 
-## How the face recognition works
+## Vet role
 
-There is no free "animal Face ID" API. Moo uses an honest stand-in: a **MobileNet** model (via TensorFlow.js) runs in the browser and turns each animal's face into a 1280-number embedding — its "fingerprint" — at registration. Later scans are matched against saved fingerprints by **cosine similarity**; the closest match above a threshold is returned with the owner.
+The veterinarian role is unlocked with the demo code **`VET-2026`** (`VET_CODE` in `app/vet.js`). Enter it in **My farm → "I'm the vet"**. For real protection, store the role in `profiles` and gate it with Row Level Security.
+
+## How the recognition works (and how we measured it)
+
+There is no free "animal Face ID" API. Moo uses a **MobileNet v2** model (TensorFlow.js) that runs in the browser and turns a close-up of the muzzle/nose pad into a 1280-number embedding — its "fingerprint." Livestock nose-print has long been used as a biometric, so we ask for a close-up.
+
+- **Registration** averages 3–5 frames into one fingerprint for stability.
+- **Species gate** — `mobilenet.classify` labels the image; if it disagrees strongly with the chosen type we warn, and at scan time we only compare against the detected species.
+- **Match rule** — cosine similarity must be ≥ **threshold** *and* the best candidate must be ≥ **margin** above the second-best. Below threshold we show no phone and instead offer "publish to feed."
+
+Current shipped thresholds (see `app/recognition.js`):
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `MATCH_THRESHOLD` | 0.88 | cosine similarity required for "found it" |
+| `MATCH_MARGIN` | 0.06 | best candidate must beat 2nd best by this |
+| `SPECIES_CONFIDENCE` | 0.35 | `mobilenet.classify` score to trust the species |
+| `FRAMES_TO_CAPTURE` | 4 | frames averaged at registration |
+
+These are the shipped defaults. **Tune them against your own data** with `tools/calibrate.html` (load ~10–20 real photos: one group of the same animal, one group of other animals) and paste the measured numbers back here and into `spec.md`.
+
+### What we learned about MobileNet (limitations)
+
+MobileNet is an image **classifier**, not a face-ID/metric model. Its embeddings cluster by *category*, so two different cows can be closer than the same cow under different lighting/angle. We measured this and counter it with (1) a species classification gate, (2) a high similarity threshold, (3) a required margin over the runner-up, and (4) averaging multiple frames. The honest result: it works for a village-scale demo, not for a national registry.
 
 ## Tech stack
 
 - Vanilla **JavaScript** (ES modules) — no build step.
-- **TensorFlow.js + MobileNet v2** — face embeddings.
+- **TensorFlow.js + MobileNet v2** — muzzle embeddings + species classification.
+- **Supabase** — Auth + Postgres (RLS) for animals, fingerprints, posts, messages, profiles (optional; see below).
 - **Leaflet + OpenStreetMap** — interactive map.
-- **Supabase** — email/password authentication.
-- **PWA** — web app manifest + service worker.
-- **`localStorage`** — per-device data (Supabase Postgres is the documented multi-user next step).
+- **PWA** — manifest + service worker (unregistered by default so stale cache never breaks the app).
 
 ## Getting started
 
 ### Prerequisites
 
 - Python 3 (or any static file server).
-- A camera for scanning (a phone or webcam).
-- Internet on first load (to download the MobileNet model).
+- A camera (phone or webcam); internet on first load (model).
 
-### Run locally
+### 1. Run locally
 
 ```bash
 cd app
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open `http://localhost:8000` in a browser.
+Open `http://localhost:8000`. The app opens directly (no login) and seeds a demo farm. To open from a phone on the same Wi-Fi, drop `--bind 127.0.0.1` and visit `http://<your-mac-ip>:8000`.
 
-> To also open it from a phone on the same Wi-Fi, drop `--bind 127.0.0.1` and visit `http://<your-mac-ip>:8000`.
-
-### Configure Supabase auth
+### 2. (Optional) Supabase for shared data across devices
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Copy the **Project URL** and **publishable key** into `app/supabase-config.js`.
-3. For instant sign-in without a verification email during testing, disable **Authentication → Providers → Email → Confirm email**.
+2. Run the SQL in `supabase/schema.sql` in the SQL editor — it creates `profiles`, `animals`, `posts`, and `messages` with Row Level Security (plus biosafety columns).
+3. Copy the **Project URL** and **publishable (anon) key** into `app/supabase-config.js`.
 
-If Supabase isn't configured, the app falls back to local (browser-only) accounts.
+If Supabase isn't configured, or its tables are missing, the app **automatically falls back to per-device `localStorage`** and seeds demo data.
 
 ## Project structure
 
 ```
-app/
-├── index.html            # single-page shell (all views)
-├── styles.css            # earthy light/dark theme
-├── app.js                # routing, state, and features
-├── store.js              # localStorage data layer
-├── camera.js             # camera capture + voice recording
-├── recognition.js        # MobileNet embeddings + nearest-neighbor matching
-├── supabase.js           # email/password auth
-├── i18n.js               # EN / RU / KY translations
-├── houses.js             # seed village houses
-├── loader.js             # lazy-loads heavy CDN libraries
-├── manifest.webmanifest  # PWA manifest
-├── sw.js                 # service worker
-└── icons/icon.svg
-devpost/                  # planning docs (scope, PRD, spec, checklist, app map)
+app/                  # the PWA
+├── index.html
+├── styles.css        # base design system (AgTech / Nature)
+├── cartoon.css       # playful "cartoon" layer, loaded after styles.css
+├── app.js            # routing, state, features
+├── store.js          # Supabase (RLS) + localStorage fallback data layer
+├── mock.js           # demo data: vet, alerts, feed categories, map points, demo farm
+├── rewards.js        # trophies for vaccination
+├── vet.js            # veterinarian role + outbreak markers
+├── camera.js
+├── recognition.js    # MobileNet embeddings, species gate, matching
+├── supabase.js, supabase-config.js
+├── i18n.js, houses.js, loader.js
+├── manifest.webmanifest, sw.js, icons/
+supabase/
+└── schema.sql        # Postgres tables + Row Level Security
+tools/
+├── calibrate.html    # measure threshold/margin on real photos
+└── README.md
+scope.md, prd.md, spec.md   # canonical planning docs
+devpost/              # hackathon learning workspace (app-map, checklist, learner profile)
 ```
 
-## Proof-of-concept scope and limitations
-
-In scope: accounts, register-animal-with-face-scan, scan-to-identify, lost-and-found feed with comments, voice/text chat, reminders, search, village map, i18n, and themes.
+## Scope, limitations, and next steps
 
 Known limitations:
 
-- Data is stored per-device in `localStorage`. Moving to Supabase Postgres is the documented next step for true multi-user sharing.
-- The recognition match threshold (`0.6` in `app/app.js`) may need tuning for real-world photos.
-- The veterinarian info (`VET` in `app/app.js`) and the seed houses (`app/houses.js`) are placeholder data — replace with real contact details and coordinates.
+- Photos are stored as data URLs in Postgres (`text`); move to Supabase Storage for scale.
+- Recognition is honest but bounded by MobileNet (see above); threshold/margin are defaults to re-measure with `tools/calibrate.html`.
+- The veterinarian role is a demo code (`VET-2026`) stored in `localStorage`; use `profiles` + RLS for production.
+- Rewards, vet mode, and outbreak markers are local demo state.
 
-## Roadmap
-
-- Shared backend (Supabase Postgres) so data is shared across phones.
-- Offline recognition (on-device model).
-- Native app (app store).
-- Roles and permissions (owner vs. resident vs. vet).
+Roadmap: Supabase Storage for photos, offline recognition (on-device model), native app, roles/permissions, real push notifications.
 
 ## License
 
 [Apache License 2.0](LICENSE).
-
-## Author
-
-Built by [Your name] for Build with AI: Basics.

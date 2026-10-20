@@ -3,6 +3,8 @@ doc: prd
 status: approved
 ---
 
+> ⚠️ Superseded — the canonical, updated copy is at the repo root: [`prd.md`](../prd.md).
+
 # Moo — Product Requirements
 
 One line: Moo is a dead-simple phone app (a PWA) that lets anyone in a village identify a cow, sheep, or horse by its face, see who owns it, and message them. Source: `scope.md > The Unique Kernel`, `scope.md > The Core Loop`.

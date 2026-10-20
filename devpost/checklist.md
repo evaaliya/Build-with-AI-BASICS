@@ -96,3 +96,6 @@ Activity mode: recap / prior practice connected
 - **Single-camera handoff between views** — phones allow only one active camera, so `show()` stops one view's camera before starting another (`app/app.js`).
 - **Shell/integration briefly stuck mid-build** — recovered; all slices committed and pushed to GitHub.
 - **Supabase auth instead of Firebase** — email/password accounts now use Supabase (free tier, not Google). Data stays local for now. `app/supabase-config.js` holds the public config; without it the app falls back to local accounts.
+- **Supabase Postgres with RLS instead of localStorage** — animals (with averaged muzzle fingerprints), posts, messages, and profiles now live in Supabase Postgres (`supabase/schema.sql`), shared across phones. `app/store.js` keeps a localStorage fallback when Supabase isn't configured.
+- **Honest, measurable recognition** — registration averages 4 muzzle frames; a MobileNet species gate prevents sheep↔horse mix-ups; matching requires a similarity threshold *and* a separation margin over the runner-up. Below threshold the app shows no phone and offers "publish to feed" instead. Thresholds are tunable with `tools/calibrate.html`.
+- **Scope frozen for the demo** — the 90-second demo covers register → scan-on-second-phone → owner found → "not found" → feed. Chat, map, and reminders are implemented but not demoed.

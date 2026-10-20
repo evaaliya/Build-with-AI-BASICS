@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moo — recognition calibration</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 1.4rem; }
+  .drop { border: 2px dashed #999; border-radius: 12px; padding: 16px; margin: 12px 0; }
+  .drop input { display: block; margin-top: 8px; }
+  pre { background: #f6f6f6; padding: 12px; border-radius: 8px; overflow: auto; }
+  .muted { color: #666; }
+  button { font-size: 1rem; padding: 8px 14px; }
+</style>
+</head>
+<body>
+  <h1>Moo — recognition calibration</h1>
+  <p class="muted">Measures genuine vs. impostor cosine similarity so you can pick an honest threshold + margin. Uses the same MobileNet v2 model as the app.</p>
+
+  <p><button id="loadModelBtn">1. Load MobileNet</button> <span id="modelStatus" class="muted"></span></p>
+
+  <div class="drop">
+    <strong>2. Same animal (genuine)</strong> — several photos of ONE animal from different angles.
+    <input id="genuineInput" type="file" accept="image/*" multiple>
+  </div>
+
+  <div class="drop">
+    <strong>3. Other animals (impostor)</strong> — photos of DIFFERENT animals (ideally the same species, e.g. other cows).
+    <input id="impostorInput" type="file" accept="image/*" multiple>
+  </div>
+
+  <p><button id="runBtn" disabled>4. Compute</button> <span id="runStatus" class="muted"></span></p>
+
+  <div id="results"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+  <script>
+    let model = null;
+    const $ = (s) => document.querySelector(s);
+
+    function cosine(a, b) {
+      let dot = 0, na = 0, nb = 0;
+      for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+      return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+    }
+
+    function toSquare(img) {
+      const size = 224;
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const c = document.createElement('canvas'); c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+      return c;
+    }
+
+    async function embed(file) {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = rej;
+        im.src = url;
+      });
+      const t = model.infer(toSquare(img), true);
+      const arr = Array.from(await t.data());
+      t.dispose();
+      URL.revokeObjectURL(url);
+      return arr;
+    }
+
+    function stats(arr) {
+      arr.sort((a, b) => a - b);
+      const n = arr.length;
+      const sum = arr.reduce((s, x) => s + x, 0);
+      const min = arr[0], max = arr[n - 1], mean = sum / n;
+      const median = n % 2 ? arr[(n - 1) / 2] : (arr[n / 2 - 1] + arr[n / 2]) / 2;
+      return { n, min, max, mean, median };
+    }
+
+    function pairwise(a, b) {
+      const sims = [];
+      for (let i = 0; i < a.length; i++)
+        for (let j = 0; j < b.length; j++)
+          if (a[i] !== b[j]) sims.push(cosine(a[i], b[j]));
+      return sims;
+    }
+
+    $('#loadModelBtn').addEventListener('click', async () => {
+      $('#modelStatus').textContent = 'loading…';
+      model = await mobilenet.load({ version: 2, alpha: 1.0 });
+      $('#modelStatus').textContent = 'ready';
+      $('#runBtn').disabled = false;
+    });
+
+    $('#runBtn').addEventListener('click', async () => {
+      const genFiles = [...$('#genuineInput').files];
+      const impFiles = [...$('#impostorInput').files];
+      if (!genFiles.length || !impFiles.length) { alert('Choose both groups first.'); return; }
+      $('#runStatus').textContent = 'computing…';
+      const genE = await Promise.all(genFiles.map(embed));
+      const impE = await Promise.all(impFiles.map(embed));
+      const genuine = pairwise(genE, genE);
+      const impostor = pairwise(genE, impE);
+      const g = stats(genuine);
+      const i = stats(impostor);
+      const threshold = (i.max + g.min) / 2;
+      const gap = g.min - i.max;
+      const margin = gap > 0 ? gap : 0.05;
+
+      const report =
+`## Recognition calibration (measured)
+
+Photos: ${genFiles.length} same-animal, ${impFiles.length} other-animal.
+
+| Distribution | n | min | median | mean | max |
+| --- | --- | --- | --- | --- | --- |
+| Genuine (same animal) | ${g.n} | ${g.min.toFixed(4)} | ${g.median.toFixed(4)} | ${g.mean.toFixed(4)} | ${g.max.toFixed(4)} |
+| Impostor (different) | ${i.n} | ${i.min.toFixed(4)} | ${i.median.toFixed(4)} | ${i.mean.toFixed(4)} | ${i.max.toFixed(4)} |
+
+Recommended: MATCH_THRESHOLD = ${threshold.toFixed(3)}, MATCH_MARGIN = ${Math.min(margin, 0.3).toFixed(3)}
+(separation gap between impostor max and genuine min = ${gap.toFixed(4)}).`;
+
+      $('#runStatus').textContent = 'done';
+      $('#results').innerHTML = '<pre>' + report.replace(/</g, '&lt;') + '</pre>' +
+        '<p><button id="copyBtn">Copy report</button></p>';
+      $('#copyBtn').addEventListener('click', () => navigator.clipboard.writeText(report));
+    });
+  </script>
+</body>
+</html>

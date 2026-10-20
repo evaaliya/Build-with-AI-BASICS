@@ -1,11 +1,11 @@
 {
-  "name": "Moo — find who owns that animal",
+  "name": "Moo — Биобезопасность скота",
   "short_name": "Moo",
-  "description": "Identify a stray cow, sheep, or horse by its face and find its owner.",
+  "description": "Цифровой ветпаспорт и биобезопасность скота: вакцинации, ветеринар, лента села.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f6f1e6",
-  "theme_color": "#3b6e4f",
+  "background_color": "#fbf9f5",
+  "theme_color": "#1e4d2b",
   "icons": [
     {
       "src": "icons/icon.svg",

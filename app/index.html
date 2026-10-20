@@ -3,13 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#3b6e4f">
-  <title>Moo — find who owns that animal</title>
+  <meta name="theme-color" content="#1e4d2b">
+  <title>Moo — Биобезопасность скота</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css">
-  <script defer src="supabase-config.js"></script>
+  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="cartoon.css?v=1">
+  <script defer src="supabase-config.js?v=5"></script>
+  <script>
+    // Drop any previously registered service worker so stale cache never breaks the app.
+    (function () {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      if (window.caches) {
+        caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); });
+      }
+    })();
+  </script>
 </head>
 <body>
   <div id="app">
@@ -20,13 +34,12 @@
         <button id="profileBtn" class="icon-btn hidden" data-i18n-aria="myFarm" aria-label="My farm">👤</button>
         <button id="langToggle" class="icon-btn" data-i18n-aria="language" aria-label="Language">EN</button>
         <button id="themeToggle" class="icon-btn" data-i18n-aria="toggleTheme" aria-label="Toggle theme">🌙</button>
-        <button id="signOutBtn" class="icon-btn hidden" data-i18n-aria="signOut" aria-label="Sign out">⎋</button>
       </div>
     </header>
 
     <main id="main">
       <!-- Auth -->
-      <section id="view-auth" class="view">
+      <section id="view-auth" class="view hidden">
         <div class="auth-card">
           <div class="auth-hero">
             <div class="logo">🐄</div>
@@ -34,18 +47,6 @@
             <p data-i18n="tagline">Point at an animal. Find its owner.</p>
           </div>
           <form id="authForm">
-            <div id="authTabs" class="auth-tabs">
-              <button type="button" data-mode="signin" class="active" data-i18n="signIn">Sign in</button>
-              <button type="button" data-mode="signup" data-i18n="createAccount">Create account</button>
-            </div>
-            <label id="nameField" class="hidden">
-              <span data-i18n="name">Name</span>
-              <input id="authName" type="text" autocomplete="name" data-i18n-ph="yourName" placeholder="Your name">
-            </label>
-            <label id="phoneField" class="hidden">
-              <span data-i18n="phone">Phone</span>
-              <input id="authPhone" type="tel" autocomplete="tel" data-i18n-ph="phonePh" placeholder="+996 …">
-            </label>
             <label>
               <span data-i18n="email">Email</span>
               <input id="authEmail" type="email" autocomplete="username" data-i18n-ph="emailPh" placeholder="you@example.com" required>
@@ -58,7 +59,7 @@
               </div>
             </label>
             <p id="authError" class="error hidden"></p>
-            <button type="submit" id="authSubmit" class="btn primary">Sign in</button>
+            <button type="submit" id="authSubmit" class="btn primary" data-i18n="signIn">Sign in</button>
           </form>
         </div>
       </section>
@@ -70,10 +71,10 @@
             <video id="camera" autoplay playsinline muted></video>
             <div class="frame-circle"></div>
             <p id="cameraError" class="error overlay hidden"></p>
+            <div id="scanResult" class="scan-plaque hidden"></div>
           </div>
-          <p class="hint" data-i18n="scanHint">Point the camera at the animal's face, then tap Scan.</p>
+          <p class="hint" data-i18n="scanHint">Point the camera at the animal's muzzle / nose pad, close-up, then tap Scan.</p>
           <button id="scanBtn" class="btn primary big" data-i18n="scan">Scan</button>
-          <div id="scanResult" class="card hidden"></div>
         </div>
       </section>
 
@@ -98,13 +99,19 @@
             <select id="regBreed"></select>
           </label>
           <label>
+            <span data-i18n="tagNumber">Ear tag</span>
+            <input id="regTag" type="text" data-i18n-ph="tagPh" placeholder="e.g. KG-0001">
+          </label>
+          <label>
             <span data-i18n="notes">Notes</span>
             <textarea id="regNotes" data-i18n-ph="notesPh" placeholder="Markings, temperament…"></textarea>
           </label>
           <div class="capture-box">
             <video id="registerCamera" autoplay playsinline muted></video>
-            <img id="regPreview" class="hidden" alt="Captured face">
-            <button type="button" id="captureFaceBtn" class="btn">📷 Capture face</button>
+            <img id="regPreview" class="hidden" alt="Captured muzzle">
+            <p id="frameCounter" class="hint">Frames: 0/4</p>
+            <button type="button" id="captureFaceBtn" class="btn">📷 Capture muzzle</button>
+            <button type="button" id="resetCaptureBtn" class="btn">↺ Retake</button>
           </div>
           <p id="registerError" class="error hidden"></p>
           <button type="submit" id="saveAnimalBtn" class="btn primary big" data-i18n="saveAnimal" disabled>Save animal</button>
@@ -153,12 +160,22 @@
 
       <!-- Feed -->
       <section id="view-feed" class="view hidden">
-        <div class="view-head"><h2 data-i18n="lostFound">Lost &amp; found</h2></div>
+        <div class="view-head"><h2 data-i18n="feedTitle">Village feed</h2></div>
+        <div id="feedTabs" class="feed-tabs"></div>
         <form id="postForm" class="card">
           <label>
             <span data-i18n="photo">Photo of the animal</span>
             <input id="postPhoto" type="file" accept="image/*">
             <img id="postPreview" class="hidden" alt="Preview">
+          </label>
+          <label>
+            <span data-i18n="postCategory">Category</span>
+            <select id="postCategory">
+              <option value="lost" data-i18n="catLost">Lost &amp; found</option>
+              <option value="feed" data-i18n="catFeed">Feed &amp; hay</option>
+              <option value="service" data-i18n="catService">Machinery &amp; herders</option>
+              <option value="alert" data-i18n="catAlert">Quarantine</option>
+            </select>
           </label>
           <label>
             <span data-i18n="note">Note</span>
@@ -186,7 +203,12 @@
       <!-- Chat -->
       <section id="view-chat" class="view hidden">
         <div class="view-head"><h2 data-i18n="villageChat">Village chat</h2></div>
-        <div id="vetCard" class="card"></div>
+        <div id="vetCard"></div>
+        <div class="section-title" data-i18n="vetBroadcasts">Vet broadcasts</div>
+        <div id="vetBroadcasts"></div>
+        <div class="section-title" data-i18n="villageHealth">Village health</div>
+        <div id="villageHealth" class="stat-grid"></div>
+        <div class="section-title" data-i18n="chatNav">Chat</div>
         <div id="chatList" class="chat-list"></div>
         <p id="chatEmpty" class="placeholder hidden" data-i18n="noMessages">No messages yet. Say hello.</p>
         <p id="chatError" class="error hidden"></p>
@@ -200,6 +222,9 @@
       <section id="view-profile" class="view hidden">
         <div class="view-head"><h2 data-i18n="myFarm">My farm</h2></div>
         <div id="profileCard" class="card"></div>
+        <div class="view-head" style="margin-top:16px"><h3>🏆</h3></div>
+        <div id="trophyShelf"></div>
+        <div id="vetBox" class="card vet-box"></div>
         <div class="view-head" style="margin-top:16px"><h3 data-i18n="myAnimals">My animals</h3></div>
         <button id="addMyAnimalBtn" class="btn primary big" data-i18n="addAnimal">+ Add animal</button>
         <div id="myAnimalsList" class="list"></div>
@@ -210,6 +235,11 @@
       <section id="view-map" class="view hidden">
         <div class="view-head"><h2 data-i18n="villageMap">Village map</h2></div>
         <button id="addHouseBtn" class="btn primary" data-i18n="addHouse">+ Add house</button>
+        <div class="map-legend" id="mapLegend">
+          <span class="legend-item">🏥 <span data-i18n="vetClinic">Vet clinic</span></span>
+          <span class="legend-item">💉 <span data-i18n="vaccinationPoint">Vaccination point</span></span>
+          <span class="legend-item">🏡 <span data-i18n="houseName">House owner name</span></span>
+        </div>
         <div id="map" class="map-box"></div>
       </section>
     </main>
@@ -223,6 +253,6 @@
     </nav>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>

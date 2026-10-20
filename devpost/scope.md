@@ -3,6 +3,8 @@ doc: scope
 status: approved
 ---
 
+> ⚠️ Superseded — the canonical, updated copy is at the repo root: [`scope.md`](../scope.md).
+
 # Moo
 
 One line: a dead-simple phone app where anyone in a village can point their camera at a stray cow, sheep, or horse and instantly see the animal and its owner — then message the owner to come get it.

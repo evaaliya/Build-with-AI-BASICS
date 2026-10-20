@@ -3,6 +3,8 @@ doc: spec
 status: approved
 ---
 
+> ⚠️ Superseded — the canonical, updated copy is at the repo root: [`spec.md`](../spec.md).
+
 # Moo — Technical Spec
 
 ## How This Works, In Plain Language
