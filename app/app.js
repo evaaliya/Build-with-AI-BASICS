@@ -263,7 +263,7 @@ async function showAnimalDetail(id) {
     `</div>` +
     `<h3>${esc(a.name)}</h3>` +
     `<div class="muted">${typeName(a.type)}${a.breed ? ' · ' + esc(a.breed) : ''}</div>` +
-    `<div class="muted">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}${owner && owner.phone ? ' · ' + esc(owner.phone) : ''}</div>` +
+    `<div class="muted">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}${owner && owner.address ? ' · ' + esc(owner.address) : ''}</div>` +
     (a.notes ? `<p>${esc(a.notes)}</p>` : '') +
     vaccinationHistoryHtml(a) +
     healthJournalHtml(a) +
@@ -489,7 +489,7 @@ async function onScan() {
         `<div class="thumb">${speciesEmoji(match.animal.type)}</div>` +
         `<div class="plaque-body">` +
         `<div class="plaque-name">${esc(match.animal.name)} <span class="plaque-sub">(${typeName(match.animal.type)})</span></div>` +
-        `<div class="plaque-owner">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}${owner && owner.phone ? ' · ' + esc(owner.phone) : ''}</div>` +
+        `<div class="plaque-owner">${t('owner')}: ${owner ? esc(owner.name) : t('unknown')}${owner && owner.address ? ' · ' + esc(owner.address) : ''}</div>` +
         `<div class="plaque-status"><span class="badge ${v.status}"><span class="dot"></span>${esc(t('fmd'))}: ${esc(v.label)}</span></div>` +
         `<div class="plaque-conf">${pct}% ${t('matchPercent')}</div>` +
         `</div>`;
@@ -525,8 +525,10 @@ async function restoreSession() {
 
   // No login screen: open the app immediately with a local demo farm.
   const res = signUp('Фермер', 'fermer@demo.kg', 'demo');
-  if (res.ok) enterApp(res.user);
-  else enterApp({ id: 'guest-' + Date.now().toString(36), name: 'Фермер', phone: '' });
+  const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: 'Фермер', phone: '' };
+  demoUser.address = demoUser.address || 'ул. Ленина 12';
+  if (res.ok) await upsertProfile(demoUser);
+  enterApp(demoUser);
 }
 
 function typeName(type) {
