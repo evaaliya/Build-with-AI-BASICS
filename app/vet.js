@@ -1,13 +1,13 @@
-// Moo — роль ветеринара. Красные метки очагов болезней видит только ветеринар.
+// Moo — veterinarian role. Red outbreak markers are visible only to the vet.
 import { getLang } from './i18n.js';
 
-// Демо-код ветеринара. Для настоящей защиты роль нужно хранить в profiles и закрывать через RLS.
+// Demo vet code. For real protection store the role in profiles and gate it via RLS.
 export const VET_CODE = 'VET-2026';
 
 export const OUTBREAKS = [
-  { id: 'o1', disease: 'Ящур', cases: 2, lat: 43.18880, lng: 74.34150, sector: 'Сектор 3' },
-  { id: 'o2', disease: 'Бруцеллёз', cases: 1, lat: 43.18760, lng: 74.34290, sector: 'Сектор 3' },
-  { id: 'o3', disease: 'Падёж', cases: 1, lat: 43.18640, lng: 74.34180, sector: 'Сектор 5' },
+  { id: 'o1', disease: 'FMD', cases: 2, lat: 43.18880, lng: 74.34150, sector: 'Sector 3' },
+  { id: 'o2', disease: 'Brucellosis', cases: 1, lat: 43.18760, lng: 74.34290, sector: 'Sector 3' },
+  { id: 'o3', disease: 'Death', cases: 1, lat: 43.18640, lng: 74.34180, sector: 'Sector 5' },
 ];
 
 const TXT = {
@@ -46,7 +46,7 @@ export function disableVet(user) {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Рисует красные метки только если пользователь — ветеринар. Возвращает слой (или null).
+// Draws red outbreak markers only if the user is a vet. Returns the layer (or null).
 export function renderOutbreaks(L, map, user, previousLayer) {
   if (previousLayer) { map.removeLayer(previousLayer); }
   if (!isVet(user)) return null;

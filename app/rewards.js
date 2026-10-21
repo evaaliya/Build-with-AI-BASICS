@@ -1,10 +1,10 @@
-// Moo — награды за вакцинацию: кубки, 3 напоминания, потеря кубка при просрочке.
-// Чистая логика (evaluate) отделена от интерфейса, чтобы её можно было проверить в Node.
+// Moo — vaccination rewards: trophies, 3 reminders, trophy loss on expiry.
+// Pure logic (evaluate) is separated from the UI so it can be tested in Node.
 
 import { getLang } from './i18n.js';
 
 const DAY = 86400e3;
-const REMIND_AT = [30, 7, 1]; // за сколько дней до срока приходят 3 напоминания
+const REMIND_AT = [30, 7, 1]; // days before expiry for the 3 reminders
 export const LEVELS = [
   { min: 5, icon: '🥇', key: 'lvlGold' },
   { min: 3, icon: '🥈', key: 'lvlSilver' },
@@ -65,7 +65,7 @@ function latestByCode(animal) {
   return map;
 }
 
-// Главная логика. Возвращает { state, events }. События: earned | renewed | remind | lost.
+// Core logic. Returns { state, events }. Events: earned | renewed | remind | lost.
 export function evaluate(animals, prevState, now = Date.now()) {
   const state = JSON.parse(JSON.stringify(prevState || emptyState()));
   const events = [];
@@ -108,8 +108,8 @@ function mk(a, code, v, streak, now) {
   return { animalId: a.id, animalName: a.name, animalType: a.type, code, disease: v.disease || code, validUntil: v.validUntil || null, earnedAt: now, streak, lost: false };
 }
 
-// Фермер нажал «Отметить прививку»: действует 365 дней (раз в год).
-export function vaccinateAnimal(animal, code = 'fmd', disease = 'Ящур', now = Date.now()) {
+// Farmer taps "Mark vaccinated": valid for 365 days (once a year).
+export function vaccinateAnimal(animal, code = 'fmd', disease = 'FMD', now = Date.now()) {
   const date = new Date(now).toISOString().slice(0, 10);
   const validUntil = new Date(now + 365 * DAY).toISOString().slice(0, 10);
   animal.vaccinations = animal.vaccinations || [];
@@ -150,7 +150,7 @@ export function shelfHtml(state, now = Date.now()) {
   return head + `<div class="trophy-grid">${cards}</div>`;
 }
 
-// ---- всплывающие уведомления ----
+// ---- toast notifications ----
 export function eventText(e) {
   if (e.type === 'earned') return rt('earned', { name: e.name });
   if (e.type === 'renewed') return rt('renewed', { name: e.name, n: e.n });
@@ -187,7 +187,7 @@ export function showEvents(events) {
   });
 }
 
-// Один вызов из app.js: пересчитать награды, сохранить, показать события.
+// One call from app.js: recompute rewards, save, show events.
 export function runRewards(userId, animals, now = Date.now()) {
   const mine = animals.filter((a) => a.ownerId === userId);
   const { state, events } = evaluate(mine, loadState(userId), now);

@@ -568,9 +568,9 @@ async function restoreSession() {
   if (session) { enterApp(session); return; }
 
   // No login screen: open the app immediately with a local demo farm.
-  const res = signUp('Фермер', 'fermer@demo.kg', 'demo');
-  const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: 'Фермер', phone: '' };
-  demoUser.address = demoUser.address || 'ул. Ленина 12';
+  const res = signUp('Farmer', 'fermer@demo.kg', 'demo');
+  const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: 'Farmer', phone: '' };
+  demoUser.address = demoUser.address || 'Lenin St 12';
   if (res.ok) await upsertProfile(demoUser);
   enterApp(demoUser);
 }

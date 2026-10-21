@@ -1,7 +1,7 @@
 {
-  "name": "Moo — Биобезопасность скота",
+  "name": "Moo — Livestock biosecurity",
   "short_name": "Moo",
-  "description": "Цифровой ветпаспорт и биобезопасность скота: вакцинации, ветеринар, лента села.",
+  "description": "Digital vet passport and livestock biosecurity: vaccinations, veterinarian, village feed.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#fbf9f5",

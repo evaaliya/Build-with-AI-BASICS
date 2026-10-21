@@ -200,4 +200,4 @@ create policy "send to village or own vet thread" on public.messages for insert 
          or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_vet)));
 
 -- Assign the vet role manually after creating the vet account:
--- update public.profiles set is_vet = true where id = '<uuid ветеринара>';
+-- update public.profiles set is_vet = true where id = '<vet uuid>';

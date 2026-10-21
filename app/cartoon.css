@@ -1,4 +1,4 @@
-/* Moo — мультяшный слой. Подключать ПОСЛЕ styles.css. */
+/* Moo — cartoon layer. Load AFTER styles.css. */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap');
 
 :root {
@@ -49,7 +49,7 @@ body {
   background-size: 28px 28px;
 }
 
-/* верхняя панель и навигация */
+/* top bar and navigation */
 .topbar { border-bottom: 3px solid var(--border); background: var(--primary); backdrop-filter: none; }
 .brand { color: #fff; font-weight: 900; font-size: 1.6rem; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
 .greeting { color: #fff; font-weight: 800; }
@@ -62,7 +62,7 @@ body {
 .bottomnav button.active { color: var(--text); background: var(--accent); border: 3px solid var(--border); box-shadow: var(--shadow-sm); }
 .bottomnav button.active .nav-emoji { transform: scale(1.18) rotate(-6deg); }
 
-/* кнопки: крупные, «пружинят» */
+/* buttons: big, springy */
 .btn {
   border: 3px solid var(--border); border-radius: 22px; padding: 14px 20px; font-size: 1.05rem; font-weight: 900;
   box-shadow: var(--shadow-sm); transition: transform .08s, box-shadow .08s; min-height: 52px;
@@ -76,7 +76,7 @@ body {
 #scanBtn { font-size: 1.6rem; padding: 22px; animation: wiggle 2.6s ease-in-out infinite; }
 @keyframes wiggle { 0%,90%,100% { transform: rotate(0); } 93% { transform: rotate(-2deg); } 96% { transform: rotate(2deg); } }
 
-/* карточки, списки, поля */
+/* cards, lists, fields */
 .card, .list-item, .stat-card, .broadcast, .vet-card, .placeholder { border: 3px solid var(--border); box-shadow: var(--shadow-sm); }
 .placeholder { background: var(--surface-2); border-style: dashed; box-shadow: none; font-weight: 800; }
 .list-item img, .list-item .no-photo { border: 3px solid var(--border); border-radius: 50%; width: 62px; height: 62px; }
@@ -88,29 +88,29 @@ form label span { color: var(--text); font-size: .95rem; font-weight: 900; }
 .view-head h2 { font-weight: 900; font-size: 1.7rem; }
 .section-title { font-weight: 900; font-size: 1.2rem; }
 
-/* камера */
+/* camera */
 .camera-box { border: 4px solid var(--border); border-radius: 34px; box-shadow: var(--shadow); }
 .frame-circle { border: 5px dashed #fff; box-shadow: 0 0 0 9999px rgba(59,42,26,.35); animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 .scan-plaque { border: 3px solid var(--border); border-radius: 24px; }
 .hint { font-weight: 800; color: var(--muted); }
 
-/* лента */
+/* feed */
 .feed-tab { border: 3px solid var(--border); font-weight: 900; padding: 10px 16px; }
 .feed-tab.active { background: var(--accent); color: var(--text); box-shadow: var(--shadow-sm); }
 .post-category { border: 2px solid var(--border); border-radius: 12px; }
 .post img { border: 3px solid var(--border); }
 
-/* чат */
+/* chat */
 .msg { border: 3px solid var(--border); }
 .msg.mine { background: var(--primary); }
 
-/* карта */
+/* map */
 .map-box { border: 4px solid var(--border); border-radius: 30px; box-shadow: var(--shadow); }
 .outbreak-pin { animation: bounce 1.1s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(229,57,53,.7)); }
 @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
-/* ---------- награды ---------- */
+/* ---------- rewards ---------- */
 .rank-card { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, #ffd84d, #ffb52e); border: 3px solid var(--border); border-radius: 26px; padding: 14px 16px; box-shadow: var(--shadow-sm); color: #3b2a1a; margin-bottom: 14px; }
 .rank-icon { font-size: 3rem; line-height: 1; filter: drop-shadow(0 3px 0 rgba(0,0,0,.2)); }
 .rank-title { font-weight: 900; font-size: 1.25rem; }
@@ -127,7 +127,7 @@ form label span { color: var(--text); font-size: .95rem; font-weight: 900; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes shine { 0%,100% { transform: rotate(0) scale(1); } 50% { transform: rotate(-5deg) scale(1.08); } }
 
-/* уведомления */
+/* notifications */
 #toastBox { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); width: min(92vw, 520px); z-index: 100; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast { background: #fff; color: #3b2a1a; border: 3px solid #3b2a1a; border-radius: 22px; padding: 14px 16px; font-weight: 900; box-shadow: 0 5px 0 #3b2a1a; animation: drop .35s cubic-bezier(.3,1.6,.5,1); }
 .toast.good { background: #dbf6d2; }
@@ -136,6 +136,6 @@ form label span { color: var(--text); font-size: .95rem; font-weight: 900; }
 .toast.out { opacity: 0; transform: translateY(-14px); transition: .5s; }
 @keyframes drop { from { transform: translateY(-40px) scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ветеринар в профиле */
+/* vet in profile */
 .vet-box { margin-top: 14px; padding-top: 14px; border-top: 3px dashed var(--border); }
 .vet-box input { margin-bottom: 8px; }
