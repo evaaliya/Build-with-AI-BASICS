@@ -91,6 +91,16 @@ Open `http://localhost:8000`. The app opens directly (no login) and seeds a demo
 
 If Supabase isn't configured, or its tables are missing, the app **automatically falls back to per-device `localStorage`** and seeds demo data.
 
+## 3D village map
+
+The **Map** tab shows an interactive 3D village (Three.js, local `three.min.js`) inside an iframe (`app/village-map.html?nogps`). The app feeds the user's GPS position into it via `postMessage({type:'gps', lon, lat})` — throttled to once per second and only when the point moved more than 2 meters — and the map plots a marker plus a trail. The map ignores points outside the village frame (~2.4 × 2.9 km around `74.3485, 43.1919`).
+
+To switch to a different village:
+
+1. Put the village's GeoJSON as `export.geojson` next to `prep village data.py`.
+2. Run `python3 "prep village data.py"` — it generates `data.json` (the `D` constant) and prints labels.
+3. Replace the `D = {…}` object in `app/village-map.html` with the generated data and update the labels/title as needed.
+
 ## Project structure
 
 ```

@@ -235,16 +235,9 @@
         <p id="myAnimalsEmpty" class="placeholder hidden" data-i18n="noMyAnimals">No animals yet. Add your first one.</p>
       </section>
 
-      <!-- Map -->
+      <!-- Map (3D village) -->
       <section id="view-map" class="view hidden">
-        <div class="view-head"><h2 data-i18n="villageMap">Village map</h2></div>
-        <button id="addHouseBtn" class="btn primary" data-i18n="addHouse">+ Add house</button>
-        <div class="map-legend" id="mapLegend">
-          <span class="legend-item">🏥 <span data-i18n="vetClinic">Vet clinic</span></span>
-          <span class="legend-item">💉 <span data-i18n="vaccinationPoint">Vaccination point</span></span>
-          <span class="legend-item">🏡 <span data-i18n="houseName">House owner name</span></span>
-        </div>
-        <div id="map" class="map-box"></div>
+        <iframe id="map3d" src="village-map.html?nogps" title="3D village map"></iframe>
       </section>
 
       <!-- Rewards / Trophies -->

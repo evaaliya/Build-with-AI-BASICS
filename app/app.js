@@ -76,6 +76,47 @@ function setBg(viewId) {
   document.querySelectorAll('#bgs .bgl').forEach((l) => l.classList.toggle('on', l.dataset.bg === key));
 }
 
+// ---- GPS → 3D map bridge ----
+// Native geolocation (browser permission prompt) feeds the iframe's trackPoint/postMessage.
+let gpsWatchId = null;
+let lastGps = null;
+let lastGpsTime = 0;
+
+function gpsDistanceM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function sendGpsToMap(lon, lat) {
+  const f = $('#map3d');
+  if (f && f.contentWindow) {
+    f.contentWindow.postMessage({ type: 'gps', lon, lat }, '*');
+  }
+}
+
+function watchGps() {
+  if (gpsWatchId !== null || !navigator.geolocation) return;
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const lon = pos.coords.longitude;
+      const lat = pos.coords.latitude;
+      const now = Date.now();
+      if (lastGps) {
+        if (now - lastGpsTime < 1000) return;                                  // at most once per second
+        if (gpsDistanceM(lastGps.lat, lastGps.lon, lat, lon) < 2) return;      // only if moved > 2 m
+      }
+      lastGps = { lat, lon };
+      lastGpsTime = now;
+      sendGpsToMap(lon, lat);
+    },
+    () => { /* permission denied or unavailable — stay silent */ },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+  );
+}
+
 function show(viewId) {
   currentView = viewId;
   setBg(viewId);
@@ -105,7 +146,7 @@ function show(viewId) {
   if (viewId === 'animals') safeRender(renderAnimals);
   if (viewId === 'feed') safeRender(renderFeed);
   if (viewId === 'chat') safeRender(renderChat);
-  if (viewId === 'map') setTimeout(async () => { await initMap(); if (map && window.L) outbreakLayer = renderOutbreaks(L, map, currentUser, outbreakLayer); }, 0);
+  if (viewId === 'map') watchGps();
   if (viewId === 'profile') safeRender(renderProfile);
   if (viewId === 'rewards') safeRender(renderRewards);
   window.scrollTo(0, 0);

@@ -222,6 +222,10 @@ __marimo__/
 # Devpost learner context — personal notes kept out of commits by default
 /devpost/learner-profile.md
 
+# Village data prep (kept locally, not committed)
+/prep village data.py
+/export.geojson
+
 # Local credential files (secret-free .env.example is allowed)
 .env.*
 !.env.example
