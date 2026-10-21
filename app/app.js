@@ -23,7 +23,7 @@ import { isVet, enableVet, disableVet, renderOutbreaks, vt } from './vet.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map', 'profile'];
+const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map', 'profile', 'rewards'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,6 +37,16 @@ let recorder = null;
 let currentView = 'auth';
 let currentUser = null;
 let feedCategory = 'all';
+let chatThread = 'vet';
+let vetThreadId = null;
+const threadKey = () => {
+  if (chatThread === 'village') return 'village';
+  if (chatThread === 'vet') {
+    if (isVet(currentUser)) return vetThreadId || 'village';
+    return currentUser ? currentUser.id : 'village';
+  }
+  return 'village';
+};
 
 function showScanError(msg) {
   const el = $('#cameraError');
@@ -54,8 +64,21 @@ async function safeRender(fn) {
   try { await fn(); } catch (e) { console.error(e); }
 }
 
+const BG_FILES = { home: 'img/home.jpg', feed: 'img/profile.jpg', chat: 'img/rewards.jpg', map: 'img/map.jpg', rewards: 'img/animals.jpg' };
+const VIEW_BG = { auth: 'home', profile: 'home', scan: 'rewards', register: 'rewards', animals: 'rewards',
+  'animal-detail': 'rewards', feed: 'feed', chat: 'chat', map: 'map', rewards: 'rewards' };
+function initBackgrounds() {
+  $('#bgs').innerHTML = Object.entries(BG_FILES).map(([k, u]) =>
+    `<div class="bgl" data-bg="${k}" style="background-image:url('${u}')"></div>`).join('');
+}
+function setBg(viewId) {
+  const key = VIEW_BG[viewId] || 'home';
+  document.querySelectorAll('#bgs .bgl').forEach((l) => l.classList.toggle('on', l.dataset.bg === key));
+}
+
 function show(viewId) {
   currentView = viewId;
+  setBg(viewId);
   VIEWS.forEach((v) => {
     const el = $('#view-' + v);
     if (el) el.classList.toggle('hidden', v !== viewId);
@@ -84,12 +107,13 @@ function show(viewId) {
   if (viewId === 'chat') safeRender(renderChat);
   if (viewId === 'map') setTimeout(async () => { await initMap(); if (map && window.L) outbreakLayer = renderOutbreaks(L, map, currentUser, outbreakLayer); }, 0);
   if (viewId === 'profile') safeRender(renderProfile);
+  if (viewId === 'rewards') safeRender(renderRewards);
   window.scrollTo(0, 0);
 }
 
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  $('#themeToggle').textContent = t === 'light' ? '🌙' : '☀️';
+  $('#themeToggle').setAttribute('aria-checked', String(t === 'dark'));
 }
 
 async function handleAuthSubmit(e) {
@@ -397,8 +421,27 @@ async function renderChat() {
   const wrap = $('#chatList');
   const me = getSession();
   wrap.innerHTML = '';
-  $('#chatEmpty').classList.toggle('hidden', msgs.length > 0);
-  for (const m of msgs) {
+
+  // Vet inbox: list of farmers who wrote to the vet (thread = farmer id).
+  if (chatThread === 'vet' && isVet(currentUser) && !vetThreadId) {
+    renderVetInbox(msgs, users, wrap);
+    $('#chatEmpty').classList.add('hidden');
+    return;
+  }
+
+  const key = threadKey();
+  const list = msgs.filter((m) => (m.thread || 'village') === key);
+  $('#chatEmpty').classList.toggle('hidden', list.length > 0);
+
+  if (chatThread === 'vet' && isVet(currentUser) && vetThreadId) {
+    const back = document.createElement('button');
+    back.className = 'btn small';
+    back.textContent = t('backToAppeals');
+    back.addEventListener('click', () => { vetThreadId = null; renderChat(); });
+    wrap.appendChild(back);
+  }
+
+  for (const m of list) {
     const author = users.find((u) => u.id === m.from);
     const bubble = document.createElement('div');
     bubble.className = 'msg' + (me && m.from === me.id ? ' mine' : '');
@@ -414,8 +457,9 @@ async function renderChat() {
 async function sendText() {
   const text = $('#chatText').value.trim();
   if (!text) return;
+  if (chatThread === 'vet' && isVet(currentUser) && !vetThreadId) return;
   const user = getSession();
-  await addMessage({ from: user.id, text, createdAt: Date.now() });
+  await addMessage({ from: user.id, text, thread: threadKey(), createdAt: Date.now() });
   $('#chatText').value = '';
   await renderChat();
 }
@@ -431,7 +475,7 @@ async function toggleVoice() {
     recorder = null;
     const dataUrl = await blobToDataURL(blob);
     const user = getSession();
-    await addMessage({ from: user.id, audio: dataUrl, createdAt: Date.now() });
+    await addMessage({ from: user.id, audio: dataUrl, thread: threadKey(), createdAt: Date.now() });
     await renderChat();
     btn.textContent = '🎤';
   } else {
@@ -887,7 +931,6 @@ async function renderProfile() {
     await renderProfile();
   });
   $('#placeMyHouseBtn').addEventListener('click', startPlaceMyHouse);
-  $('#trophyShelf').innerHTML = shelfHtml(loadState(profile.id));
   const vb = $('#vetBox');
   if (isVet(profile)) {
     vb.innerHTML = `<div>${vt('vetOn')}</div><button id="vetOffBtn" class="btn small">${vt('vetOff')}</button>`;
@@ -899,6 +942,39 @@ async function renderProfile() {
       if (enableVet(profile, $('#vetCodeInp').value)) renderProfile(); else toast(vt('wrong'), 'bad');
     });
   }
+}
+
+async function renderRewards() {
+  if (!currentUser) return;
+  runRewards(currentUser.id, await getAnimals());
+  $('#trophyShelf').innerHTML = shelfHtml(loadState(currentUser.id));
+}
+
+function renderVetInbox(msgs, users, wrap) {
+  const threads = {};
+  for (const m of msgs) {
+    const th = m.thread || 'village';
+    if (th === 'village') continue;
+    threads[th] = threads[th] || [];
+    threads[th].push(m);
+  }
+  const items = Object.entries(threads);
+  if (!items.length) {
+    wrap.innerHTML = `<p class="placeholder">${t('noAppeals')}</p>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="section-title">${t('appeals')}</div>` + items.map(([tid, arr]) => {
+    const farmer = users.find((u) => u.id === tid);
+    const last = arr[arr.length - 1];
+    return `<div class="list-item clickable" data-vet-thread="${tid}">
+      <div class="no-photo">👨‍🌾</div>
+      <div class="list-item-body"><strong>${farmer ? esc(farmer.name) : t('unknown')}</strong>
+      <span>${esc(last.text || '🎤')}</span></div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-vet-thread]').forEach((el) => {
+    el.addEventListener('click', () => { vetThreadId = el.dataset.vetThread; renderChat(); });
+  });
 }
 
 function boot() {
@@ -970,6 +1046,7 @@ function boot() {
   updateFrameCounter(0);
   $('#addHouseBtn').addEventListener('click', toggleAddHouse);
 
+  initBackgrounds();
   restoreSession();
 }
 

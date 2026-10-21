@@ -143,6 +143,14 @@ const STRINGS = {
   vaccinationPoint: { en: 'Vaccination point', ru: 'Пункт вакцинации', ky: 'Эмдөө пункту' },
   mapLegend: { en: 'Legend', ru: 'Обозначения', ky: 'Белгилер' },
   noMatch: { en: 'No match', ru: 'Не найдено', ky: 'Табылган жок' },
+  navFind: { en: 'Find', ru: 'Найти', ky: 'Табуу' },
+  navRewards: { en: 'Trophies', ru: 'Кубки', ky: 'Кубоктор' },
+  trophies: { en: 'My trophies', ru: 'Мои кубки', ky: 'Менин кубокторум' },
+  segVillage: { en: 'Village', ru: 'Село', ky: 'Айыл' },
+  segVet: { en: 'Vet', ru: 'Ветеринар', ky: 'Ветеринар' },
+  appeals: { en: 'Appeals', ru: 'Обращения', ky: 'Кайрылуулар' },
+  noAppeals: { en: 'No appeals yet.', ru: 'Пока нет обращений.', ky: 'Кайрылуулар жок.' },
+  backToAppeals: { en: '← Appeals', ru: '← Обращения', ky: '← Кайрылуулар' },
 };
 
 const LANGS = [

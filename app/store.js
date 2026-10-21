@@ -129,6 +129,7 @@ function mapMessage(row) {
     from: row.sender_id,
     text: row.text || '',
     audio: row.audio || '',
+    thread: row.thread || 'village',
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
   };
 }
@@ -359,7 +360,7 @@ async function addMessage(msg) {
   try {
     const c = await supabase.getClient();
     const { data, error } = await c.from('messages').insert({
-      sender_id: msg.from, text: msg.text || '', audio: msg.audio || '',
+      sender_id: msg.from, text: msg.text || '', audio: msg.audio || '', thread: msg.thread || 'village',
     }).select().single();
     if (error) throw new Error(error.message);
     return mapMessage(data);

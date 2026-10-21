@@ -179,3 +179,25 @@ create policy "users can send messages"
   on public.messages for insert
   to authenticated
   with check (auth.uid() = sender_id);
+
+-- ---------------------------------------------------------------------------
+-- Personal vet chat: farmers see the village thread + their own vet thread;
+-- the vet (profiles.is_vet = true) sees everything. Run this manually in the
+-- Supabase SQL editor (not applied automatically).
+-- ---------------------------------------------------------------------------
+alter table public.messages add column if not exists thread text not null default 'village';
+alter table public.profiles add column if not exists is_vet boolean not null default false;
+
+drop policy if exists "messages readable by signed-in villagers" on public.messages;
+drop policy if exists "users can send messages" on public.messages;
+
+create policy "read village chat and own vet thread" on public.messages for select to authenticated
+  using (thread = 'village' or thread = auth.uid()::text
+         or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_vet));
+
+create policy "send to village or own vet thread" on public.messages for insert to authenticated
+  with check (auth.uid() = sender_id and (thread = 'village' or thread = auth.uid()::text
+         or exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_vet)));
+
+-- Assign the vet role manually after creating the vet account:
+-- update public.profiles set is_vet = true where id = '<uuid ветеринара>';

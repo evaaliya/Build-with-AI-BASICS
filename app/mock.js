@@ -6,7 +6,7 @@ export const VET = {
   name: 'Др. Айбек Усупов',
   role: 'Ветеринар села',
   phone: '+996 555 12-34-56',
-  address: 'Ветклиника, ул. Ленина 12',
+  address: 'с. Нижний-Чуй, ул. Ленина 12',
   lat: 43.18807,
   lng: 74.34209,
 };
@@ -26,9 +26,9 @@ export const FEED_CATEGORIES = [
 ];
 
 export const MAP_POINTS = [
-  { id: 'vet', kind: 'vet', icon: '🏥', name: 'Ветклиника', address: 'ул. Ленина 12', lat: 43.18807, lng: 74.34209 },
-  { id: 'vax1', kind: 'vax', icon: '💉', name: 'Пункт вакцинации №1', address: 'Сельсовет', lat: 43.18950, lng: 74.34320 },
-  { id: 'vax2', kind: 'vax', icon: '💉', name: 'Пункт вакцинации №2', address: 'Школа №2', lat: 43.18690, lng: 74.34060 },
+  { id: 'vet', kind: 'vet', icon: '🏥', name: 'Ветклиника', address: 'с. Нижний-Чуй, ул. Ленина 12', lat: 43.18807, lng: 74.34209 },
+  { id: 'vax1', kind: 'vax', icon: '💉', name: 'Пункт вакцинации №1', address: 'с. Нижний-Чуй, сельсовет', lat: 43.18950, lng: 74.34320 },
+  { id: 'vax2', kind: 'vax', icon: '💉', name: 'Пункт вакцинации №2', address: 'с. Нижний-Чуй, школа №2', lat: 43.18690, lng: 74.34060 },
 ];
 
 export const VILLAGE_HEALTH_STATS = {
