@@ -5,42 +5,47 @@ status: approved
 
 # Moo
 
-One line: a dead-simple phone app where anyone in a village points their camera at a stray cow, sheep, or horse's muzzle and instantly sees the animal and its owner — then messages the owner.
+One line: a livestock-biosecurity PWA for a village — a digital vet passport for every animal, Foot-and-Mouth (FMD) vaccination tracking, a private hotline to the village veterinarian, and outbreak awareness on a map.
 
 ## The Unique Kernel
 
-Village-wide muzzle recognition: owners register each animal once by scanning its muzzle; later, *anyone* can scan it and get the owner's identity. Unregistered animals become a feed post: "is anyone looking for this?"
+A village-wide biosecurity layer: every animal has a **vet passport** (ear tag, vaccination history, health journal) and an **FMD vaccination status** at a glance (green = protected, yellow = due, red = overdue). There is a direct **private chat with the vet**, and only the vet sees **outbreak markers** on the map. On-time vaccination earns **trophies**, so protection is visible and rewarding.
 
-## Core Loop
+## Who It's For
 
-Open the app → point at the muzzle/nose pad (close-up) → it's identified with its owner → message the owner. Owners register once.
+Smallholders and the single village veterinarian. Villagers need a simple way to keep animals protected and reach the vet fast; the vet needs one place to see outbreaks and answer farmers.
+
+## The Core Loop
+
+Open the app → see animals with FMD statuses → scan an animal → owner + status → chat with the vet → earn trophies for on-time vaccination → (vet only) see outbreaks on the map.
 
 ## What "Working" Looks Like
 
-Register a cow on phone A (4 averaged muzzle frames), scan it on phone B from a different angle → name + owner + phone appear. An unregistered animal → "not found" → published to the feed.
+A seeded demo farm shows green / yellow / red FMD badges. Scanning an animal returns owner + status. Entering the vet code (`VET-2026`) reveals outbreak markers. Vaccinating an animal earns a trophy; an expired vaccination marks the trophy as lost.
 
 ## POC Boundary (frozen)
 
 In:
 
-- Accounts (Supabase Auth, email/password).
-- Register an animal by scanning its muzzle (3–5 frames, averaged).
-- Scan-to-identify with a species gate + similarity threshold + separation margin.
-- Lost-and-found feed (photo + note + comments).
-- Shared data in Supabase Postgres with Row Level Security.
-
-Also implemented (one line each, not demoed): village chat, map, reminders.
+- Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal (milk / expense / illness / death).
+- FMD vaccination status badges (green / yellow / red) on cards and the scan plaque.
+- Private vet chat (farmer threads + vet inbox); village chat removed.
+- Vet role (demo code `VET-2026`) + vet-only outbreak markers.
+- Rewards (trophies) with 30 / 7 / 1-day reminders and lost trophies.
+- Categorized feed (feed & hay, machinery & herders, quarantine, lost & found).
+- Muzzle recognition (honest matching + species gate).
+- Glass design with per-tab backdrops; i18n (ru / ky / en).
 
 ## Later
 
-- Offline recognition (a small model running on the device).
-- More species (goats, pigs, and beyond).
-- Roles and permissions (owner vs. vet vs. resident).
-- Herd/group management.
+- Real roles/permissions (store `is_vet` in `profiles`, gate with RLS).
+- Move outbreaks to a database table with a vet-only read policy.
 - Supabase Storage for photos (instead of data URLs).
+- Offline recognition (on-device model).
+- More species.
 
 ## Explicitly Cut
 
-- **True "Face ID" magic** — no off-the-shelf service recognizes animal faces; we approximate it with MobileNet plus honest matching (see `spec.md`).
-- **Bluetooth** — can't run recognition offline; offline is a "later" item.
-- **Payments, marketplace, breeding/genetics analytics** — out of scope.
+- True "Face ID" magic — approximated with MobileNet + honest matching.
+- Payments, marketplace, breeding/genetics analytics.
+- Bluetooth.

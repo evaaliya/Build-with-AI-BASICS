@@ -1,6 +1,6 @@
 ---
 doc: checklist
-status: draft
+status: approved
 ---
 
 # Build Checklist
@@ -69,6 +69,66 @@ Build mode: fast
   Learner check: Open on a phone and add to the home screen.
   Commit: `PWA manifest, service worker, and icon`
 
+- [x] **7. Vet passport and FMD vaccination statuses**
+  Becomes usable: Animals show an ear tag, vaccination history, a health journal, and a green/yellow/red FMD badge on every card and the scan plaque.
+  Why now: The pivot from "find a stray animal" to livestock biosecurity — vaccination status is the core signal.
+  PRD ref: `prd.md > Features and Behavior` (Vet passport, Vaccination status)
+  Spec ref: `spec.md > Data Model` (animals.vaccinations, health, tag_number)
+  Build: Extend the animal model (tagNumber, vaccinations, health), add badges, the scan plaque, and the vet-passport detail card.
+  Verify (mechanical): Seed 4 demo animals with protected/due/overdue FMD states; confirm badges and the scan plaque render with no console errors.
+  Learner check: Open the app and confirm the vaccination badges are readable at a glance.
+  Commit: `Transform Moo into an animal-health platform`
+
+- [x] **8. Vet hotline and village health**
+  Becomes usable: The chat tab shows the pinned vet (emergency call), broadcast alerts, and village health stats.
+  Why now: The vet is the single point of contact in a village — reaching them must be one tap.
+  PRD ref: `prd.md > Features and Behavior` (Vet hotline)
+  Spec ref: `spec.md > Components` (mock.js)
+  Build: Add the vet card, broadcast banners, and health-stat cards.
+  Verify (mechanical): Confirm the vet card, 3 broadcasts, and 4 stat cards render.
+  Learner check: Open Chat and confirm the vet card and alerts are visible.
+  Commit: `Transform Moo into an animal-health platform`
+
+- [x] **9. Glass design and 5-tab navigation**
+  Becomes usable: Glassmorphism UI with per-tab backdrops and a floating 5-tab nav (Find, Feed, Chat, Map, Trophies).
+  Why now: The requested premium look, plus a dedicated trophies tab.
+  PRD ref: `prd.md > Look and Feel`, `prd.md > Screens and Layout`
+  Spec ref: `spec.md > Components` (glass.css, img/)
+  Build: Add glass.css + img/ backdrops, the day/night switch, per-tab backgrounds, and the 5-item nav.
+  Verify (mechanical): Confirm the nav is centered at 390px and desktop widths, and no content overlaps the nav.
+  Learner check: Switch tabs and day/night; confirm nothing overlaps.
+  Commit: `Add glass design, trophies, vet mode and private vet chat`
+
+- [x] **10. Rewards (trophies)**
+  Becomes usable: Vaccinating an animal earns a trophy; reminders fire at 30/7/1 days; an expired vaccination loses the trophy.
+  Why now: Makes protection visible and rewarding.
+  PRD ref: `prd.md > Features and Behavior` (Rewards)
+  Spec ref: `spec.md > Components` (rewards.js)
+  Build: Add rewards.js (evaluate/loadState/shelfHtml/vaccinateAnimal), the trophies screen, and the "Mark vaccinated" button.
+  Verify (mechanical): Vaccinate an animal → trophy appears; seed an overdue animal → trophy marked lost.
+  Learner check: Mark a vaccination and confirm a trophy/toast appears.
+  Commit: `Add glass design, trophies, vet mode and private vet chat`
+
+- [x] **11. Vet role and outbreak map**
+  Becomes usable: Entering VET-2026 enables vet mode; red outbreak markers appear on the map only then.
+  Why now: The vet needs outbreak visibility; everyone else should not see it.
+  PRD ref: `prd.md > Features and Behavior` (Vet role)
+  Spec ref: `spec.md > Components` (vet.js)
+  Build: Add vet.js (isVet/enableVet/disableVet/renderOutbreaks), the profile vet toggle, and the map outbreak layer.
+  Verify (mechanical): With vet off, no outbreak pins; with VET-2026, 3 pins render; disabling removes them.
+  Learner check: Enable vet mode and confirm the map changes.
+  Commit: `Add glass design, trophies, vet mode and private vet chat`
+
+- [x] **12. Private vet chat**
+  Becomes usable: Farmers chat privately with the vet (their own thread); the vet sees an "Appeals" inbox.
+  Why now: The vet hotline needs a private channel, not a public village chat.
+  PRD ref: `prd.md > Features and Behavior` (Private vet chat)
+  Spec ref: `spec.md > Data Model` (messages.thread, profiles.is_vet)
+  Build: Add message.thread, the vet thread filter, the vet inbox, and the RLS SQL.
+  Verify (mechanical): A village message is not visible in the vet thread and vice versa; the vet inbox lists farmer threads.
+  Learner check: Send a vet message and confirm it does not appear in the village chat.
+  Commit: `Add glass design, trophies, vet mode and private vet chat`
+
 ## Hands-on Checkpoints
 
 - [x] Early usable behavior explored — after slice 3 (scan-to-identify kernel)
@@ -99,3 +159,7 @@ Activity mode: recap / prior practice connected
 - **Supabase Postgres with RLS instead of localStorage** — animals (with averaged muzzle fingerprints), posts, messages, and profiles now live in Supabase Postgres (`supabase/schema.sql`), shared across phones. `app/store.js` keeps a localStorage fallback when Supabase isn't configured.
 - **Honest, measurable recognition** — registration averages 4 muzzle frames; a MobileNet species gate prevents sheep↔horse mix-ups; matching requires a similarity threshold *and* a separation margin over the runner-up. Below threshold the app shows no phone and offers "publish to feed" instead. Thresholds are tunable with `tools/calibrate.html`.
 - **Scope frozen for the demo** — the 90-second demo covers register → scan-on-second-phone → owner found → "not found" → feed. Chat, map, and reminders are implemented but not demoed.
+- **Pivot to livestock biosecurity (AgTech / Animal Health)** — the product moved from "find a stray animal by its muzzle" to a digital vet passport with FMD vaccination tracking, a private vet hotline, trophies for on-time vaccination, and a vet-only outbreak map. The planning docs (`scope.md`, `prd.md`, `spec.md`) were updated to match.
+- **Glass design layer** — `glass.css` + per-tab backdrops replace the earlier cartoon layer; the bottom nav became 5 tabs (Find, Feed, Chat, Map, Trophies).
+- **Private vet chat** — messages gained a `thread` column; farmers see their own vet thread, the vet sees an "Appeals" inbox. Village chat was removed.
+- **Code and README translated to English** — Russian remains only in the i18n dictionaries (ru/ky/en).

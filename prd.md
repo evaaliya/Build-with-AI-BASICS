@@ -5,65 +5,73 @@ status: approved
 
 # Moo — Product Requirements
 
-One line: a PWA to identify a cow, sheep, or horse by its muzzle, see its owner, and message them. Source: `scope.md`.
+One line: Moo is a livestock-biosecurity PWA — digital vet passports, Foot-and-Mouth (FMD) vaccination tracking, a private chat with the village veterinarian, and trophies for on-time vaccination. Source: `scope.md`.
 
 ## The Core Journey
 
-1. Villager opens Moo and signs in (Supabase Auth, email/password).
-2. Home is camera-first: a big **Scan** button and a framing circle.
-3. They point the camera at the muzzle/nose pad (close-up) and tap Scan.
-4. The app matches against registered animals and shows the animal (name, type) **and its owner (name, phone)**.
-5. No confident match → "not found" → tap **Publish to feed** ("Is anyone looking for this?").
-6. Owners register each animal: name, type, breed, notes, then 3–5 muzzle frames (averaged into one fingerprint).
+1. Open Moo — no login screen; it opens into a seeded demo farm.
+2. See animals with FMD status badges (green / yellow / red).
+3. Tap an animal for its vet passport (tag, vaccination history, health journal) and mark a vaccination.
+4. Scan a muzzle → owner + FMD status.
+5. Chat with the vet (private thread); the vet sees an "Appeals" inbox.
+6. Earn trophies for on-time vaccination; reminders at 30 / 7 / 1 days.
+7. Map: vet clinic + vaccination points; outbreak markers (vet only).
 
 ## Screens and Layout
 
-- **Sign in / Sign up** — name + phone/email + password.
-- **Home / Scan** — live camera with a framing circle and a big Scan button; the result appears below.
-- **Register animal** — form (name, type cow/sheep/horse, breed, notes) + multi-frame muzzle capture.
-- **Animals** — searchable list of the user's animals.
-- **Feed** — posts of lost/unregistered animals with photos and comments.
-- *(Chat, map, reminders — implemented but not demoed.)*
+- **Find (scan)** — live camera + framing circle + big Scan button; quick-info plaque shows owner + status.
+- **Feed** — categorized feed (feed & hay, machinery & herders, quarantine, lost & found).
+- **Chat** — private vet conversation; pinned vet card, broadcast alerts, village health stats.
+- **Map** — vet clinic + vaccination points; red outbreak markers (vet only).
+- **Trophies** — trophy shelf with rank, reminders, lost trophies.
+- **My farm (profile)** — animal list, address, vet mode toggle.
 
 ## Look and Feel
 
-Earthy palette — greens, creams, browns — light and dark mode. Camera-first, big buttons, minimal steps. Plain, warm, zero jargon.
+Glassmorphism over painted meadow backdrops (one per tab). Big rounded controls, large tap targets, status colors green / yellow / red. i18n: Russian (default), Kyrgyz, English; light + dark theme.
 
 ## Features and Behavior
 
-### Accounts
-Sign up with name + phone + email + password (Supabase Auth); a profile row is created in `profiles`.
+### Vet passport
+Per animal: photo, ear tag, vaccination history, next re-vaccination, health journal (milk / expense / illness / death), and buttons to record illness / death or mark a vaccination.
 
-### Register an animal
-Form + muzzle capture: average 3–5 frames into one fingerprint. A MobileNet species gate warns if the selected type disagrees strongly with the image.
+### Vaccination status (FMD)
+Green = protected, yellow = due (within 30 days or missing), red = overdue. Shown on cards and the scan plaque.
 
-### Scan to identify
-Capture → fingerprint → species check → cosine match against registered animals. A match must clear a **similarity threshold** and a **separation margin** over the runner-up. Below threshold: no phone shown, instead offer "publish to feed."
+### Rewards
+Trophies per vaccinated animal; reminders at 30 / 7 / 1 days; a trophy is lost when a vaccination lapses. Re-vaccination renews it.
+
+### Vet role
+Unlocked with `VET-2026`. Enables outbreak markers on the map and the "Appeals" inbox in chat.
+
+### Private vet chat
+Farmer threads = farmer id; the vet sees all farmer threads. Village chat removed.
 
 ### Feed
-Post a photo + note + type + location; comment on posts.
+Categorized posts: feed & hay, machinery & herders, quarantine, lost & found.
 
-### Shared data
-Animals, fingerprints, posts, messages, and profiles are in Supabase Postgres with RLS.
+### Muzzle recognition
+Register with 3–5 averaged frames; scan matches by cosine similarity with a species gate, threshold + margin.
 
 ## States and Boundaries
 
-- **First use** — no account → sign-up screen.
-- **Empty state** — no animals → prompt to register; empty feed → prompt to post.
-- **No match** — "not found" → offer to post to the feed.
-- **Camera denied** — friendly fallback (upload a photo instead).
+- No login screen; the app opens into a seeded demo farm.
+- Supabase not configured / tables missing → automatic localStorage fallback + demo data.
+- Camera denied → friendly fallback (upload a photo).
+- No match → offer to publish to the feed.
 
 ## Product Decisions
 
-- **PWA, not native** — free, instant, no app store.
-- **Supabase (free tier)** for Auth + Postgres — shared across phones with RLS.
-- **Name "Moo"**.
-- **Muzzle/nose-print as the biometric** — a long-standing livestock practice, and the honest feature MobileNet can support.
+- **PWA, not native.**
+- **Supabase (free tier)** optional; localStorage fallback.
+- **Name "Moo".**
+- **Village "Nizhny-Chuy"** (demo).
+- **Vet demo code `VET-2026`.**
 
 ## What We're Building
 
-The full core loop: accounts, register-with-scan, scan-to-identify (honest matching), feed, and shared data. Chat/map/reminders exist but are not demoed.
+The full core loop: vet passports, FMD statuses, private vet chat, trophies, outbreak map, categorized feed, muzzle recognition, glass design, i18n.
 
 ## Non-Goals
 
-Payments / marketplace, breeding/genetics analytics, Bluetooth.
+Payments / marketplace, breeding/genetics analytics, Bluetooth, native app, real push notifications.
