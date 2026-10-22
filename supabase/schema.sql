@@ -201,3 +201,33 @@ create policy "send to village or own vet thread" on public.messages for insert 
 
 -- Assign the vet role manually after creating the vet account:
 -- update public.profiles set is_vet = true where id = '<vet uuid>';
+
+-- ---------------------------------------------------------------------------
+-- Rating (village leaderboard): points live in an activity journal, so daily
+-- tasks (feeding, cleaning, hygiene, care) can be added later without changing
+-- the rating screen or the view.
+-- ---------------------------------------------------------------------------
+create table if not exists public.activity_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null,                 -- 'vaccination', later 'feeding', 'cleaning', 'hygiene', 'care'
+  points int not null default 0,
+  animal_id uuid references public.animals(id) on delete set null,
+  day date not null default current_date,
+  created_at timestamptz not null default now()
+);
+create index if not exists activity_user_day_idx on public.activity_log(user_id, day);
+alter table public.activity_log enable row level security;
+
+drop policy if exists "activity readable by signed-in villagers" on public.activity_log;
+drop policy if exists "users log their own activity" on public.activity_log;
+
+create policy "activity readable by signed-in villagers" on public.activity_log for select to authenticated using (true);
+create policy "users log their own activity" on public.activity_log for insert to authenticated with check (auth.uid() = user_id);
+
+create or replace view public.leaderboard as
+select p.id as user_id, p.name,
+       coalesce(sum(a.points), 0)::int as points_all,
+       coalesce(sum(a.points) filter (where a.day >= current_date - 6), 0)::int as points_week
+from public.profiles p left join public.activity_log a on a.user_id = p.id
+group by p.id, p.name;

@@ -225,7 +225,9 @@ __marimo__/
 # Village data prep (kept locally, not committed)
 /prep village data.py
 /export.geojson
+/moo-glass-kit
 
 # Local credential files (secret-free .env.example is allowed)
 .env.*
 !.env.example
+.DB_Store

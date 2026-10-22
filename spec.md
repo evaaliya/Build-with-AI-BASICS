@@ -24,7 +24,7 @@ Moo is a PWA (no build step). MobileNet v2 turns a muzzle close-up into a 1280-n
 - TensorFlow.js + MobileNet v2 (CDN).
 - Camera/audio: `getUserMedia` + `MediaRecorder`.
 - Storage: Supabase Postgres (RLS) with localStorage fallback.
-- Leaflet + OpenStreetMap (map).
+- Three.js 3D village map (local three.min.js) in an iframe.
 - PWA: manifest + service worker (unregistered by default).
 - Run with any static server (`python3 -m http.server`).
 

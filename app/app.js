@@ -3,7 +3,8 @@
 import {
   signUp, signIn, signOut, getSession, setSession, getTheme, setTheme,
   getAnimals, addAnimal, getUsers, getPosts, addPost, addComment, getMessages, addMessage, updateAnimal, upsertProfile,
-  checkSupabaseHealth, isSupabaseBroken,
+  addActivity, getLeaderboard,
+  checkSupabaseHealth, isSupabaseBroken, setLocalMode, isLocalMode,
 } from './store.js';
 import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
 import {
@@ -12,18 +13,16 @@ import {
 } from './recognition.js';
 import * as supabase from './supabase.js';
 import { t, setLang, getLang, applyI18n, LANGS } from './i18n.js';
-import { HOUSES } from './houses.js';
 import {
-  VET, VET_ALERTS, FEED_CATEGORIES, MAP_POINTS, VILLAGE_HEALTH_STATS, MOCK_POSTS,
+  VET, VET_ALERTS, FEED_CATEGORIES, VILLAGE_HEALTH_STATS, MOCK_POSTS,
   vaccinationStatus, demoAnimals,
 } from './mock.js';
-import { loadScript, loadCSS } from './loader.js';
 import { runRewards, loadState, shelfHtml, rt, vaccinateAnimal, toast } from './rewards.js';
-import { isVet, enableVet, disableVet, renderOutbreaks, vt } from './vet.js';
+import { isVet, enableVet, disableVet, sendOutbreaks, vt } from './vet.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map', 'profile', 'rewards'];
+const VIEWS = ['auth', 'scan', 'register', 'animals', 'animal-detail', 'feed', 'chat', 'map', 'rating', 'profile'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,7 +36,7 @@ let recorder = null;
 let currentView = 'auth';
 let currentUser = null;
 let feedCategory = 'all';
-let chatThread = 'vet';
+let chatThread = 'village';
 let vetThreadId = null;
 const threadKey = () => {
   if (chatThread === 'village') return 'village';
@@ -64,9 +63,9 @@ async function safeRender(fn) {
   try { await fn(); } catch (e) { console.error(e); }
 }
 
-const BG_FILES = { home: 'img/home.jpg', feed: 'img/profile.jpg', chat: 'img/rewards.jpg', map: 'img/map.jpg', rewards: 'img/animals.jpg' };
+const BG_FILES = { home: 'img/home.jpg', feed: 'img/profile.jpg', chat: 'img/rewards.jpg', map: 'img/map.jpg', rewards: 'img/animals.jpg', rating: 'img/rating.jpg' };
 const VIEW_BG = { auth: 'home', profile: 'home', scan: 'rewards', register: 'rewards', animals: 'rewards',
-  'animal-detail': 'rewards', feed: 'feed', chat: 'chat', map: 'map', rewards: 'rewards' };
+  'animal-detail': 'rewards', feed: 'feed', chat: 'chat', map: 'map', rating: 'rating', rewards: 'rewards' };
 function initBackgrounds() {
   $('#bgs').innerHTML = Object.entries(BG_FILES).map(([k, u]) =>
     `<div class="bgl" data-bg="${k}" style="background-image:url('${u}')"></div>`).join('');
@@ -95,6 +94,11 @@ function sendGpsToMap(lon, lat) {
   if (f && f.contentWindow) {
     f.contentWindow.postMessage({ type: 'gps', lon, lat }, '*');
   }
+}
+
+// Red outbreak markers are sent to the 3D map iframe and only for the vet account.
+function updateOutbreaks() {
+  sendOutbreaks($('#map3d'), currentUser);
 }
 
 function watchGps() {
@@ -146,9 +150,9 @@ function show(viewId) {
   if (viewId === 'animals') safeRender(renderAnimals);
   if (viewId === 'feed') safeRender(renderFeed);
   if (viewId === 'chat') safeRender(renderChat);
-  if (viewId === 'map') watchGps();
+  if (viewId === 'map') { watchGps(); updateOutbreaks(); }
   if (viewId === 'profile') safeRender(renderProfile);
-  if (viewId === 'rewards') safeRender(renderRewards);
+  if (viewId === 'rating') safeRender(renderRating);
   window.scrollTo(0, 0);
 }
 
@@ -167,6 +171,7 @@ async function handleAuthSubmit(e) {
   if (supabase.isReady() && !isSupabaseBroken()) {
     try {
       const { user } = await supabase.signIn(email, pass);
+      setLocalMode(false);
       const profile = { id: user.id, name: user.user_metadata?.name || email.split('@')[0], phone: user.user_metadata?.phone || email };
       await upsertProfile(profile);
       $('#authForm').reset();
@@ -342,6 +347,7 @@ async function showAnimalDetail(id) {
   $('#vaccinateBtn').addEventListener('click', async () => {
     vaccinateAnimal(a);
     await updateAnimal(a);
+    await addActivity({ userId: currentUser.id, kind: 'vaccination', points: 100, animalId: a.id });
     runRewards(currentUser.id, await getAnimals());
     await showAnimalDetail(currentAnimalId);
   });
@@ -379,6 +385,19 @@ async function handleAddReminder(e) {
   await renderReminders();
 }
 
+// The post composer stays collapsed until the user taps "Post".
+let postComposerOpen = false;
+function setPostComposer(open) {
+  postComposerOpen = open;
+  const form = $("#postForm");
+  if (form) form.classList.toggle("hidden", !open);
+  const btn = $("#togglePostBtn");
+  if (btn) {
+    const span = btn.querySelector("span");
+    if (span) span.textContent = open ? t("cancel") : t("post");
+  }
+}
+
 // ---- feed ----
 function onPostPhoto(e) {
   const file = e.target.files && e.target.files[0];
@@ -394,6 +413,7 @@ function onPostPhoto(e) {
 
 async function renderFeed() {
   renderFeedTabs();
+  setPostComposer(postComposerOpen);
   const posts = await getPosts();
   const users = await getUsers();
   const wrap = $('#postList');
@@ -449,11 +469,14 @@ async function handlePostSubmit(e) {
   $('#postForm').reset();
   postPhotoDataUrl = null;
   $('#postPreview').classList.add('hidden');
+  setPostComposer(false);
   await renderFeed();
 }
 
 // ---- chat ----
 async function renderChat() {
+  document.querySelectorAll('#chatSeg button').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.thread === chatThread)));
   renderVetCard();
   renderBroadcasts();
   renderVillageHealth();
@@ -594,6 +617,7 @@ async function restoreSession() {
     try {
       const user = await supabase.getCurrentUser();
       if (user) {
+        setLocalMode(false);
         const profile = {
           id: user.id,
           name: user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'user'),
@@ -605,10 +629,12 @@ async function restoreSession() {
       }
     } catch {}
   }
+  // No Supabase session -> run the demo entirely in localStorage so the seeded
+  // farm and the rating leaderboard share one data source and work end-to-end.
+  setLocalMode(true);
   const session = getSession();
   if (session) { enterApp(session); return; }
 
-  // No login screen: open the app immediately with a local demo farm.
   const res = signUp('Farmer', 'fermer@demo.kg', 'demo');
   const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: 'Farmer', phone: '' };
   demoUser.address = demoUser.address || 'Lenin St 12';
@@ -735,7 +761,7 @@ function renderFeedTabs() {
 }
 
 async function ensureDemoFarm(userId) {
-  if (supabase.isReady() && !isSupabaseBroken()) return;
+  if (!isLocalMode()) return;
   try {
     if (localStorage.getItem('moo_demo_seeded')) return;
     const existing = await getAnimals();
@@ -791,6 +817,7 @@ function prefillPostFromScan(canvas, type) {
   $('#postType').value = type || 'other';
   $('#postNote').value = t('lookingForDefault');
   $('#postLocation').value = '';
+  setPostComposer(true);
   show('feed');
   const note = $('#postNote');
   if (note) note.focus();
@@ -801,116 +828,16 @@ function applyLanguage() {
   $('#langToggle').textContent = getLang().toUpperCase();
   renderGreeting();
   if (currentView === 'animals') safeRender(renderAnimals);
-  else if (currentView === 'feed') safeRender(renderFeed);
+  else if (currentView === 'feed') { safeRender(renderFeed); setPostComposer(postComposerOpen); }
   else if (currentView === 'chat') safeRender(renderChat);
   else if (currentView === 'animal-detail' && currentAnimalId) safeRender(() => showAnimalDetail(currentAnimalId));
   else if (currentView === 'register') { resetCaptureBtn(); updateFrameCounter(regFrames.length); }
   else if (currentView === 'profile') safeRender(renderProfile);
-}
-
-let map = null;
-let houses = [];
-let addingHouse = false;
-let placingMyHouse = false;
-let houseLayer = null;
-let outbreakLayer = null;
-
-function loadHouses() {
-  try {
-    const raw = localStorage.getItem('moo_houses');
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return HOUSES.slice();
-}
-
-function saveHouses() { localStorage.setItem('moo_houses', JSON.stringify(houses)); }
-
-function houseIcon(emoji) {
-  return L.divIcon({ className: 'house-marker', html: `<div class="house-icon">${emoji}</div>`, iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] });
-}
-
-function housePopup(h) {
-  const photo = h.photo ? `<img src="${h.photo}" alt="">` : `<div class="house-no-photo">${h.userId ? '🧑‍🌾' : '🏚️'}</div>`;
-  const badge = h.userId ? `<div class="registered-badge">✓ ${t('registered')}</div>` : '';
-  return `<div class="house-popup">${photo}<strong>${esc(h.name)}</strong>${badge}<div>${esc(h.address)}</div></div>`;
-}
-
-function addHouseMarker(h) {
-  L.marker([h.lat, h.lng], { icon: houseIcon(h.userId ? '🏡' : '🏠') })
-    .addTo(houseLayer)
-    .bindPopup(housePopup(h));
-}
-
-function renderHouseMarkers() {
-  if (!houseLayer) return;
-  houseLayer.clearLayers();
-  for (const h of houses) addHouseMarker(h);
-}
-
-async function initMap() {
-  if (map) return;
-  if (!window.L) {
-    loadCSS('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css');
-    await loadScript('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js');
+  else if (currentView === 'rating') {
+    safeRender(renderRating);
+    const shelf = $('#trophyShelf');
+    if (shelf && !shelf.classList.contains('hidden')) safeRender(renderRewards);
   }
-  if (!window.L) return;
-  houses = loadHouses();
-  map = L.map('map').setView([43.18807, 74.34209], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  }).addTo(map);
-  houseLayer = L.layerGroup().addTo(map);
-  renderHouseMarkers();
-  // Biosafety points: vet clinic + vaccination collection points.
-  for (const p of MAP_POINTS) {
-    L.marker([p.lat, p.lng], { icon: houseIcon(p.icon) })
-      .addTo(map)
-      .bindPopup(`<div class="house-popup"><div class="house-no-photo">${p.icon}</div><strong>${esc(p.name)}</strong><div>${esc(p.address)}</div></div>`);
-  }
-  map.on('click', (e) => {
-    const { lat, lng } = e.latlng;
-    if (placingMyHouse) {
-      placeMyHouseAt(lat, lng);
-      return;
-    }
-    if (addingHouse) {
-      const name = prompt(t('houseName'));
-      if (!name) return;
-      const address = prompt(t('address')) || '';
-      houses.push({ lat, lng, name, address, photo: null });
-      saveHouses();
-      renderHouseMarkers();
-      toggleAddHouse();
-    }
-  });
-}
-
-function placeMyHouseAt(lat, lng) {
-  const me = currentUser;
-  if (!me) return;
-  const h = { lat, lng, name: me.name, address: me.address || '', photo: null, userId: me.id };
-  const idx = houses.findIndex((x) => x.userId === me.id);
-  if (idx >= 0) houses[idx] = { ...houses[idx], ...h };
-  else houses.push(h);
-  saveHouses();
-  renderHouseMarkers();
-  placingMyHouse = false;
-}
-
-async function startPlaceMyHouse() {
-  if (!currentUser) return;
-  const addr = $('#profileAddress').value.trim();
-  currentUser.address = addr;
-  await upsertProfile(currentUser);
-  placingMyHouse = true;
-  show('map');
-}
-
-function toggleAddHouse() {
-  addingHouse = !addingHouse;
-  const btn = $('#addHouseBtn');
-  if (btn) btn.textContent = addingHouse ? t('tapToPlace') : t('addHouse');
 }
 
 const BREEDS = {
@@ -950,8 +877,7 @@ async function renderProfile() {
     `<div class="muted">${esc(profile.phone || '')}</div>` +
     `<label style="margin-top:10px"><span>${t('address')}</span>` +
     `<input id="profileAddress" type="text" placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
-    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>` +
-    `<button id="placeMyHouseBtn" class="btn">📍 ${t('placeMyHouse')}</button>`;
+    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>`;
   $('#myAnimalsList').innerHTML = '';
   $('#myAnimalsEmpty').classList.toggle('hidden', myAnimals.length > 0);
   for (const a of myAnimals) {
@@ -969,18 +895,18 @@ async function renderProfile() {
     profile.address = $('#profileAddress').value.trim();
     await upsertProfile(profile);
     currentUser = profile;
+    toast(t('saved'), 'good');
     await renderProfile();
   });
-  $('#placeMyHouseBtn').addEventListener('click', startPlaceMyHouse);
   const vb = $('#vetBox');
   if (isVet(profile)) {
     vb.innerHTML = `<div>${vt('vetOn')}</div><button id="vetOffBtn" class="btn small">${vt('vetOff')}</button>`;
-    $('#vetOffBtn').addEventListener('click', () => { disableVet(profile); renderProfile(); });
+    $('#vetOffBtn').addEventListener('click', () => { disableVet(profile); updateOutbreaks(); renderProfile(); });
   } else {
     vb.innerHTML = `<strong>${vt('vetMode')}</strong><input id="vetCodeInp" type="password" placeholder="${esc(vt('vetCode'))}">` +
       `<button id="vetOnBtn" class="btn small">${vt('enter')}</button>`;
     $('#vetOnBtn').addEventListener('click', () => {
-      if (enableVet(profile, $('#vetCodeInp').value)) renderProfile(); else toast(vt('wrong'), 'bad');
+      if (enableVet(profile, $('#vetCodeInp').value)) { updateOutbreaks(); renderProfile(); } else toast(vt('wrong'), 'bad');
     });
   }
 }
@@ -989,6 +915,62 @@ async function renderRewards() {
   if (!currentUser) return;
   runRewards(currentUser.id, await getAnimals());
   $('#trophyShelf').innerHTML = shelfHtml(loadState(currentUser.id));
+}
+
+// ---- village rating (activity_log → leaderboard view) ----
+let ratingPeriod = 'week';
+const RATING_MEDAL = ['🥇', '🥈', '🥉'];
+
+function pointsText(n) {
+  return n + ' ' + t('points');
+}
+
+async function renderRating() {
+  if (!currentUser) return;
+  const key = ratingPeriod === 'all' ? 'all' : 'week';
+  document.querySelectorAll('#ratingSeg button').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.period === key)));
+
+  const rows = (await getLeaderboard())
+    .map((r) => ({ ...r, all: r.all || 0, week: r.week || 0 }))
+    .sort((a, b) => b[key] - a[key] || b.all - a.all)
+    .map((r, i) => ({ ...r, pos: i + 1, me: r.userId === currentUser.id }));
+
+  const me = rows.find((r) => r.me);
+  const above = me && me.pos > 1 ? rows[me.pos - 2] : null;
+  const gap = above ? Math.max(1, above[key] - me[key]) : 0;
+  $('#ratingMe').innerHTML = me
+    ? `<div class="card rank-card"><span class="bigpos">${me.pos}</span>` +
+      `<span><b>${t('myPlace')}</b><span class="muted">${pointsText(me[key])} · ` +
+      `${above ? esc(t('toPlace', { n: above.pos, p: gap })) : t('firstPlace')}</span></span></div>`
+    : '';
+
+  const top = rows.slice(0, 3);
+  const order = [top[1], top[0], top[2]];
+  const heights = [76, 104, 58];
+  const pod = (r, i) => (r ? `<div class="pod${r.me ? ' me' : ''}">` +
+    `<span class="no-photo" aria-hidden="true">🧑‍🌾</span>` +
+    `<b>${esc(r.name.split(' ')[0])}${r.me ? ' (' + t('you') + ')' : ''}</b>` +
+    `<small>${pointsText(r[key])}</small>` +
+    `<div class="card pil" style="height:${heights[i]}px">${RATING_MEDAL[r.pos - 1]}</div></div>` : '');
+  $('#ratingPodium').innerHTML = order.map(pod).join('');
+
+  $('#ratingList').innerHTML = rows.slice(3).map((r) =>
+    `<div class="list-item rrow${r.me ? ' me' : ''}"><span class="pos">${r.pos}</span>` +
+    `<div class="no-photo" aria-hidden="true">🧑‍🌾</div>` +
+    `<div class="list-item-body"><strong>${esc(r.name)}${r.me ? ' (' + t('you') + ')' : ''}</strong>` +
+    `<span>${pointsText(r[key])}</span></div></div>`).join('');
+
+  $('#ratingHow').innerHTML =
+    `<div class="hw"><span class="chip ok">+100</span><span>${t('ptsVacc')}</span></div>` +
+    `<div class="hw"><span class="chip ok">+50</span><span>${t('ptsStreak')}</span></div>` +
+    `<div class="hw"><span class="chip ok">+200</span><span>${t('ptsAll')}</span></div>`;
+
+  const soon = [['🌾', 'taskFeed', '+10'], ['🧹', 'taskClean', '+15'], ['🚿', 'taskHygiene', '+10'], ['💚', 'taskCare', '+20']];
+  $('#ratingSoon').innerHTML = soon.map(([icon, taskKey, pts]) =>
+    `<div class="card soon"><span class="no-photo" aria-hidden="true">${icon}</span>` +
+    `<b>${t(taskKey)}</b><small>${pts} ${t('perDay')}</small>` +
+    `<span class="chip none">${t('soon')}</span></div>`).join('');
 }
 
 function renderVetInbox(msgs, users, wrap) {
@@ -1040,6 +1022,36 @@ function boot() {
     b.addEventListener('click', () => show(b.dataset.view));
   });
 
+  // Village ↔ vet thread switch.
+  $('#chatSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-thread]');
+    if (!b) return;
+    chatThread = b.dataset.thread;
+    vetThreadId = null;
+    document.querySelectorAll('#chatSeg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    safeRender(renderChat);
+  });
+
+  // Week ↔ all-time rating.
+  $('#ratingSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-period]');
+    if (!b) return;
+    ratingPeriod = b.dataset.period;
+    safeRender(renderRating);
+  });
+
+  // Trophies live inside the rating tab (the bottom nav got too crowded).
+  $('#trophiesBtn').addEventListener('click', () => {
+    const shelf = $('#trophyShelf');
+    const willShow = shelf.classList.contains('hidden');
+    shelf.classList.toggle('hidden');
+    if (willShow) safeRender(renderRewards);
+  });
+
+  // The 3D map iframe re-loads on hard refresh: resend GPS/outbreak state when ready.
+  const mapFrame = $('#map3d');
+  if (mapFrame) mapFrame.addEventListener('load', updateOutbreaks);
+
   $('#authForm').addEventListener('submit', handleAuthSubmit);
   $('#togglePass').addEventListener('click', () => {
     const inp = $('#authPass');
@@ -1052,6 +1064,7 @@ function boot() {
   $('#captureFaceBtn').addEventListener('click', captureFace);
   $('#resetCaptureBtn').addEventListener('click', resetCapture);
   $('#registerForm').addEventListener('submit', handleRegisterSubmit);
+  $('#togglePostBtn').addEventListener('click', () => setPostComposer(!postComposerOpen));
   $('#postForm').addEventListener('submit', handlePostSubmit);
   $('#postPhoto').addEventListener('change', onPostPhoto);
   $('#postList').addEventListener('click', async (e) => {
@@ -1085,7 +1098,6 @@ function boot() {
   $('#regType').addEventListener('change', () => populateBreedOptions($('#regType').value));
   populateBreedOptions('cow');
   updateFrameCounter(0);
-  $('#addHouseBtn').addEventListener('click', toggleAddHouse);
 
   initBackgrounds();
   restoreSession();

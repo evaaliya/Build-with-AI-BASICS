@@ -9,7 +9,7 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
   <link rel="stylesheet" href="styles.css?v=6">
-  <link rel="stylesheet" href="glass.css?v=8">
+  <link rel="stylesheet" href="glass.css?v=10">
   <script defer src="supabase-config.js?v=5"></script>
   <script>
     // Drop any previously registered service worker so stale cache never breaks the app.
@@ -168,7 +168,8 @@
       <section id="view-feed" class="view hidden">
         <div class="view-head"><h2 data-i18n="feedTitle">Village feed</h2></div>
         <div id="feedTabs" class="feed-tabs"></div>
-        <form id="postForm" class="card">
+        <button id="togglePostBtn" class="btn big" data-i18n-aria="post">✍️ <span>Post</span></button>
+        <form id="postForm" class="card hidden">
           <label>
             <span data-i18n="photo">Photo of the animal</span>
             <input id="postPhoto" type="file" accept="image/*">
@@ -208,7 +209,11 @@
 
       <!-- Chat -->
       <section id="view-chat" class="view hidden">
-        <div class="view-head"><h2 data-i18n="segVet">Vet</h2></div>
+        <div class="view-head"><h2 data-i18n="chatNav">Chat</h2></div>
+        <div class="seg" id="chatSeg">
+          <button data-thread="village" aria-pressed="true" data-i18n="segVillage">Village</button>
+          <button data-thread="vet" aria-pressed="false" data-i18n="segVet">Vet</button>
+        </div>
         <div id="vetCard"></div>
         <div class="section-title" data-i18n="vetBroadcasts">Vet broadcasts</div>
         <div id="vetBroadcasts"></div>
@@ -240,10 +245,22 @@
         <iframe id="map3d" src="village-map.html?nogps" title="3D village map"></iframe>
       </section>
 
-      <!-- Rewards / Trophies -->
-      <section id="view-rewards" class="view hidden">
-        <div class="view-head"><h2 data-i18n="trophies">My trophies</h2></div>
-        <div id="trophyShelf"></div>
+      <!-- Village rating -->
+      <section id="view-rating" class="view hidden">
+        <div class="view-head"><h2 data-i18n="ratingTitle">Village rating</h2></div>
+        <button id="trophiesBtn" class="btn" data-i18n-aria="trophies">🏆 <span data-i18n="trophies">My trophies</span></button>
+        <div id="trophyShelf" class="hidden"></div>
+        <div class="seg" id="ratingSeg">
+          <button data-period="week" aria-pressed="true" data-i18n="periodWeek">Week</button>
+          <button data-period="all" aria-pressed="false" data-i18n="periodAll">All time</button>
+        </div>
+        <div id="ratingMe"></div>
+        <div id="ratingPodium" class="podium"></div>
+        <div id="ratingList" class="list"></div>
+        <div class="section-title" data-i18n="ratingHow">How points work</div>
+        <div id="ratingHow" class="card"></div>
+        <div class="section-title" data-i18n="ratingSoon">Coming: daily tasks</div>
+        <div id="ratingSoon" class="stat-grid"></div>
       </section>
     </main>
 
@@ -252,10 +269,10 @@
       <button data-view="feed"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
       <button data-view="chat"><span class="nav-emoji">💬</span><span data-i18n="chatNav">Chat</span></button>
       <button data-view="map"><span class="nav-emoji">🗺️</span><span data-i18n="mapNav">Map</span></button>
-      <button data-view="rewards"><span class="nav-emoji">🏆</span><span data-i18n="navRewards">Trophies</span></button>
+      <button data-view="rating"><span class="nav-emoji">📊</span><span data-i18n="navRating">Рейтинг</span></button>
     </nav>
   </div>
 
-  <script type="module" src="app.js?v=6"></script>
+  <script type="module" src="app.js?v=8"></script>
 </body>
 </html>

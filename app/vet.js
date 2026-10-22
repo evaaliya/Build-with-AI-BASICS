@@ -44,21 +44,15 @@ export function disableVet(user) {
   try { localStorage.removeItem(flagKey(user.id)); } catch {}
 }
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// 3D-карта в проекте живёт в iframe (village-map.html, Three.js), поэтому те же
+// очаги отправляются туда через postMessage. Список пустой для не-ветеринара,
+// так что координаты не покидают приложение.
+export function outbreaksFor(user) {
+  return isVet(user) ? OUTBREAKS : [];
+}
 
-// Draws red outbreak markers only if the user is a vet. Returns the layer (or null).
-export function renderOutbreaks(L, map, user, previousLayer) {
-  if (previousLayer) { map.removeLayer(previousLayer); }
-  if (!isVet(user)) return null;
-  const layer = L.layerGroup().addTo(map);
-  for (const o of OUTBREAKS) {
-    L.circle([o.lat, o.lng], { radius: 45, color: '#e53935', weight: 2, fillColor: '#e53935', fillOpacity: 0.28 }).addTo(layer);
-    L.marker([o.lat, o.lng], {
-      icon: L.divIcon({ className: 'house-marker', html: '<div class="house-icon outbreak-pin">📍</div>', iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] }),
-    }).addTo(layer).bindPopup(
-      `<div class="house-popup"><div class="house-no-photo">🚨</div><strong>${esc(o.disease)}</strong>` +
-      `<div>${esc(o.sector)} · ${o.cases} ${vt('cases')}</div></div>`
-    );
-  }
-  return layer;
+export function sendOutbreaks(frame, user) {
+  const win = frame && frame.contentWindow;
+  if (!win) return;
+  try { win.postMessage({ type: 'outbreaks', list: outbreaksFor(user) }, '*'); } catch {}
 }

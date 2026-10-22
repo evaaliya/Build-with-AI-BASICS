@@ -8,14 +8,3 @@ export function loadScript(src) {
     document.head.appendChild(s);
   });
 }
-
-export function loadCSS(href) {
-  return new Promise((resolve) => {
-    const l = document.createElement('link');
-    l.rel = 'stylesheet';
-    l.href = href;
-    l.onload = () => resolve();
-    l.onerror = () => resolve();
-    document.head.appendChild(l);
-  });
-}

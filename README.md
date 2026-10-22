@@ -117,7 +117,7 @@ app/                  # the PWA
 ├── camera.js
 ├── recognition.js    # MobileNet embeddings, species gate, matching
 ├── supabase.js, supabase-config.js
-├── i18n.js, houses.js, loader.js
+├── i18n.js, loader.js
 ├── manifest.webmanifest, sw.js, icons/
 supabase/
 └── schema.sql        # Postgres tables + Row Level Security (incl. vet chat)

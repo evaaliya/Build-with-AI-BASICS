@@ -7,8 +7,11 @@ import * as supabase from './supabase.js';
 
 // When the Supabase project is configured but its tables haven't been created
 // (or are unreachable), fall back to localStorage so the demo keeps working.
+// forceLocal = use localStorage for data ops. True when Supabase is broken OR
+// when running the no-login demo (no Supabase session). Not persisted, so the app
+// re-checks Supabase on every load and recovers automatically.
 let forceLocal = false;
-try { forceLocal = localStorage.getItem('moo_force_local') === '1'; } catch {}
+let supabaseBroken = false;
 
 function isSchemaError(msg) {
   const m = String(msg || '').toLowerCase();
@@ -17,11 +20,11 @@ function isSchemaError(msg) {
 
 function markBroken() {
   forceLocal = true;
-  try { localStorage.setItem('moo_force_local', '1'); } catch {}
+  supabaseBroken = true;
 }
 
 async function checkSupabaseHealth() {
-  if (!supabase.isReady() || forceLocal) return;
+  if (!supabase.isReady() || supabaseBroken) return;
   try {
     const c = await supabase.getClient();
     const { error } = await c.from('animals').select('id').limit(1);
@@ -31,7 +34,13 @@ async function checkSupabaseHealth() {
   }
 }
 
-function isSupabaseBroken() { return forceLocal; }
+function isSupabaseBroken() { return supabaseBroken; }
+
+// Demo mode (no Supabase session): use localStorage for all data ops, but keep
+// Supabase auth available so a farmer can still sign in with a real account.
+function setLocalMode(on) { forceLocal = on; }
+
+function isLocalMode() { return !supabase.isReady() || forceLocal; }
 
 const KEYS = {
   users: 'moo_users',
@@ -370,11 +379,57 @@ async function addMessage(msg) {
   }
 }
 
+// ---- activity journal + leaderboard (village rating) ----
+// Points are stored per action (not computed on screen), so daily tasks can be
+// added later without touching the rating view.
+async function addActivity(entry) {   // { userId, kind, points, animalId }
+  if (!supabase.isReady() || forceLocal) {
+    const l = read('moo_activity', []);
+    l.push({ ...entry, day: new Date().toISOString().slice(0, 10) });
+    write('moo_activity', l);
+    return;
+  }
+  try {
+    const c = await supabase.getClient();
+    const { error } = await c.from('activity_log').insert({
+      user_id: entry.userId, kind: entry.kind, points: entry.points, animal_id: entry.animalId || null,
+    });
+    if (error) throw new Error(error.message);
+  } catch (e) { if (isSchemaError(e.message)) markBroken(); }
+}
+
+async function getLeaderboard() {
+  if (!supabase.isReady() || forceLocal) {
+    const users = getLocalUsers();
+    const log = read('moo_activity', []);
+    const weekAgo = Date.now() - 6 * 864e5;
+    return users.map((u) => {
+      const mine = log.filter((x) => x.userId === u.id);
+      return {
+        userId: u.id,
+        name: u.name,
+        all: mine.reduce((s, x) => s + x.points, 0),
+        week: mine.filter((x) => new Date(x.day).getTime() >= weekAgo).reduce((s, x) => s + x.points, 0),
+      };
+    });
+  }
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('leaderboard').select('*');
+    if (error) throw new Error(error.message);
+    return (data || []).map((r) => ({ userId: r.user_id, name: r.name, all: r.points_all, week: r.points_week }));
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return [];
+  }
+}
+
 export {
   localSignUp as signUp, localSignIn as signIn, signOut, getSession, setSession,
   getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
   getPosts, addPost, addComment, getMessages, addMessage,
+  addActivity, getLeaderboard,
   getTheme, setTheme,
-  checkSupabaseHealth, isSupabaseBroken,
+  checkSupabaseHealth, isSupabaseBroken, setLocalMode, isLocalMode,
 };

@@ -244,6 +244,23 @@ const dots=new THREE.InstancedMesh(new THREE.CylinderGeometry(.28,.28,.06,10),ne
 dots.count=0;scene.add(dots);
 const me={x:0,z:0,ok:false};
 const toScene=(lon,lat)=>[(lon-D.lon0)*D.kx,-(lat-D.lat0)*D.kz];
+// очаги болезней: app.js присылает postMessage({type:'outbreaks',list:[...]}) только ветеринару
+const outbreakGroup=new THREE.Group();scene.add(outbreakGroup);
+function setOutbreaks(list){
+  while(outbreakGroup.children.length)outbreakGroup.remove(outbreakGroup.children[0]);
+  (Array.isArray(list)?list:[]).forEach(o=>{
+    const [x,z]=toScene(o.lng,o.lat);
+    const g=new THREE.Group();g.position.set(x,BY,z);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.3,28),
+      new THREE.MeshBasicMaterial({color:0xff4a3d,transparent:true,opacity:.55,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2;ring.position.y=.04;g.add(ring);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,1.7,8),M('#ff4a3d'));
+    pole.position.y=.85;pole.castShadow=true;g.add(pole);
+    const cap=new THREE.Mesh(new THREE.SphereGeometry(.28,12,10),M('#ff4a3d'));
+    cap.position.y=1.8;cap.castShadow=true;g.add(cap);
+    g.userData.ring=ring;outbreakGroup.add(g);
+  });
+}
 function onFix(lon,lat){
   const [x,z]=toScene(lon,lat);if(Math.abs(x)>HX||Math.abs(z)>HZ)return;
   pin.position.set(x,BY,z);pin.visible=true;me.x=x;me.z=z;me.ok=true;meBtn.hidden=false;
@@ -254,6 +271,7 @@ window.trackPoint=onFix;
 function onMsg(e){let m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(_){return}}
   if(!m||typeof m!=='object')return;
   if(m.type==='gps')onFix(m.lon,m.lat);
+  if(m.type==='outbreaks')setOutbreaks(m.list);
   if(m.type==='focus'){const [x,z]=toScene(m.lon,m.lat);goal.x=x;goal.z=z;goal.zoom=m.zoom||3}}
 addEventListener('message',onMsg);document.addEventListener('message',onMsg); // onFix(lon, lat) — сюда подавайте GPS-точки из приложения
 try{!/nogps/.test(location.search)&&navigator.geolocation&&navigator.geolocation.watchPosition(p=>onFix(p.coords.longitude,p.coords.latitude),()=>{},{enableHighAccuracy:true})}catch(e){}
@@ -329,6 +347,7 @@ function loop(){
     s.g.position.set(s.x,1.04+(d>.15&&m?Math.abs(Math.sin(t*8+s.ph))*.06:0),s.z);
   });
   if(pin.visible)pin.position.y=BY+Math.abs(Math.sin(t*3))*.25*m;
+  outbreakGroup.children.forEach((g,i)=>{const s=1+Math.sin(t*3+i)*.18;g.userData.ring.scale.set(s,s,s)});
   // подписи
   D.lab.forEach((l,i)=>{
     v3.set(l.x,l.main?7:4,l.z).project(cam);

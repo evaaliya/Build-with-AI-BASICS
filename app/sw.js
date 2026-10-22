@@ -10,7 +10,6 @@ const ASSETS = [
   './camera.js',
   './recognition.js',
   './i18n.js',
-  './houses.js',
   './supabase.js',
   './supabase-config.js',
   './manifest.webmanifest',
