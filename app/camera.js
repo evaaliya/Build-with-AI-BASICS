@@ -39,7 +39,7 @@ function captureFrame(videoEl) {
   const canvas = document.createElement('canvas');
   canvas.width = videoEl.videoWidth || 640;
   canvas.height = videoEl.videoHeight || 480;
-  canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  canvas.getContext('2d', { alpha: false }).drawImage(videoEl, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 
@@ -49,10 +49,24 @@ function toSquare(canvas, size = 224) {
   const out = document.createElement('canvas');
   out.width = size;
   out.height = size;
-  const ctx = out.getContext('2d');
+  const ctx = out.getContext('2d', { alpha: false });
   const sx = (canvas.width - side) / 2;
   const sy = (canvas.height - side) / 2;
   ctx.drawImage(canvas, sx, sy, side, side, 0, 0, size, size);
+  return out;
+}
+
+// One-step center-crop from a live video into a 224² canvas (avoids a huge intermediate bitmap).
+function captureSquare(videoEl, size = 224) {
+  const vw = videoEl.videoWidth || 640;
+  const vh = videoEl.videoHeight || 480;
+  const side = Math.min(vw, vh);
+  const sx = (vw - side) / 2;
+  const sy = (vh - side) / 2;
+  const out = document.createElement('canvas');
+  out.width = size;
+  out.height = size;
+  out.getContext('2d', { alpha: false }).drawImage(videoEl, sx, sy, side, side, 0, 0, size, size);
   return out;
 }
 
@@ -83,4 +97,4 @@ function blobToDataURL(blob) {
   });
 }
 
-export { startCamera, stopCamera, stopAllCameras, captureFrame, toSquare, recordAudio, blobToDataURL };
+export { startCamera, stopCamera, stopAllCameras, captureFrame, captureSquare, toSquare, recordAudio, blobToDataURL };

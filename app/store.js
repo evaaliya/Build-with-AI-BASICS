@@ -115,7 +115,14 @@ function toAnimalRow(a) {
 }
 
 function mapProfile(row) {
-  return { id: row.id, name: row.name || '', phone: row.phone || '', address: row.address || '' };
+  return {
+    id: row.id,
+    name: row.name || '',
+    phone: row.phone || '',
+    mobile: row.mobile || '',
+    email: row.email || '',
+    address: row.address || '',
+  };
 }
 
 function mapPost(row) {
@@ -245,18 +252,25 @@ async function getUsers() {
 }
 
 async function upsertProfile(profile) {
-  if (!supabase.isReady() || forceLocal) return localUpsertProfile(profile);
+  // Always mirror into local users + session so the profile card stays in sync
+  // even when Supabase is up (or drops unknown columns like mobile).
+  localUpsertProfile(profile);
+  setSession(profile);
+  if (!supabase.isReady() || forceLocal) return profile;
   try {
     const c = await supabase.getClient();
-    const { error } = await c.from('profiles').upsert(
-      { id: profile.id, name: profile.name || '', phone: profile.phone || '', address: profile.address || '' },
-      { onConflict: 'id' },
-    );
+    const row = {
+      id: profile.id,
+      name: profile.name || '',
+      phone: profile.phone || profile.mobile || '',
+      address: profile.address || '',
+    };
+    const { error } = await c.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) throw new Error(error.message);
     return profile;
   } catch (e) {
     if (isSchemaError(e.message)) markBroken();
-    return localUpsertProfile(profile);
+    return profile;
   }
 }
 

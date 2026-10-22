@@ -5,23 +5,25 @@
 //     Livestock nose-print (planum nasolabiale) has long been used as a
 //     biometric, so we ask the user to frame it close-up.
 //   * Registration averages FRAMES_TO_CAPTURE frames into one stable fingerprint.
-//   * A MobileNet classification gate checks the species so a sheep is not
-//     matched against a horse.
+//   * A MobileNet classification gate (registration only) checks the species so a
+//     sheep is not registered as a horse.
 //   * A match must clear BOTH a similarity threshold AND a "separation" margin
 //     over the second-best candidate (otherwise we say "not sure").
 //
-// The thresholds below are the shipped defaults. Tune them with
-// tools/calibrate.html against 10–20 real photos and record the measured
-// numbers in README.md and spec.md.
+// Speed notes:
+//   * Scan runs a single embedding pass (no classify) — cosine over a handful of
+//     animals is cheap; the NN was the bottleneck.
+//   * Model is MobileNetV2 α=1.0 (1280-d) so existing fingerprints stay valid.
+//   * Prefetch + one warmup inference after load so the first tap feels snappy.
 
-import { captureFrame, toSquare } from './camera.js';
+import { captureFrame, captureSquare, toSquare } from './camera.js';
 import { loadScript } from './loader.js';
 
 // Recognition constants (tune via tools/calibrate.html).
 const MATCH_THRESHOLD = 0.88;   // cosine similarity required for "found it"
 const MATCH_MARGIN = 0.06;      // best candidate must beat 2nd best by this
 const SPECIES_CONFIDENCE = 0.35; // mobilenet.classify score to trust the species
-const FRAMES_TO_CAPTURE = 4;    // frames averaged at registration
+const FRAMES_TO_CAPTURE = 3;    // frames averaged at registration (was 4)
 
 let model = null;
 let loading = null;
@@ -35,30 +37,54 @@ async function loadModel() {
       if (!window.tf || !window.mobilenet) {
         throw new Error('AI model failed to load — check your internet connection and reload.');
       }
+      try {
+        // WebGL is much faster than CPU on phones; fall back silently if unavailable.
+        if (window.tf.getBackend() !== 'webgl') await window.tf.setBackend('webgl');
+        await window.tf.ready();
+      } catch { /* keep default backend */ }
       model = await window.mobilenet.load({ version: 2, alpha: 1.0 });
+      // Warmup: first real infer pays shader compile cost — do it once here.
+      const warm = document.createElement('canvas');
+      warm.width = warm.height = 224;
+      const emb = model.infer(warm, true);
+      await emb.data();
+      emb.dispose();
       return model;
     })();
   }
   return loading;
 }
 
+// Fire-and-forget preload (call when the user opens the scan gate / camera).
+function prefetchModel() {
+  loadModel().catch(() => { /* ignore — real call will surface the error */ });
+}
+
+function squareFrom(source) {
+  if (source && source.tagName === 'VIDEO') return captureSquare(source, 224);
+  if (source && source.width === 224 && source.height === 224) return source;
+  const canvas = source && source.tagName === 'VIDEO' ? captureFrame(source) : source;
+  return toSquare(canvas, 224);
+}
+
 // Turn an image (video element or canvas) into its 1280-number fingerprint.
 async function fingerprintOf(source) {
   const m = await loadModel();
-  const canvas = source.tagName === 'VIDEO' ? captureFrame(source) : source;
-  const square = toSquare(canvas, 224);
+  const square = squareFrom(source);
   const embedding = m.infer(square, true);
-  const arr = Array.from(await embedding.data());
-  embedding.dispose();
-  return arr;
+  try {
+    return Array.from(await embedding.data());
+  } finally {
+    embedding.dispose();
+  }
 }
 
 // MobileNet classification: resolves to [{ className, probability }, ...].
+// Used on registration (advisory); scan skips this for speed.
 async function classifyImage(source) {
   const m = await loadModel();
-  const canvas = source.tagName === 'VIDEO' ? captureFrame(source) : source;
-  const square = toSquare(canvas, 224);
-  return m.classify(square, 10);
+  const square = squareFrom(source);
+  return m.classify(square, 3);
 }
 
 // ImageNet labels -> our species buckets. Used to prevent cow/sheep/horse mix-ups.
@@ -84,10 +110,13 @@ function cosine(a, b) {
   let dot = 0;
   let na = 0;
   let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
+  const n = a.length;
+  for (let i = 0; i < n; i++) {
+    const x = a[i];
+    const y = b[i];
+    dot += x * y;
+    na += x * x;
+    nb += y * y;
   }
   return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
 }
@@ -96,10 +125,11 @@ function cosine(a, b) {
 function averageFingerprints(list) {
   if (!list || !list.length) return null;
   const len = list[0].length;
-  const out = new Array(len).fill(0);
+  const out = new Float32Array(len);
   for (const f of list) for (let i = 0; i < len; i++) out[i] += f[i];
-  for (let i = 0; i < len; i++) out[i] /= list.length;
-  return out;
+  const inv = 1 / list.length;
+  for (let i = 0; i < len; i++) out[i] *= inv;
+  return Array.from(out);
 }
 
 // Rank candidates and return the best match plus separation from the 2nd.
@@ -127,7 +157,7 @@ function findMatch(fingerprint, animals, opts = {}) {
 }
 
 export {
-  loadModel, fingerprintOf, classifyImage, detectSpecies,
+  loadModel, prefetchModel, fingerprintOf, classifyImage, detectSpecies,
   findMatch, cosine, averageFingerprints,
   MATCH_THRESHOLD, MATCH_MARGIN, SPECIES_CONFIDENCE, FRAMES_TO_CAPTURE,
 };

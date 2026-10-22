@@ -8,8 +8,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=8">
-  <link rel="stylesheet" href="glass.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="glass.css?v=13">
   <script defer src="supabase-config.js?v=5"></script>
   <script>
     // Drop any previously registered service worker so stale cache never breaks the app.
@@ -131,7 +131,7 @@
             <button type="button" id="resetCaptureBtn" class="btn">↺ <span data-i18n="retake">Retake</span></button>
           </div>
           <p id="registerError" class="error hidden"></p>
-          <p class="hint" data-i18n="captureFirstHint">Capture the muzzle first (4 frames), then save.</p>
+          <p class="hint" data-i18n="captureFirstHint">Capture the muzzle first (3 frames), then save.</p>
           <button type="submit" id="saveAnimalBtn" class="btn primary big" data-i18n="saveAnimal" disabled>Save animal</button>
         </form>
       </section>
@@ -240,14 +240,15 @@
         <p id="chatEmpty" class="placeholder hidden" data-i18n="noMessages">No messages yet. Say hello.</p>
         <p id="chatError" class="error hidden"></p>
         <div class="chat-input">
-          <button id="voiceBtn" class="btn" data-i18n-aria="recordVoice" aria-label="Record voice">🎤</button>
+          <button type="button" id="voiceBtn" class="btn chat-icon-btn" data-i18n-aria="recordVoice" aria-label="Record voice">🎤</button>
           <input id="chatText" type="text" data-i18n-ph="typeMessage" placeholder="Type a message…">
-          <button id="sendBtn" class="btn primary" data-i18n="send">Send</button>
+          <button type="button" id="sendBtn" class="btn primary chat-icon-btn" data-i18n-aria="send" aria-label="Send">➤</button>
         </div>
       </section>
       <!-- Profile / My farm -->
       <section id="view-profile" class="view hidden">
         <div class="view-head"><h2 data-i18n="myFarm">My farm</h2></div>
+        <div id="profileSummary" class="card profile-summary"></div>
         <div id="profileCard" class="card"></div>
         <div id="vetBox" class="card vet-box"></div>
         <div class="view-head" style="margin-top:16px"><h3 data-i18n="myAnimals">My animals</h3></div>
@@ -289,6 +290,6 @@
     </nav>
   </div>
 
-  <script type="module" src="app.js?v=10"></script>
+  <script type="module" src="app.js?v=12"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // Moo — service worker: network-first with offline fallback.
-const CACHE = 'moo-v5';
+const CACHE = 'moo-v6';
 const ASSETS = [
   './',
   './index.html',

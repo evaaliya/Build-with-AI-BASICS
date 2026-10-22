@@ -6,10 +6,10 @@ import {
   addActivity, getLeaderboard,
   checkSupabaseHealth, isSupabaseBroken, setLocalMode, isLocalMode,
 } from './store.js';
-import { startCamera, stopCamera, stopAllCameras, captureFrame, recordAudio, blobToDataURL } from './camera.js';
+import { startCamera, stopCamera, captureSquare, recordAudio, blobToDataURL } from './camera.js';
 import {
   fingerprintOf, findMatch, averageFingerprints, classifyImage, detectSpecies,
-  MATCH_THRESHOLD, MATCH_MARGIN, SPECIES_CONFIDENCE, FRAMES_TO_CAPTURE,
+  prefetchModel, MATCH_THRESHOLD, MATCH_MARGIN, SPECIES_CONFIDENCE, FRAMES_TO_CAPTURE,
 } from './recognition.js';
 import * as supabase from './supabase.js';
 import { t, setLang, getLang, applyI18n, LANGS } from './i18n.js';
@@ -143,6 +143,8 @@ async function armScanCamera() {
   setScanMode(true);
   const plaque = $('#scanResult');
   if (plaque) { plaque.classList.add('hidden'); plaque.innerHTML = ''; }
+  // Start downloading/warming the model while the camera opens.
+  prefetchModel();
   try {
     await startCamera($('#camera'));
   } catch (e) {
@@ -167,9 +169,11 @@ function show(viewId) {
   if (viewId === 'scan') {
     stopCamera($('#registerCamera'));
     if (!scanArmed) setScanMode(false);
+    prefetchModel(); // download/warmup while the user reads the gate
   } else if (viewId === 'register') {
     setScanMode(false);
     stopCamera($('#camera'));
+    prefetchModel();
     startCamera($('#registerCamera')).catch((e) => showRegisterError(t('cameraUnavailable') + ': ' + e.message));
   } else {
     setScanMode(false);
@@ -253,8 +257,9 @@ async function captureFace() {
     err.classList.remove('hidden');
     return;
   }
-  const canvas = captureFrame(video);
-  const photo = canvas.toDataURL('image/jpeg', 0.7);
+  prefetchModel();
+  const square = captureSquare(video, 224);
+  const photo = square.toDataURL('image/jpeg', 0.7);
   regPhotos.push(photo);
   regPhoto = photo;
   $('#regPreview').src = photo;
@@ -263,9 +268,9 @@ async function captureFace() {
   btn.disabled = true;
   setCaptureBtnLabel(t('readingFace'));
   try {
-    const fp = await fingerprintOf(canvas);
+    const fp = await fingerprintOf(square);
     regFrames.push(fp);
-    if (regFrames.length === 1) await checkRegSpecies(canvas);
+    if (regFrames.length === 1) await checkRegSpecies(square);
     if (regFrames.length >= FRAMES_TO_CAPTURE) {
       regFingerprint = averageFingerprints(regFrames);
       setCaptureBtnLabel(t('faceCaptured'));
@@ -643,13 +648,11 @@ async function onScan() {
   result.classList.remove('hidden');
   result.innerHTML = '<p class="muted">' + t('scanning') + '</p>';
   try {
-    const canvas = captureFrame(video);
-    const fp = await fingerprintOf(canvas);
-    const species = detectSpecies(await classifyImage(canvas));
-    let animals = await getAnimals();
-    if (species.score >= SPECIES_CONFIDENCE) {
-      animals = animals.filter((a) => a.type === species.type);
-    }
+    // One NN pass only (embedding). Species classify was a second full pass and
+    // dominated latency on phones — skip it on the scan hot path.
+    const square = captureSquare(video, 224);
+    const canvas = square; // preview / publish still need an image
+    const [fp, animals] = await Promise.all([fingerprintOf(square), getAnimals()]);
     const match = findMatch(fp, animals, { threshold: MATCH_THRESHOLD, margin: MATCH_MARGIN });
     result.innerHTML = '';
 
@@ -661,7 +664,7 @@ async function onScan() {
         `<div class="plaque-sub">${t('noMatchScan')}</div>` +
         `<div class="plaque-status"><button id="scanPublishBtn" class="btn primary small">${t('publishToFeed')}</button></div>` +
         `</div>`;
-      result.querySelector('#scanPublishBtn').addEventListener('click', () => prefillPostFromScan(canvas, species.type));
+      result.querySelector('#scanPublishBtn').addEventListener('click', () => prefillPostFromScan(canvas, 'other'));
     } else {
       const users = await getUsers();
       const owner = users.find((u) => u.id === match.animal.ownerId);
@@ -722,6 +725,7 @@ function syncLocalizedProfile() {
   if (currentUser.nameKey === 'demoName' || currentUser.phone === 'fermer@demo.kg' || currentUser.name === 'Farmer' || currentUser.name === 'Фермер') {
     currentUser.name = t('demoName');
     currentUser.nameKey = 'demoName';
+    if (!currentUser.email && isLoginEmail(currentUser.phone)) currentUser.email = currentUser.phone;
     if (!currentUser.address || /Lenin|Ленин/.test(currentUser.address)) {
       currentUser.address = t('demoAddress');
     }
@@ -965,19 +969,49 @@ function populateBreedOptions(type) {
   sel.appendChild(other);
 }
 
+function profileVal(v) {
+  const s = (v || '').trim();
+  return s ? esc(s) : `<span class="muted">${esc(t('notSet'))}</span>`;
+}
+
+function isLoginEmail(v) {
+  return /@/.test(v || '');
+}
+
 async function renderProfile() {
   if (!currentUser) return;
-  const profile = currentUser;
+  const profile = { ...currentUser };
   const myAnimals = (await getAnimals()).filter((a) => a.ownerId === profile.id);
+  const login = profile.email || (isLoginEmail(profile.phone) ? profile.phone : '');
+  const phone = profile.mobile || (!isLoginEmail(profile.phone) ? profile.phone : '') || '';
+
+  const summary = $('#profileSummary');
+  if (summary) {
+    summary.innerHTML =
+      `<div class="section-label">${esc(t('profileSummary'))}</div>` +
+      `<h3>${esc(profile.name || t('demoName'))}</h3>` +
+      `<div class="profile-rows">` +
+      `<div class="profile-row"><span>${esc(t('phone'))}</span><b>${profileVal(phone)}</b></div>` +
+      `<div class="profile-row"><span>${esc(t('address'))}</span><b>${profileVal(profile.address)}</b></div>` +
+      (login ? `<div class="profile-row"><span>${esc(t('loginEmail'))}</span><b>${esc(login)}</b></div>` : '') +
+      `</div>`;
+  }
+
   $('#profileCard').innerHTML =
-    `<h3>${esc(profile.name)}</h3>` +
-    `<div class="muted">${esc(profile.phone || '')}</div>` +
+    `<div class="section-label">${esc(t('profileEdit'))}</div>` +
     `<form id="profileForm">` +
+    `<label><span>${t('displayName')}</span>` +
+    `<input id="profileName" type="text" autocomplete="name" ` +
+    `placeholder="${esc(t('yourName'))}" value="${esc(profile.name || '')}"></label>` +
+    `<label><span>${t('phone')}</span>` +
+    `<input id="profilePhone" type="tel" autocomplete="tel" ` +
+    `placeholder="${esc(t('phonePh'))}" value="${esc(phone)}"></label>` +
     `<label><span>${t('address')}</span>` +
     `<input id="profileAddress" type="text" autocomplete="street-address" ` +
     `placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
     `<button type="submit" id="saveProfileBtn" class="btn primary">${t('save')}</button>` +
     `</form>`;
+
   $('#myAnimalsList').innerHTML = '';
   $('#myAnimalsEmpty').classList.toggle('hidden', myAnimals.length > 0);
   for (const a of myAnimals) {
@@ -991,15 +1025,29 @@ async function renderProfile() {
     el.addEventListener('click', () => showAnimalDetail(a.id));
     $('#myAnimalsList').appendChild(el);
   }
+
   $('#profileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    profile.address = $('#profileAddress').value.trim();
-    await upsertProfile(profile);
-    currentUser = profile;
-    setSession(profile);
+    const name = $('#profileName').value.trim() || profile.name;
+    const mobile = $('#profilePhone').value.trim();
+    const address = $('#profileAddress').value.trim();
+    const next = {
+      ...profile,
+      name,
+      mobile,
+      address,
+      // Keep login id in phone if it was an email; otherwise store the phone number.
+      phone: isLoginEmail(profile.phone) ? profile.phone : (mobile || profile.phone),
+      email: profile.email || (isLoginEmail(profile.phone) ? profile.phone : ''),
+    };
+    await upsertProfile(next);
+    currentUser = next;
+    setSession(next);
+    renderGreeting();
     toast(t('saved'), 'good');
     await renderProfile();
   });
+
   const vb = $('#vetBox');
   if (isVet(profile)) {
     vb.innerHTML = `<div>${vt('vetOn')}</div><button type="button" id="vetOffBtn" class="btn small">${vt('vetOff')}</button>`;
