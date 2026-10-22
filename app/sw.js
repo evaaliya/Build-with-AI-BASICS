@@ -1,15 +1,18 @@
 // Moo — service worker: network-first with offline fallback.
-const CACHE = 'moo-v4';
+const CACHE = 'moo-v5';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './glass.css',
   './app.js',
   './store.js',
   './mock.js',
   './camera.js',
   './recognition.js',
   './i18n.js',
+  './vet.js',
+  './rewards.js',
   './supabase.js',
   './supabase-config.js',
   './manifest.webmanifest',

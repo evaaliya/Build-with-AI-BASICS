@@ -8,8 +8,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=6">
-  <link rel="stylesheet" href="glass.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="glass.css?v=12">
   <script defer src="supabase-config.js?v=5"></script>
   <script>
     // Drop any previously registered service worker so stale cache never breaks the app.
@@ -29,9 +29,11 @@
   <div id="bgs" aria-hidden="true"></div><div class="scrim"></div><div class="stars"></div>
   <div id="app">
     <header class="topbar">
-      <div class="brand">Moo <span class="brand-emoji">🐄</span></div>
-      <div class="topbar-right">
+      <div class="topbar-left">
+        <div class="brand">Moo <span class="brand-emoji">🐄</span></div>
         <span id="greeting" class="greeting hidden"></span>
+      </div>
+      <div class="topbar-right">
         <button id="profileBtn" class="icon-btn hidden" data-i18n-aria="myFarm" aria-label="My farm">👤</button>
         <button id="langToggle" class="icon-btn" data-i18n-aria="language" aria-label="Language">EN</button>
         <button id="themeToggle" class="tgl" role="switch" aria-checked="false" aria-label="Night mode">
@@ -72,7 +74,15 @@
 
       <!-- Scan -->
       <section id="view-scan" class="view hidden">
-        <div class="scan-wrap">
+        <div id="scanGate" class="scan-gate">
+          <div class="scan-hero card">
+            <img src="img/scan-hero.jpg" alt="" class="scan-hero-img" width="640" height="480">
+            <h2 data-i18n="scanReadyTitle">Find an animal</h2>
+            <p class="hint" data-i18n="scanReadyHint">Point your phone at the muzzle. Camera access is requested only when you start.</p>
+            <button type="button" id="startScanBtn" class="btn primary big" data-i18n="startScan">📷 Scan animal</button>
+          </div>
+        </div>
+        <div id="scanLive" class="scan-wrap hidden">
           <div class="camera-box">
             <video id="camera" autoplay playsinline muted></video>
             <div class="frame-circle"></div>
@@ -80,7 +90,8 @@
             <div id="scanResult" class="scan-plaque hidden"></div>
           </div>
           <p class="hint" data-i18n="scanHint">Point the camera at the animal's muzzle / nose pad, close-up, then tap Scan.</p>
-          <button id="scanBtn" class="btn primary big" data-i18n="scan">Scan</button>
+          <button type="button" id="scanBtn" class="btn primary big" data-i18n="scan">Scan</button>
+          <button type="button" id="closeScanBtn" class="btn" data-i18n="closeCamera">Close camera</button>
         </div>
       </section>
 
@@ -116,10 +127,11 @@
             <video id="registerCamera" autoplay playsinline muted></video>
             <img id="regPreview" class="hidden" alt="Captured muzzle">
             <p id="frameCounter" class="hint">Frames: 0/4</p>
-            <button type="button" id="captureFaceBtn" class="btn">📷 Capture muzzle</button>
-            <button type="button" id="resetCaptureBtn" class="btn">↺ Retake</button>
+            <button type="button" id="captureFaceBtn" class="btn">📷 <span data-i18n="captureFace">Capture muzzle</span></button>
+            <button type="button" id="resetCaptureBtn" class="btn">↺ <span data-i18n="retake">Retake</span></button>
           </div>
           <p id="registerError" class="error hidden"></p>
+          <p class="hint" data-i18n="captureFirstHint">Capture the muzzle first (4 frames), then save.</p>
           <button type="submit" id="saveAnimalBtn" class="btn primary big" data-i18n="saveAnimal" disabled>Save animal</button>
         </form>
       </section>
@@ -146,10 +158,10 @@
           <label>
             <span data-i18n="type">Type</span>
             <select id="remKind">
-              <option data-i18n="vaccination">Vaccination</option>
-              <option data-i18n="heatCycle">Heat cycle</option>
-              <option data-i18n="vetVisit">Vet visit</option>
-              <option data-i18n="weighing">Weighing</option>
+              <option value="vaccination" data-i18n="vaccination">Vaccination</option>
+              <option value="heat" data-i18n="heatCycle">Heat cycle</option>
+              <option value="vet" data-i18n="vetVisit">Vet visit</option>
+              <option value="weighing" data-i18n="weighing">Weighing</option>
             </select>
           </label>
           <label>
@@ -199,7 +211,11 @@
           </label>
           <label>
             <span data-i18n="location">Location</span>
-            <input id="postLocation" type="text" data-i18n-ph="locationPh" placeholder="e.g. near the orchard">
+            <div class="loc-row">
+              <input id="postLocation" type="text" data-i18n-ph="locationPh" placeholder="e.g. near the orchard">
+              <button type="button" id="shareLocBtn" class="btn" data-i18n="shareLocation">📍 Send location</button>
+            </div>
+            <p id="locStatus" class="hint loc-status hidden"></p>
           </label>
           <button type="submit" class="btn primary big" data-i18n="post">Post</button>
         </form>
@@ -265,14 +281,14 @@
     </main>
 
     <nav id="bottomnav" class="bottomnav hidden">
-      <button data-view="scan" class="active"><span class="nav-emoji">📷</span><span data-i18n="navFind">Find</span></button>
-      <button data-view="feed"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
+      <button data-view="scan"><span class="nav-emoji">📷</span><span data-i18n="navFind">Find</span></button>
+      <button data-view="feed" class="active"><span class="nav-emoji">📣</span><span data-i18n="feedNav">Feed</span></button>
       <button data-view="chat"><span class="nav-emoji">💬</span><span data-i18n="chatNav">Chat</span></button>
       <button data-view="map"><span class="nav-emoji">🗺️</span><span data-i18n="mapNav">Map</span></button>
       <button data-view="rating"><span class="nav-emoji">📊</span><span data-i18n="navRating">Рейтинг</span></button>
     </nav>
   </div>
 
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>

@@ -57,24 +57,30 @@ body { font-family: var(--font-body); font-weight: 700; font-size: 16px; color: 
   color: var(--ink);
 }
 .card, .list-item, .auth-card, .vet-card, .broadcast, .stat-card, .post, .scan-plaque, .capture-box { border-radius: 26px; }
+.broadcast, .post, .card, .vet-card, .stat-card {
+  background: linear-gradient(158deg, rgba(255,255,255,.24), rgba(255,255,255,0) 42%), var(--glass-strong);
+}
 .list-item img, .list-item .no-photo { border-radius: 50%; border: 1px solid var(--glass-edge); }
-.muted, .hint, .post-meta, .vax-sub, .j-sub, .msg-author, .plaque-sub, .plaque-conf, .bc-meta, .vet-role, .vet-addr, .stat-label, .rank-sub { color: var(--ink-soft) !important; }
+.muted, .hint, .post-meta, .vax-sub, .j-sub, .msg-author, .plaque-sub, .plaque-conf, .bc-meta, .vet-role, .vet-addr, .stat-label, .rank-sub, .bc-text {
+  color: rgba(255, 255, 255, 0.92) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
 h1, h2, h3, .view-head h2 { font-family: var(--font-display); color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.45); }
 .view-head h2 { font-size: 28px; font-weight: 700; }
 .section-title { color: #fff; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
 
 /* ---------- top bar ---------- */
 .topbar { background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.topbar .brand { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 18px; border-radius: 999px; font-family: var(--font-display); font-weight: 700; font-size: 24px; color: #fff; }
-.greeting { color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
-.icon-btn { width: 46px; height: 46px; padding: 0; border-radius: 50%; }
+.topbar .brand { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 999px; font-family: var(--font-display); font-weight: 700; font-size: 22px; color: #fff; }
+.greeting { color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); padding-left: 4px; }
+.icon-btn { width: 42px; height: 42px; padding: 0; border-radius: 50%; flex-shrink: 0; }
 
-/* day/night switch: <button id="themeToggle" class="tgl" role="switch"> (markup in INTEGRATION.md) */
-.tgl { position: relative; width: 84px; height: 44px; padding: 0; border: 0; border-radius: 999px; background: #f1f2f6; box-shadow: inset 0 3px 7px rgba(80,92,130,.3), inset 0 -2px 4px #fff, 0 8px 18px rgba(0,0,0,.3); transition: background .45s, box-shadow .45s; }
+/* day/night switch — compact so it does not collide with lang/profile on phones */
+.tgl { position: relative; width: 56px; height: 36px; padding: 0; border: 0; border-radius: 999px; background: #f1f2f6; box-shadow: inset 0 3px 7px rgba(80,92,130,.3), inset 0 -2px 4px #fff, 0 8px 18px rgba(0,0,0,.3); transition: background .45s, box-shadow .45s; flex-shrink: 0; }
 .tgl[aria-checked="true"] { background: #151d6b; box-shadow: inset 0 3px 8px rgba(0,0,30,.6), inset 0 -2px 4px rgba(120,140,255,.18), 0 8px 18px rgba(0,0,0,.4); }
-.tgl .knob { position: absolute; top: 4px; left: 4px; width: 36px; height: 36px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(60,70,110,.4); display: grid; place-items: center; transition: transform .45s cubic-bezier(.5,1.5,.5,1), background .45s; }
-.tgl[aria-checked="true"] .knob { transform: translateX(40px); background: #2b3a96; }
-.tgl .knob svg { position: absolute; width: 32px; height: 32px; transition: opacity .35s, transform .45s; }
+.tgl .knob { position: absolute; top: 4px; left: 4px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(60,70,110,.4); display: grid; place-items: center; transition: transform .45s cubic-bezier(.5,1.5,.5,1), background .45s; }
+.tgl[aria-checked="true"] .knob { transform: translateX(20px); background: #2b3a96; }
+.tgl .knob svg { position: absolute; width: 24px; height: 24px; transition: opacity .35s, transform .45s; }
 .tgl .moon { opacity: 0; transform: rotate(-60deg) scale(.6); }
 .tgl[aria-checked="true"] .sun { opacity: 0; transform: rotate(90deg) scale(.6); }
 .tgl[aria-checked="true"] .moon { opacity: 1; transform: none; }
@@ -86,11 +92,16 @@ h1, h2, h3, .view-head h2 { font-family: var(--font-display); color: #fff; text-
 .btn.big { min-height: 60px; font-size: 19px; }
 .btn.small { min-height: 44px; padding: 8px 14px; font-size: 14.5px; }
 .btn.danger { background: linear-gradient(158deg, rgba(255,255,255,.24), rgba(255,255,255,0) 50%), rgba(229,57,53,.6); }
-input, select, textarea { min-height: 52px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--glass-edge); background: var(--field); color: #fff; font: inherit; font-size: 16px; }
+input, select, textarea { min-height: 52px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--glass-edge); background: var(--field); color: #fff; font: inherit; font-size: 16px; box-sizing: border-box; }
+form input, form select, form textarea,
+label > input, label > select, label > textarea,
+#profileForm input, #vetBox input { width: 100%; display: block; }
 textarea { padding: 14px 18px; }
 input::placeholder, textarea::placeholder { color: rgba(255,255,255,.72); }
 select option { color: #111; }
-label > span { color: #fff; font-weight: 800; }
+label { display: block; margin-bottom: 14px; }
+label > span { display: block; color: #fff; font-weight: 800; margin-bottom: 5px; }
+#profileCard .btn, #vetBox .btn { width: 100%; }
 .error { color: var(--bad-ink); background: var(--bad-bg); border-radius: 14px; padding: 8px 12px; }
 
 /* ---------- bottom nav ---------- */
@@ -111,6 +122,7 @@ label > span { color: #fff; font-weight: 800; }
 .feed-tab.active { background: var(--nav-active); }
 
 /* ---------- camera, chat, map ---------- */
+.scan-hero-img { border-radius: 22px; border: 1px solid var(--glass-edge); box-shadow: 0 8px 20px var(--shadow); }
 .camera-box { border-radius: 32px; border: 1px solid var(--glass-edge); box-shadow: 0 12px 30px var(--shadow); overflow: hidden; }
 .frame-circle { border: 4px dashed #fff; }
 .msg { border-radius: 22px 22px 22px 6px; }

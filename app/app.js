@@ -121,6 +121,35 @@ function watchGps() {
   );
 }
 
+let scanArmed = false;
+
+function setScanMode(live) {
+  scanArmed = live;
+  const gate = $('#scanGate');
+  const liveEl = $('#scanLive');
+  if (gate) gate.classList.toggle('hidden', live);
+  if (liveEl) liveEl.classList.toggle('hidden', !live);
+  if (!live) {
+    stopCamera($('#camera'));
+    const plaque = $('#scanResult');
+    if (plaque) { plaque.classList.add('hidden'); plaque.innerHTML = ''; }
+    const err = $('#cameraError');
+    if (err) err.classList.add('hidden');
+  }
+}
+
+async function armScanCamera() {
+  stopCamera($('#registerCamera'));
+  setScanMode(true);
+  const plaque = $('#scanResult');
+  if (plaque) { plaque.classList.add('hidden'); plaque.innerHTML = ''; }
+  try {
+    await startCamera($('#camera'));
+  } catch (e) {
+    showScanError(t('cameraUnavailable') + ': ' + e.message);
+  }
+}
+
 function show(viewId) {
   currentView = viewId;
   setBg(viewId);
@@ -134,15 +163,16 @@ function show(viewId) {
   $('#bottomnav').classList.toggle('hidden', viewId === 'auth');
 
   // Phones allow only one active camera, so hand off between views.
+  // Scan never auto-starts the camera — user taps "Scan animal" first.
   if (viewId === 'scan') {
     stopCamera($('#registerCamera'));
-    const plaque = $('#scanResult');
-    if (plaque) { plaque.classList.add('hidden'); plaque.innerHTML = ''; }
-    startCamera($('#camera')).catch((e) => showScanError(t('cameraUnavailable') + ': ' + e.message));
+    if (!scanArmed) setScanMode(false);
   } else if (viewId === 'register') {
+    setScanMode(false);
     stopCamera($('#camera'));
     startCamera($('#registerCamera')).catch((e) => showRegisterError(t('cameraUnavailable') + ': ' + e.message));
   } else {
+    setScanMode(false);
     stopCamera($('#camera'));
     stopCamera($('#registerCamera'));
   }
@@ -199,12 +229,13 @@ async function handleAuthSubmit(e) {
 
 function enterApp(user) {
   currentUser = user;
-  setSession(user);
+  syncLocalizedProfile();
+  setSession(currentUser);
   renderGreeting();
   $('#greeting').classList.remove('hidden');
   $('#profileBtn').classList.remove('hidden');
   $('#bottomnav').classList.remove('hidden');
-  show('scan');
+  show('feed');
   ensureDemoFarm(user.id).then(async () => { runRewards(user.id, await getAnimals()); });
 }
 
@@ -230,14 +261,14 @@ async function captureFace() {
   $('#regPreview').classList.remove('hidden');
   const btn = $('#captureFaceBtn');
   btn.disabled = true;
-  btn.textContent = t('readingFace');
+  setCaptureBtnLabel(t('readingFace'));
   try {
     const fp = await fingerprintOf(canvas);
     regFrames.push(fp);
     if (regFrames.length === 1) await checkRegSpecies(canvas);
     if (regFrames.length >= FRAMES_TO_CAPTURE) {
       regFingerprint = averageFingerprints(regFrames);
-      btn.textContent = t('faceCaptured');
+      setCaptureBtnLabel(t('faceCaptured'));
       $('#saveAnimalBtn').disabled = false;
       updateFrameCounter(regFrames.length);
     } else {
@@ -355,6 +386,11 @@ async function showAnimalDetail(id) {
   show('animal-detail');
 }
 
+function reminderKindLabel(kind) {
+  const map = { vaccination: 'vaccination', heat: 'heatCycle', vet: 'vetVisit', weighing: 'weighing' };
+  return t(map[kind] || kind || 'note');
+}
+
 async function renderReminders() {
   const a = (await getAnimals()).find((x) => x.id === currentAnimalId);
   const list = a ? (a.reminders || []) : [];
@@ -364,7 +400,7 @@ async function renderReminders() {
   for (const r of list) {
     const el = document.createElement('div');
     el.className = 'list-item';
-    el.innerHTML = `<div class="list-item-body"><strong>${esc(r.kind)}</strong>` +
+    el.innerHTML = `<div class="list-item-body"><strong>${esc(reminderKindLabel(r.kind))}</strong>` +
       `<span>${esc(r.date)}${r.note ? ' · ' + esc(r.note) : ''}</span></div>`;
     wrap.appendChild(el);
   }
@@ -411,6 +447,41 @@ function onPostPhoto(e) {
   fr.readAsDataURL(file);
 }
 
+function setLocStatus(msg, isError) {
+  const el = $('#locStatus');
+  if (!el) return;
+  if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.remove('hidden');
+}
+
+function sharePostLocation() {
+  const btn = $('#shareLocBtn');
+  const input = $('#postLocation');
+  if (!navigator.geolocation) {
+    setLocStatus(t('geoUnavailable'), true);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  setLocStatus(t('geoLocating'));
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(5);
+      const lon = pos.coords.longitude.toFixed(5);
+      const maps = `https://maps.google.com/?q=${lat},${lon}`;
+      if (input) input.value = `${lat}, ${lon} · ${maps}`;
+      setLocStatus(t('geoReady'));
+      if (btn) btn.disabled = false;
+    },
+    (err) => {
+      setLocStatus(t('geoDenied') + (err && err.message ? ': ' + err.message : ''), true);
+      if (btn) btn.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+  );
+}
+
 async function renderFeed() {
   renderFeedTabs();
   setPostComposer(postComposerOpen);
@@ -424,10 +495,13 @@ async function renderFeed() {
   for (const p of mock) {
     const card = document.createElement('div');
     card.className = 'card post';
+    const loc = p.locationKey ? t(p.locationKey) : (p.location || '');
+    const author = p.authorKey ? t(p.authorKey) : (p.authorName || '');
+    const note = p.noteKey ? t(p.noteKey) : (p.note || '');
     card.innerHTML =
       `<span class="post-category ${p.category}">${esc(categoryName(p.category))}</span>` +
-      `<div class="post-note">${esc(p.note)}</div>` +
-      `<div class="post-meta">${typeName(p.type)}${p.location ? ' · ' + esc(p.location) : ''} · ${esc(p.authorName)}</div>`;
+      `<div class="post-note">${esc(note)}</div>` +
+      `<div class="post-meta">${typeName(p.type)}${loc ? ' · ' + esc(loc) : ''} · ${esc(author)}</div>`;
     wrap.appendChild(card);
   }
   for (const p of real) {
@@ -635,11 +709,25 @@ async function restoreSession() {
   const session = getSession();
   if (session) { enterApp(session); return; }
 
-  const res = signUp('Farmer', 'fermer@demo.kg', 'demo');
-  const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: 'Farmer', phone: '' };
-  demoUser.address = demoUser.address || 'Lenin St 12';
+  const res = signUp(t('demoName'), 'fermer@demo.kg', 'demo');
+  const demoUser = res.ok ? res.user : { id: 'guest-' + Date.now().toString(36), name: t('demoName'), phone: '' };
+  demoUser.nameKey = 'demoName';
+  demoUser.address = demoUser.address || t('demoAddress');
   if (res.ok) await upsertProfile(demoUser);
   enterApp(demoUser);
+}
+
+function syncLocalizedProfile() {
+  if (!currentUser) return;
+  if (currentUser.nameKey === 'demoName' || currentUser.phone === 'fermer@demo.kg' || currentUser.name === 'Farmer' || currentUser.name === 'Фермер') {
+    currentUser.name = t('demoName');
+    currentUser.nameKey = 'demoName';
+    if (!currentUser.address || /Lenin|Ленин/.test(currentUser.address)) {
+      currentUser.address = t('demoAddress');
+    }
+    upsertProfile(currentUser);
+    setSession(currentUser);
+  }
 }
 
 function typeName(type) {
@@ -715,13 +803,15 @@ async function addHealthEvent(kind) {
 function renderVetCard() {
   const el = $('#vetCard');
   if (!el) return;
+  const name = t(VET.nameKey || 'vetName');
+  const address = t(VET.addressKey || 'vetAddress');
   el.innerHTML =
     `<div class="vet-card">` +
     `<div class="vet-avatar">🩺</div>` +
     `<div class="vet-info">` +
-    `<div class="vet-name">${esc(VET.name)}</div>` +
+    `<div class="vet-name">${esc(name)}</div>` +
     `<div class="vet-role">${t('vetRole')}</div>` +
-    `<div class="vet-addr">${esc(VET.address)} · ${esc(VET.phone)}</div>` +
+    `<div class="vet-addr">${esc(address)} · ${esc(VET.phone)}</div>` +
     `</div>` +
     `<a class="vet-call" href="tel:${VET.phone.replace(/[^+\d]/g, '')}">📞 ${t('emergencyCall')}</a>` +
     `</div>`;
@@ -732,9 +822,9 @@ function renderBroadcasts() {
   if (!el) return;
   el.innerHTML = VET_ALERTS.map((b) =>
     `<div class="broadcast ${b.level}">` +
-    `<div class="bc-title">${b.level === 'danger' ? '🚨' : b.level === 'warning' ? '⚠️' : 'ℹ️'} ${esc(b.title)}</div>` +
-    `<div class="bc-text">${esc(b.text)}</div>` +
-    `<div class="bc-meta">${b.disease ? esc(b.disease) + ' · ' : ''}${esc(b.time)}</div>` +
+    `<div class="bc-title">${b.level === 'danger' ? '🚨' : b.level === 'warning' ? '⚠️' : 'ℹ️'} ${esc(t(b.titleKey || b.title))}</div>` +
+    `<div class="bc-text">${esc(t(b.textKey || b.text))}</div>` +
+    `<div class="bc-meta">${b.diseaseKey ? esc(t(b.diseaseKey)) + ' · ' : (b.disease ? esc(b.disease) + ' · ' : '')}${esc(t(b.timeKey || b.time))}</div>` +
     `</div>`).join('');
 }
 
@@ -771,9 +861,14 @@ async function ensureDemoFarm(userId) {
   } catch {}
 }
 
-function resetCaptureBtn() {
+function setCaptureBtnLabel(label) {
   const btn = $('#captureFaceBtn');
-  if (btn) btn.textContent = '📷 ' + t('captureFace');
+  if (!btn) return;
+  btn.innerHTML = '📷 <span data-i18n="captureFace">' + esc(label) + '</span>';
+}
+
+function resetCaptureBtn() {
+  setCaptureBtnLabel(t('captureFace'));
 }
 
 function updateFrameCounter(n) {
@@ -825,7 +920,9 @@ function prefillPostFromScan(canvas, type) {
 
 function applyLanguage() {
   applyI18n();
+  document.documentElement.lang = getLang();
   $('#langToggle').textContent = getLang().toUpperCase();
+  syncLocalizedProfile();
   renderGreeting();
   if (currentView === 'animals') safeRender(renderAnimals);
   else if (currentView === 'feed') { safeRender(renderFeed); setPostComposer(postComposerOpen); }
@@ -875,9 +972,12 @@ async function renderProfile() {
   $('#profileCard').innerHTML =
     `<h3>${esc(profile.name)}</h3>` +
     `<div class="muted">${esc(profile.phone || '')}</div>` +
-    `<label style="margin-top:10px"><span>${t('address')}</span>` +
-    `<input id="profileAddress" type="text" placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
-    `<button id="saveProfileBtn" class="btn primary">${t('save')}</button>`;
+    `<form id="profileForm">` +
+    `<label><span>${t('address')}</span>` +
+    `<input id="profileAddress" type="text" autocomplete="street-address" ` +
+    `placeholder="${esc(t('addressPh'))}" value="${esc(profile.address || '')}"></label>` +
+    `<button type="submit" id="saveProfileBtn" class="btn primary">${t('save')}</button>` +
+    `</form>`;
   $('#myAnimalsList').innerHTML = '';
   $('#myAnimalsEmpty').classList.toggle('hidden', myAnimals.length > 0);
   for (const a of myAnimals) {
@@ -891,20 +991,23 @@ async function renderProfile() {
     el.addEventListener('click', () => showAnimalDetail(a.id));
     $('#myAnimalsList').appendChild(el);
   }
-  $('#saveProfileBtn').addEventListener('click', async () => {
+  $('#profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
     profile.address = $('#profileAddress').value.trim();
     await upsertProfile(profile);
     currentUser = profile;
+    setSession(profile);
     toast(t('saved'), 'good');
     await renderProfile();
   });
   const vb = $('#vetBox');
   if (isVet(profile)) {
-    vb.innerHTML = `<div>${vt('vetOn')}</div><button id="vetOffBtn" class="btn small">${vt('vetOff')}</button>`;
+    vb.innerHTML = `<div>${vt('vetOn')}</div><button type="button" id="vetOffBtn" class="btn small">${vt('vetOff')}</button>`;
     $('#vetOffBtn').addEventListener('click', () => { disableVet(profile); updateOutbreaks(); renderProfile(); });
   } else {
-    vb.innerHTML = `<strong>${vt('vetMode')}</strong><input id="vetCodeInp" type="password" placeholder="${esc(vt('vetCode'))}">` +
-      `<button id="vetOnBtn" class="btn small">${vt('enter')}</button>`;
+    vb.innerHTML = `<label><span>${vt('vetMode')}</span>` +
+      `<input id="vetCodeInp" type="password" autocomplete="off" placeholder="${esc(vt('vetCode'))}"></label>` +
+      `<button type="button" id="vetOnBtn" class="btn small">${vt('enter')}</button>`;
     $('#vetOnBtn').addEventListener('click', () => {
       if (enableVet(profile, $('#vetCodeInp').value)) { updateOutbreaks(); renderProfile(); } else toast(vt('wrong'), 'bad');
     });
@@ -1002,6 +1105,7 @@ function renderVetInbox(msgs, users, wrap) {
 
 function boot() {
   applyTheme(getTheme());
+  document.documentElement.lang = getLang();
   applyI18n();
   $('#langToggle').textContent = getLang().toUpperCase();
 
@@ -1060,6 +1164,9 @@ function boot() {
     $('#togglePass').textContent = show ? '🙈' : '👁️';
   });
   $('#scanBtn').addEventListener('click', onScan);
+  $('#startScanBtn').addEventListener('click', () => armScanCamera());
+  $('#closeScanBtn').addEventListener('click', () => setScanMode(false));
+  $('#shareLocBtn').addEventListener('click', sharePostLocation);
   $('#addAnimalBtn').addEventListener('click', () => show('register'));
   $('#captureFaceBtn').addEventListener('click', captureFace);
   $('#resetCaptureBtn').addEventListener('click', resetCapture);

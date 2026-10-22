@@ -1,20 +1,20 @@
 // Moo — biosafety demo data (AgTech / Animal Health platform).
-// Static mock content keeps the transformation visible without a live backend.
+// User-visible copy uses i18n keys so locale switches update the demo content.
 
 export const VET = {
   id: 'vet-aibek',
-  name: 'Dr. Aibek Usupov',
-  role: 'Village veterinarian',
+  nameKey: 'vetName',
+  roleKey: 'vetRole',
   phone: '+996 555 12-34-56',
-  address: 'Nizhny-Chuy village, Lenin St 12',
+  addressKey: 'vetAddress',
   lat: 43.18807,
   lng: 74.34209,
 };
 
 export const VET_ALERTS = [
-  { id: 'a1', level: 'warning', disease: 'FMD', title: 'Scheduled FMD vaccination', text: 'Tomorrow from 08:00 on Lenin St. Bring cattle and small ruminants.', time: 'Tomorrow 08:00' },
-  { id: 'a2', level: 'danger', disease: 'Brucellosis', title: 'Quarantine: suspected brucellosis', text: 'Sector 3. Do not move livestock, report symptoms to the vet.', time: 'Today' },
-  { id: 'a3', level: 'info', disease: null, title: 'Ear tag distribution', text: 'Collection point at the village council, Wednesday 10:00–14:00.', time: 'Wednesday' },
+  { id: 'a1', level: 'warning', diseaseKey: 'fmd', titleKey: 'alertFmdTitle', textKey: 'alertFmdText', timeKey: 'alertFmdTime' },
+  { id: 'a2', level: 'danger', diseaseKey: 'brucellosis', titleKey: 'alertBruTitle', textKey: 'alertBruText', timeKey: 'alertToday' },
+  { id: 'a3', level: 'info', diseaseKey: null, titleKey: 'alertTagTitle', textKey: 'alertTagText', timeKey: 'alertWednesday' },
 ];
 
 export const FEED_CATEGORIES = [
@@ -26,9 +26,9 @@ export const FEED_CATEGORIES = [
 ];
 
 export const MAP_POINTS = [
-  { id: 'vet', kind: 'vet', icon: '🏥', name: 'Vet clinic', address: 'Nizhny-Chuy village, Lenin St 12', lat: 43.18807, lng: 74.34209 },
-  { id: 'vax1', kind: 'vax', icon: '💉', name: 'Vaccination point #1', address: 'Nizhny-Chuy village, village council', lat: 43.18950, lng: 74.34320 },
-  { id: 'vax2', kind: 'vax', icon: '💉', name: 'Vaccination point #2', address: 'Nizhny-Chuy village, school #2', lat: 43.18690, lng: 74.34060 },
+  { id: 'vet', kind: 'vet', icon: '🏥', nameKey: 'vetClinic', addressKey: 'vetAddress', lat: 43.18807, lng: 74.34209 },
+  { id: 'vax1', kind: 'vax', icon: '💉', nameKey: 'vaxPoint1', addressKey: 'vaxAddr1', lat: 43.18950, lng: 74.34320 },
+  { id: 'vax2', kind: 'vax', icon: '💉', nameKey: 'vaxPoint2', addressKey: 'vaxAddr2', lat: 43.18690, lng: 74.34060 },
 ];
 
 export const VILLAGE_HEALTH_STATS = {
@@ -39,9 +39,9 @@ export const VILLAGE_HEALTH_STATS = {
 };
 
 export const MOCK_POSTS = [
-  { id: 'mock-alert-1', category: 'alert', type: 'other', note: '🚨 Quarantine: suspected FMD in sector 3. Do not move livestock or transport feed.', location: 'Sector 3', authorName: 'Vet service', createdAt: Date.now() - 7200e3 },
-  { id: 'mock-feed-1', category: 'feed', type: 'other', note: 'Selling alfalfa hay, 300 bales. Delivery possible within the village.', location: 'Lenin St 12', authorName: 'Bakyt', createdAt: Date.now() - 18000e3 },
-  { id: 'mock-service-1', category: 'service', type: 'other', note: 'Tractor with plow for daily rent. Looking for a shepherd for sheep grazing.', location: 'Sadovaya St', authorName: 'Nurlan', createdAt: Date.now() - 32400e3 },
+  { id: 'mock-alert-1', category: 'alert', type: 'other', noteKey: 'mockAlertNote', locationKey: 'sector3', authorKey: 'vetService', createdAt: Date.now() - 7200e3 },
+  { id: 'mock-feed-1', category: 'feed', type: 'other', noteKey: 'mockFeedNote', locationKey: 'demoAddress', authorKey: 'authorBakyt', createdAt: Date.now() - 18000e3 },
+  { id: 'mock-service-1', category: 'service', type: 'other', noteKey: 'mockServiceNote', locationKey: 'sadovayaSt', authorKey: 'authorNurlan', createdAt: Date.now() - 32400e3 },
 ];
 
 export function daysFromNow(days) {
