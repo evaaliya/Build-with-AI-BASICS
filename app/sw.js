@@ -1,10 +1,9 @@
-// Moo — service worker: network-first with offline fallback.
-const CACHE = 'moo-v6';
+// Moo — service worker: network-first offline + Web Push for vaccination reminders.
+const CACHE = 'moo-v20';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
-  './glass.css',
   './app.js',
   './store.js',
   './mock.js',
@@ -38,7 +37,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return; // leave CDN/model requests alone
+  if (url.origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
@@ -48,4 +47,28 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((cached) => cached || caches.match('./index.html')))
   );
+});
+
+// Vaccination reminders (payload from app or future push server).
+self.addEventListener('push', (e) => {
+  let data = { title: 'Moo', body: 'Напоминание о прививке' };
+  try {
+    if (e.data) data = { ...data, ...e.data.json() };
+  } catch {
+    try { data.body = e.data.text(); } catch {}
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Moo', {
+      body: data.body || '',
+      icon: './icons/icon.svg',
+      badge: './icons/icon.svg',
+      data: data.url || './',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data) || './';
+  e.waitUntil(clients.openWindow(typeof url === 'string' ? url : './'));
 });

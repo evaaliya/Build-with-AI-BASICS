@@ -1,8 +1,7 @@
-// Moo — biosafety demo data (AgTech / Animal Health platform).
-// User-visible copy uses i18n keys so locale switches update the demo content.
+// Moo — demo data. User-visible copy uses i18n keys (no mixed languages).
 
 export const VET = {
-  id: 'vet-aibek',
+  id: 'vet-nurlan',
   nameKey: 'vetName',
   roleKey: 'vetRole',
   phone: '+996 555 12-34-56',
@@ -11,24 +10,12 @@ export const VET = {
   lng: 74.34209,
 };
 
-export const VET_ALERTS = [
-  { id: 'a1', level: 'warning', diseaseKey: 'fmd', titleKey: 'alertFmdTitle', textKey: 'alertFmdText', timeKey: 'alertFmdTime' },
-  { id: 'a2', level: 'danger', diseaseKey: 'brucellosis', titleKey: 'alertBruTitle', textKey: 'alertBruText', timeKey: 'alertToday' },
-  { id: 'a3', level: 'info', diseaseKey: null, titleKey: 'alertTagTitle', textKey: 'alertTagText', timeKey: 'alertWednesday' },
-];
-
 export const FEED_CATEGORIES = [
   { id: 'all', labelKey: 'catAll' },
-  { id: 'feed', labelKey: 'catFeed' },
-  { id: 'service', labelKey: 'catService' },
-  { id: 'alert', labelKey: 'catAlert' },
-  { id: 'lost', labelKey: 'catLost' },
-];
-
-export const MAP_POINTS = [
-  { id: 'vet', kind: 'vet', icon: '🏥', nameKey: 'vetClinic', addressKey: 'vetAddress', lat: 43.18807, lng: 74.34209 },
-  { id: 'vax1', kind: 'vax', icon: '💉', nameKey: 'vaxPoint1', addressKey: 'vaxAddr1', lat: 43.18950, lng: 74.34320 },
-  { id: 'vax2', kind: 'vax', icon: '💉', nameKey: 'vaxPoint2', addressKey: 'vaxAddr2', lat: 43.18690, lng: 74.34060 },
+  { id: 'slot', labelKey: 'catSlot' },
+  { id: 'news', labelKey: 'catNews' },
+  { id: 'ads', labelKey: 'catAds' },
+  { id: 'ask', labelKey: 'catAsk' },
 ];
 
 export const VILLAGE_HEALTH_STATS = {
@@ -38,72 +25,75 @@ export const VILLAGE_HEALTH_STATS = {
   vaccinatedThisWeek: 12,
 };
 
-export const MOCK_POSTS = [
-  { id: 'mock-alert-1', category: 'alert', type: 'other', noteKey: 'mockAlertNote', locationKey: 'sector3', authorKey: 'vetService', createdAt: Date.now() - 7200e3 },
-  { id: 'mock-feed-1', category: 'feed', type: 'other', noteKey: 'mockFeedNote', locationKey: 'demoAddress', authorKey: 'authorBakyt', createdAt: Date.now() - 18000e3 },
-  { id: 'mock-service-1', category: 'service', type: 'other', noteKey: 'mockServiceNote', locationKey: 'sadovayaSt', authorKey: 'authorNurlan', createdAt: Date.now() - 32400e3 },
-];
-
 export function daysFromNow(days) {
   const d = new Date(Date.now() + days * 86400e3);
   return d.toISOString().slice(0, 10);
 }
 
-// Returns { status: 'protected' | 'due' | 'overdue', record } for Foot-and-Mouth (FMD).
+/**
+ * Animal vaccination status from latest *verified* FMD record.
+ * @returns {{ status: 'ok'|'soon'|'urgent'|'overdue'|'never'|'claimed', record, daysLeft }}
+ */
 export function vaccinationStatus(a) {
-  const vax = (a.vaccinations || []).find((v) =>
-    (v.diseaseCode || '').toLowerCase() === 'fmd' || /fmd|foot/i.test(v.disease || '')
+  const list = (a.vaccinations || []).filter((v) =>
+    (v.diseaseCode || '').toLowerCase() === 'fmd' || /fmd|foot|ящур|шарп/i.test(v.disease || '')
   );
-  if (!vax) return { status: 'due', record: null };
-  if (!vax.validUntil) return { status: 'protected', record: vax };
-  const days = (new Date(vax.validUntil + 'T23:59:59').getTime() - Date.now()) / 86400e3;
-  if (days < 0) return { status: 'overdue', record: vax };
-  if (days <= 30) return { status: 'due', record: vax };
-  return { status: 'protected', record: vax };
+  const verified = list.filter((v) => (v.status || 'verified') === 'verified');
+  const claimed = list.filter((v) => v.status === 'claimed');
+  const vax = verified.sort((a, b) => (b.validUntil || '').localeCompare(a.validUntil || ''))[0]
+    || null;
+  if (!vax) {
+    if (claimed.length) return { status: 'claimed', record: claimed[0], daysLeft: null };
+    return { status: 'never', record: null, daysLeft: null };
+  }
+  if (!vax.validUntil) return { status: 'ok', record: vax, daysLeft: 999 };
+  const days = Math.floor((new Date(vax.validUntil + 'T23:59:59').getTime() - Date.now()) / 86400e3);
+  if (days < 0) return { status: 'overdue', record: vax, daysLeft: days };
+  if (days <= 1) return { status: 'urgent', record: vax, daysLeft: days };
+  if (days <= 7) return { status: 'urgent', record: vax, daysLeft: days };
+  if (days <= 30) return { status: 'soon', record: vax, daysLeft: days };
+  return { status: 'ok', record: vax, daysLeft: days };
 }
 
 export function demoAnimals(ownerId) {
   return [
     {
-      ownerId, name: 'Zorka', type: 'cow', breed: 'Alatau', tagNumber: 'KG-0001',
+      ownerId, name: 'Зорька', type: 'cow', breed: 'Алатау', tagNumber: 'KG-0142',
       photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
-        { id: 'v1', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-150), validUntil: daysFromNow(60), note: 'Scheduled' },
-        { id: 'v2', disease: 'Brucellosis', diseaseCode: 'brucellosis', date: daysFromNow(-200), validUntil: daysFromNow(165), note: 'Scheduled' },
+        { id: 'v1', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-165), validUntil: daysFromNow(200), status: 'verified', note: '' },
       ],
-      health: [
-        { id: 'h1', kind: 'milk', date: daysFromNow(0), value: '14 L', note: 'Morning milking' },
-        { id: 'h2', kind: 'expense', date: daysFromNow(-3), value: '1200 som', note: 'Compound feed' },
-      ],
+      health: [],
     },
     {
-      ownerId, name: 'Burenka', type: 'cow', breed: 'Holstein', tagNumber: 'KG-0002',
+      ownerId, name: 'Бурёнка', type: 'cow', breed: 'Голштин', tagNumber: 'KG-0157',
       photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
-        { id: 'v3', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-160), validUntil: daysFromNow(20), note: 'Scheduled' },
+        { id: 'v3', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-345), validUntil: daysFromNow(20), status: 'verified', note: '' },
       ],
-      health: [
-        { id: 'h3', kind: 'milk', date: daysFromNow(0), value: '18 L', note: 'Evening milking' },
-        { id: 'h4', kind: 'illness', date: daysFromNow(-7), value: 'Mild lameness', note: 'Vet check-up' },
-      ],
+      health: [],
     },
     {
-      ownerId, name: 'Aktay', type: 'horse', breed: 'Kyrgyz', tagNumber: 'KG-0003',
+      ownerId, name: 'Каракат', type: 'horse', breed: 'Кыргызская', tagNumber: 'KG-0213',
       photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
-        { id: 'v5', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-200), validUntil: daysFromNow(-10), note: 'Expired' },
+        { id: 'v5', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-362), validUntil: daysFromNow(3), status: 'verified', note: '' },
       ],
-      health: [
-        { id: 'h5', kind: 'expense', date: daysFromNow(-15), value: '2000 som', note: 'Shoeing' },
-      ],
+      health: [],
     },
     {
-      ownerId, name: 'Kochkor', type: 'sheep', breed: 'Gissar', tagNumber: 'KG-0004',
+      ownerId, name: 'Белянка', type: 'sheep', breed: 'Гиссар', tagNumber: 'KG-0318',
       photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [],
-      health: [
-        { id: 'h6', kind: 'milk', date: daysFromNow(0), value: '—', note: 'Ram' },
+      health: [],
+    },
+    {
+      ownerId, name: 'Керемет', type: 'sheep', breed: 'Эдильбай', tagNumber: 'KG-0322',
+      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
+      vaccinations: [
+        { id: 'v6', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-377), validUntil: daysFromNow(-12), status: 'verified', note: '' },
       ],
+      health: [],
     },
   ];
 }

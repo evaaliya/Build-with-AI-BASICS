@@ -1,37 +1,94 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moo — recognition calibration</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #222; }
-  h1 { font-size: 1.4rem; }
-  .drop { border: 2px dashed #999; border-radius: 12px; padding: 16px; margin: 12px 0; }
-  .drop input { display: block; margin-top: 8px; }
-  pre { background: #f6f6f6; padding: 12px; border-radius: 8px; overflow: auto; }
-  .muted { color: #666; }
-  button { font-size: 1rem; padding: 8px 14px; }
+  :root { color-scheme: light; }
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px 48px; color: #1f2a1c; line-height: 1.45; }
+  h1 { font-size: 1.35rem; margin: 0 0 8px; }
+  .muted { color: #5c6656; }
+  .warn { color: #8a4b00; background: #fff6e5; border: 1px solid #f0d9a0; padding: 10px 12px; border-radius: 10px; margin: 12px 0; }
+  .err { color: #8a1f14; background: #fdeceb; border: 1px solid #f2c0b8; padding: 10px 12px; border-radius: 10px; margin: 12px 0; }
+  .ok { color: #1e4d2b; background: #e7f2e4; border: 1px solid #bfe0c2; padding: 10px 12px; border-radius: 10px; margin: 12px 0; }
+  .ok.inline { display: inline; background: none; border: 0; padding: 0; margin: 0; }
+  .drop { border: 2px dashed #9aaa90; border-radius: 14px; padding: 14px 16px; margin: 14px 0; background: #fbf9f5; }
+  .drop strong { display: block; margin-bottom: 4px; }
+  .hint { font-size: 0.9rem; color: #5c6656; margin: 0 0 10px; }
+  .count { font-size: 0.95rem; font-weight: 700; margin: 8px 0; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; margin-top: 10px; }
+  .thumb {
+    position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+    background: #e7e2d6; border: 1px solid #d5d0c4;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb button {
+    position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; padding: 0;
+    border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff;
+    font-size: 16px; line-height: 1; cursor: pointer;
+  }
+  .thumb .name {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 4px;
+    font-size: 9px; color: #fff; background: rgba(0,0,0,.55);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  pre { background: #f4f1ea; padding: 14px; border-radius: 12px; overflow: auto; white-space: pre-wrap; font-size: 0.85rem; }
+  button { font-size: 1rem; padding: 10px 16px; border-radius: 12px; border: 1px solid #c9d0c2; background: #fff; cursor: pointer; font-weight: 600; }
+  button.primary { background: #1e4d2b; color: #fff; border-color: #1e4d2b; }
+  button.ghost { background: #fff; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  input[type="file"] { display: none; }
+  #log { font-family: ui-monospace, monospace; font-size: 0.82rem; white-space: pre-wrap; background: #111; color: #d6f7c4; padding: 12px; border-radius: 10px; max-height: 160px; overflow: auto; display: none; }
+  #log.on { display: block; }
 </style>
 </head>
 <body>
-  <h1>Moo — recognition calibration</h1>
-  <p class="muted">Measures genuine vs. impostor cosine similarity so you can pick an honest threshold + margin. Uses the same MobileNet v2 model as the app.</p>
+  <h1>Moo — калибровка распознавания</h1>
+  <p class="muted">Считает cosine similarity на тех же MobileNet v2 embeddings, что и приложение. Нужен интернет (CDN модели).</p>
+  <p class="warn" id="fileWarn" hidden>Откройте через локальный сервер, не как <code>file://</code>.<br>
+    <code>python3 -m http.server 8000</code> → <code>http://localhost:8000/tools/calibrate.html</code></p>
 
-  <p><button id="loadModelBtn">1. Load MobileNet</button> <span id="modelStatus" class="muted"></span></p>
+  <p class="warn">На телефоне часто нельзя выбрать несколько фото сразу. Жмите <b>«+ Добавить фото»</b> несколько раз — каждое новое фото <b>добавляется</b> в список, а не заменяет предыдущее.</p>
 
-  <div class="drop">
-    <strong>2. Same animal (genuine)</strong> — several photos of ONE animal from different angles.
-    <input id="genuineInput" type="file" accept="image/*" multiple>
+  <div class="row">
+    <button type="button" id="loadModelBtn" class="primary">1. Загрузить MobileNet</button>
+    <span id="modelStatus" class="muted">модель не загружена</span>
   </div>
 
-  <div class="drop">
-    <strong>3. Other animals (impostor)</strong> — photos of DIFFERENT animals (ideally the same species, e.g. other cows).
-    <input id="impostorInput" type="file" accept="image/*" multiple>
+  <div class="drop" id="genuineBox">
+    <strong>2. Одно и то же животное (genuine)</strong>
+    <p class="hint">Минимум 2 фото одной особи. JPG/PNG/WebP (не HEIC). Добавляйте по одному или пачкой.</p>
+    <div class="actions">
+      <button type="button" class="primary" id="genuineAdd">+ Добавить фото</button>
+      <button type="button" class="ghost" id="genuineClear" disabled>Очистить</button>
+    </div>
+    <input id="genuineInput" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple>
+    <div class="count" id="genuineCount">файлов: 0 (нужно ≥ 2)</div>
+    <div class="thumbs" id="genuineThumbs"></div>
   </div>
 
-  <p><button id="runBtn" disabled>4. Compute</button> <span id="runStatus" class="muted"></span></p>
+  <div class="drop" id="impostorBox">
+    <strong>3. Другие животные (impostor)</strong>
+    <p class="hint">Минимум 1 фото других особей. Тоже можно добавлять по одному.</p>
+    <div class="actions">
+      <button type="button" class="primary" id="impostorAdd">+ Добавить фото</button>
+      <button type="button" class="ghost" id="impostorClear" disabled>Очистить</button>
+    </div>
+    <input id="impostorInput" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple>
+    <div class="count" id="impostorCount">файлов: 0 (нужно ≥ 1)</div>
+    <div class="thumbs" id="impostorThumbs"></div>
+  </div>
 
+  <div class="row">
+    <button type="button" id="runBtn" class="primary" disabled>4. Посчитать</button>
+    <span id="runStatus" class="muted"></span>
+  </div>
+
+  <div id="banner" hidden></div>
+  <pre id="log"></pre>
   <div id="results"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
@@ -40,76 +97,292 @@
     let model = null;
     const $ = (s) => document.querySelector(s);
 
+    // Accumulated file lists (picker ADDS to these — does not replace).
+    const bags = {
+      genuine: [],
+      impostor: [],
+    };
+
+    function log(msg) {
+      const el = $('#log');
+      el.classList.add('on');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+      console.log(msg);
+    }
+
+    function showBanner(text, kind) {
+      const el = $('#banner');
+      el.hidden = !text;
+      el.className = kind === 'err' ? 'err' : kind === 'warn' ? 'warn' : 'ok';
+      el.textContent = text || '';
+    }
+
+    if (location.protocol === 'file:') $('#fileWarn').hidden = false;
+
+    function fileKey(f) {
+      return f.name + '|' + f.size + '|' + f.lastModified;
+    }
+
+    function addFiles(bagName, fileList) {
+      const bag = bags[bagName];
+      const seen = new Set(bag.map(fileKey));
+      let added = 0;
+      for (const f of fileList) {
+        if (!f.type.startsWith('image/') && f.type !== '') continue;
+        const k = fileKey(f);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        bag.push(f);
+        added++;
+      }
+      renderBag(bagName);
+      if (added === 0 && fileList.length) {
+        showBanner('Эти файлы уже в списке или формат не поддерживается.', 'warn');
+      } else if (added) {
+        showBanner('Добавлено фото: ' + added + '. Можно снова нажать «+ Добавить фото».', 'ok');
+      }
+    }
+
+    function renderBag(bagName) {
+      const bag = bags[bagName];
+      const thumbs = $('#' + bagName + 'Thumbs');
+      const count = $('#' + bagName + 'Count');
+      const clearBtn = $('#' + bagName + 'Clear');
+      const need = bagName === 'genuine' ? 2 : 1;
+      count.textContent = 'файлов: ' + bag.length + (bag.length >= need ? ' ✓' : ' (нужно ≥ ' + need + ')');
+      clearBtn.disabled = bag.length === 0;
+      thumbs.innerHTML = '';
+      bag.forEach((file, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb';
+        const img = document.createElement('img');
+        img.alt = file.name;
+        const url = URL.createObjectURL(file);
+        img.src = url;
+        img.onload = () => { /* keep url until removed */ };
+        const rm = document.createElement('button');
+        rm.type = 'button';
+        rm.setAttribute('aria-label', 'Удалить');
+        rm.textContent = '×';
+        rm.addEventListener('click', () => {
+          URL.revokeObjectURL(url);
+          bags[bagName].splice(idx, 1);
+          renderBag(bagName);
+        });
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = file.name;
+        wrap.appendChild(img);
+        wrap.appendChild(rm);
+        wrap.appendChild(name);
+        thumbs.appendChild(wrap);
+      });
+    }
+
+    function wirePicker(bagName) {
+      const input = $('#' + bagName + 'Input');
+      const addBtn = $('#' + bagName + 'Add');
+      const clearBtn = $('#' + bagName + 'Clear');
+      addBtn.addEventListener('click', () => {
+        input.value = '';
+        input.click();
+      });
+      input.addEventListener('change', () => {
+        if (input.files && input.files.length) addFiles(bagName, input.files);
+        input.value = '';
+      });
+      clearBtn.addEventListener('click', () => {
+        bags[bagName] = [];
+        renderBag(bagName);
+      });
+
+      // Drag & drop onto the box
+      const box = $('#' + bagName + 'Box');
+      box.addEventListener('dragover', (e) => { e.preventDefault(); box.style.borderColor = '#1e4d2b'; });
+      box.addEventListener('dragleave', () => { box.style.borderColor = ''; });
+      box.addEventListener('drop', (e) => {
+        e.preventDefault();
+        box.style.borderColor = '';
+        if (e.dataTransfer && e.dataTransfer.files) addFiles(bagName, e.dataTransfer.files);
+      });
+    }
+    wirePicker('genuine');
+    wirePicker('impostor');
+
     function cosine(a, b) {
       let dot = 0, na = 0, nb = 0;
-      for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+      const n = Math.min(a.length, b.length);
+      for (let i = 0; i < n; i++) {
+        const x = a[i], y = b[i];
+        dot += x * y; na += x * x; nb += y * y;
+      }
       return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
     }
 
     function toSquare(img) {
       const size = 224;
-      const side = Math.min(img.naturalWidth, img.naturalHeight);
-      const c = document.createElement('canvas'); c.width = size; c.height = size;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+      const w = img.naturalWidth || img.width || 0;
+      const h = img.naturalHeight || img.height || 0;
+      if (!w || !h) throw new Error('image has zero size (unsupported format?)');
+      const side = Math.min(w, h);
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      c.getContext('2d', { alpha: false }).drawImage(
+        img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size
+      );
       return c;
     }
 
-    async function embed(file) {
-      const url = URL.createObjectURL(file);
-      const img = await new Promise((res, rej) => {
+    function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
         const im = new Image();
-        im.onload = () => res(im);
-        im.onerror = rej;
+        im.onload = async () => {
+          try {
+            if (im.decode) await im.decode();
+            if (!(im.naturalWidth || im.width)) throw new Error('decode failed');
+            resolve({ img: im, url });
+          } catch (e) {
+            URL.revokeObjectURL(url);
+            reject(e);
+          }
+        };
+        im.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('не открывается: ' + file.name + ' (попробуй JPG/PNG, не HEIC)'));
+        };
         im.src = url;
       });
-      const t = model.infer(toSquare(img), true);
-      const arr = Array.from(await t.data());
-      t.dispose();
-      URL.revokeObjectURL(url);
-      return arr;
+    }
+
+    async function embed(file) {
+      const { img, url } = await loadImage(file);
+      try {
+        const square = toSquare(img);
+        const t = model.infer(square, true);
+        try {
+          return Array.from(await t.data());
+        } finally {
+          t.dispose();
+        }
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     }
 
     function stats(arr) {
-      arr.sort((a, b) => a - b);
-      const n = arr.length;
-      const sum = arr.reduce((s, x) => s + x, 0);
-      const min = arr[0], max = arr[n - 1], mean = sum / n;
-      const median = n % 2 ? arr[(n - 1) / 2] : (arr[n / 2 - 1] + arr[n / 2]) / 2;
+      if (!arr.length) return null;
+      const sorted = arr.slice().sort((a, b) => a - b);
+      const n = sorted.length;
+      const sum = sorted.reduce((s, x) => s + x, 0);
+      const min = sorted[0], max = sorted[n - 1], mean = sum / n;
+      const median = n % 2 ? sorted[(n - 1) >> 1] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
       return { n, min, max, mean, median };
     }
 
-    function pairwise(a, b) {
+    function pairwiseSame(list) {
+      const sims = [];
+      for (let i = 0; i < list.length; i++)
+        for (let j = i + 1; j < list.length; j++)
+          sims.push(cosine(list[i], list[j]));
+      return sims;
+    }
+
+    function pairwiseCross(a, b) {
       const sims = [];
       for (let i = 0; i < a.length; i++)
         for (let j = 0; j < b.length; j++)
-          if (a[i] !== b[j]) sims.push(cosine(a[i], b[j]));
+          sims.push(cosine(a[i], b[j]));
       return sims;
     }
 
     $('#loadModelBtn').addEventListener('click', async () => {
-      $('#modelStatus').textContent = 'loading…';
-      model = await mobilenet.load({ version: 2, alpha: 1.0 });
-      $('#modelStatus').textContent = 'ready';
-      $('#runBtn').disabled = false;
+      showBanner('');
+      $('#modelStatus').textContent = 'загрузка…';
+      $('#loadModelBtn').disabled = true;
+      $('#log').textContent = '';
+      try {
+        if (!window.tf || !window.mobilenet) {
+          throw new Error('Скрипты TF/MobileNet не загрузились. Нужен интернет и http://localhost (не file://).');
+        }
+        try {
+          if (tf.getBackend() !== 'webgl') await tf.setBackend('webgl');
+          await tf.ready();
+        } catch (_) {}
+        log('tf backend: ' + tf.getBackend());
+        model = await mobilenet.load({ version: 2, alpha: 1.0 });
+        const warm = document.createElement('canvas');
+        warm.width = warm.height = 224;
+        const emb = model.infer(warm, true);
+        await emb.data();
+        emb.dispose();
+        $('#modelStatus').textContent = 'готово ✓';
+        $('#modelStatus').className = 'ok inline';
+        $('#runBtn').disabled = false;
+        showBanner('Модель загружена. Добавьте фото кнопкой «+ Добавить фото».', 'ok');
+        log('MobileNet ready');
+      } catch (e) {
+        model = null;
+        $('#modelStatus').textContent = 'ошибка';
+        $('#modelStatus').className = 'muted';
+        $('#runBtn').disabled = true;
+        showBanner(String(e.message || e), 'err');
+        log('ERROR load: ' + (e && e.stack || e));
+      } finally {
+        $('#loadModelBtn').disabled = false;
+      }
     });
 
     $('#runBtn').addEventListener('click', async () => {
-      const genFiles = [...$('#genuineInput').files];
-      const impFiles = [...$('#impostorInput').files];
-      if (!genFiles.length || !impFiles.length) { alert('Choose both groups first.'); return; }
-      $('#runStatus').textContent = 'computing…';
-      const genE = await Promise.all(genFiles.map(embed));
-      const impE = await Promise.all(impFiles.map(embed));
-      const genuine = pairwise(genE, genE);
-      const impostor = pairwise(genE, impE);
-      const g = stats(genuine);
-      const i = stats(impostor);
-      const threshold = (i.max + g.min) / 2;
-      const gap = g.min - i.max;
-      const margin = gap > 0 ? gap : 0.05;
+      showBanner('');
+      $('#results').innerHTML = '';
+      const genFiles = bags.genuine.slice();
+      const impFiles = bags.impostor.slice();
 
-      const report =
+      if (!model) {
+        showBanner('Сначала загрузите MobileNet.', 'err');
+        return;
+      }
+      if (genFiles.length < 2) {
+        showBanner('Genuine: нужно минимум 2 фото. Нажмите «+ Добавить фото» ещё раз.', 'err');
+        return;
+      }
+      if (!impFiles.length) {
+        showBanner('Impostor: добавьте хотя бы 1 фото другого животного.', 'err');
+        return;
+      }
+
+      $('#runBtn').disabled = true;
+      $('#runStatus').textContent = 'считаю…';
+      $('#log').textContent = '';
+      log(`genuine=${genFiles.length}, impostor=${impFiles.length}`);
+
+      try {
+        const genE = [];
+        for (let i = 0; i < genFiles.length; i++) {
+          $('#runStatus').textContent = `genuine ${i + 1}/${genFiles.length}…`;
+          log('embed genuine: ' + genFiles[i].name);
+          genE.push(await embed(genFiles[i]));
+        }
+        const impE = [];
+        for (let i = 0; i < impFiles.length; i++) {
+          $('#runStatus').textContent = `impostor ${i + 1}/${impFiles.length}…`;
+          log('embed impostor: ' + impFiles[i].name);
+          impE.push(await embed(impFiles[i]));
+        }
+
+        const genuine = pairwiseSame(genE);
+        const impostor = pairwiseCross(genE, impE);
+        const g = stats(genuine);
+        const iStats = stats(impostor);
+        if (!g || !iStats) throw new Error('not enough pairwise scores');
+
+        const threshold = (iStats.max + g.min) / 2;
+        const gap = g.min - iStats.max;
+        const margin = gap > 0 ? Math.min(gap, 0.3) : 0.05;
+
+        const report =
 `## Recognition calibration (measured)
 
 Photos: ${genFiles.length} same-animal, ${impFiles.length} other-animal.
@@ -117,15 +390,34 @@ Photos: ${genFiles.length} same-animal, ${impFiles.length} other-animal.
 | Distribution | n | min | median | mean | max |
 | --- | --- | --- | --- | --- | --- |
 | Genuine (same animal) | ${g.n} | ${g.min.toFixed(4)} | ${g.median.toFixed(4)} | ${g.mean.toFixed(4)} | ${g.max.toFixed(4)} |
-| Impostor (different) | ${i.n} | ${i.min.toFixed(4)} | ${i.median.toFixed(4)} | ${i.mean.toFixed(4)} | ${i.max.toFixed(4)} |
+| Impostor (different) | ${iStats.n} | ${iStats.min.toFixed(4)} | ${iStats.median.toFixed(4)} | ${iStats.mean.toFixed(4)} | ${iStats.max.toFixed(4)} |
 
-Recommended: MATCH_THRESHOLD = ${threshold.toFixed(3)}, MATCH_MARGIN = ${Math.min(margin, 0.3).toFixed(3)}
-(separation gap between impostor max and genuine min = ${gap.toFixed(4)}).`;
+Recommended: MATCH_THRESHOLD = ${threshold.toFixed(3)}, MATCH_MARGIN = ${margin.toFixed(3)}
+(separation gap between impostor max and genuine min = ${gap.toFixed(4)}).
 
-      $('#runStatus').textContent = 'done';
-      $('#results').innerHTML = '<pre>' + report.replace(/</g, '&lt;') + '</pre>' +
-        '<p><button id="copyBtn">Copy report</button></p>';
-      $('#copyBtn').addEventListener('click', () => navigator.clipboard.writeText(report));
+Paste into README.md / spec.md and update app/recognition.js.`;
+
+        $('#runStatus').textContent = 'готово ✓';
+        showBanner('Готово. Скопируйте отчёт.', 'ok');
+        $('#results').innerHTML =
+          '<pre>' + report.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</pre>' +
+          '<p class="row"><button type="button" id="copyBtn" class="primary">Копировать отчёт</button></p>';
+        $('#copyBtn').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(report);
+            showBanner('Отчёт скопирован.', 'ok');
+          } catch {
+            showBanner('Скопируйте текст вручную.', 'warn');
+          }
+        });
+        log('done');
+      } catch (e) {
+        $('#runStatus').textContent = 'ошибка';
+        showBanner(String(e.message || e), 'err');
+        log('ERROR run: ' + (e && e.stack || e));
+      } finally {
+        $('#runBtn').disabled = !model;
+      }
     });
   </script>
 </body>

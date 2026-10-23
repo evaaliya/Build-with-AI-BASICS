@@ -122,6 +122,7 @@ function mapProfile(row) {
     mobile: row.mobile || '',
     email: row.email || '',
     address: row.address || '',
+    role: row.role === 'vet' ? 'vet' : 'farmer',
   };
 }
 
@@ -146,7 +147,36 @@ function mapMessage(row) {
     text: row.text || '',
     audio: row.audio || '',
     thread: row.thread || 'village',
+    bookingId: row.booking_id || null,
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+  };
+}
+
+function mapSlot(row) {
+  return {
+    id: row.id,
+    vetId: row.vet_id,
+    day: row.day,
+    from: (row.time_from || '').toString().slice(0, 5),
+    to: (row.time_to || '').toString().slice(0, 5),
+    place: row.place || '',
+    disease: row.disease || '',
+    capacity: row.capacity,
+    booked: row.booked || 0,
+    createdAt: row.created_at,
+  };
+}
+
+function mapBooking(row) {
+  return {
+    id: row.id,
+    slotId: row.slot_id,
+    farmerId: row.farmer_id,
+    animalIds: row.animal_ids || [],
+    heads: row.heads,
+    queueNo: row.queue_no,
+    status: row.status || 'booked',
+    createdAt: row.created_at,
   };
 }
 
@@ -264,6 +294,7 @@ async function upsertProfile(profile) {
       name: profile.name || '',
       phone: profile.phone || profile.mobile || '',
       address: profile.address || '',
+      role: profile.role === 'vet' ? 'vet' : 'farmer',
     };
     const { error } = await c.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) throw new Error(error.message);
@@ -383,7 +414,8 @@ async function addMessage(msg) {
   try {
     const c = await supabase.getClient();
     const { data, error } = await c.from('messages').insert({
-      sender_id: msg.from, text: msg.text || '', audio: msg.audio || '', thread: msg.thread || 'village',
+      sender_id: msg.from, text: msg.text || '', audio: msg.audio || '',
+      thread: msg.thread || 'village', booking_id: msg.bookingId || null,
     }).select().single();
     if (error) throw new Error(error.message);
     return mapMessage(data);
@@ -438,12 +470,143 @@ async function getLeaderboard() {
   }
 }
 
+// ---- slots / bookings (localStorage when schema-v2 not applied) ----
+const KEY_SLOTS = 'moo_slots';
+const KEY_BOOKINGS = 'moo_bookings';
+
+function localGetSlots() { return read(KEY_SLOTS, []); }
+function localGetBookings() { return read(KEY_BOOKINGS, []); }
+
+function localSaveSlots(list) { write(KEY_SLOTS, list); }
+function localSaveBookings(list) { write(KEY_BOOKINGS, list); }
+
+async function getSlots() {
+  if (!supabase.isReady() || forceLocal) return localGetSlots();
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('slots').select('*').order('day', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapSlot);
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return localGetSlots();
+  }
+}
+
+async function createSlot(slot) {
+  if (!supabase.isReady() || forceLocal) {
+    const list = localGetSlots();
+    const row = { ...slot, id: slot.id || uid(), booked: slot.booked || 0 };
+    list.push(row);
+    localSaveSlots(list);
+    return row;
+  }
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('slots').insert({
+      vet_id: slot.vetId, day: slot.day, time_from: slot.from, time_to: slot.to,
+      place: slot.place || '', disease: slot.disease || '', capacity: slot.capacity, booked: 0,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return mapSlot(data);
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    const list = localGetSlots();
+    const row = { ...slot, id: slot.id || uid(), booked: slot.booked || 0 };
+    list.push(row);
+    localSaveSlots(list);
+    return row;
+  }
+}
+
+async function getBookings() {
+  if (!supabase.isReady() || forceLocal) return localGetBookings();
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('bookings').select('*').order('queue_no', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || []).map(mapBooking);
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return localGetBookings();
+  }
+}
+
+/** Atomic book: prefers SQL book_slot; localStorage mirrors capacity check. */
+async function bookSlot(slotId, animalIds, farmerId) {
+  const n = (animalIds || []).length;
+  if (n < 1) throw new Error('no_animals');
+
+  if (!supabase.isReady() || forceLocal) {
+    const slots = localGetSlots();
+    const s = slots.find((x) => x.id === slotId);
+    if (!s) throw new Error('slot_not_found');
+    const bookings = localGetBookings();
+    const booked = bookings
+      .filter((b) => b.slotId === slotId && (b.status === 'booked' || b.status === 'done'))
+      .reduce((sum, b) => sum + b.heads, 0);
+    if (booked + n > s.capacity) throw new Error('no_capacity');
+    const queueNo = booked + 1;
+    s.booked = booked + n;
+    localSaveSlots(slots);
+    const b = {
+      id: uid(), slotId, farmerId, animalIds: animalIds.slice(), heads: n,
+      queueNo, status: 'booked', createdAt: Date.now(),
+    };
+    bookings.push(b);
+    localSaveBookings(bookings);
+    return b;
+  }
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.rpc('book_slot', { p_slot: slotId, p_animals: animalIds });
+    if (error) throw new Error(error.message);
+    return mapBooking(data);
+  } catch (e) {
+    if (isSchemaError(e.message)) {
+      markBroken();
+      return bookSlot(slotId, animalIds, farmerId);
+    }
+    throw e;
+  }
+}
+
+async function updateBooking(booking) {
+  if (!supabase.isReady() || forceLocal) {
+    const list = localGetBookings().map((b) => (b.id === booking.id ? booking : b));
+    localSaveBookings(list);
+    // free capacity on cancel / no_show
+    if (booking.status === 'cancelled' || booking.status === 'no_show') {
+      const slots = localGetSlots();
+      const s = slots.find((x) => x.id === booking.slotId);
+      if (s) {
+        const booked = list
+          .filter((b) => b.slotId === s.id && (b.status === 'booked' || b.status === 'done'))
+          .reduce((sum, b) => sum + b.heads, 0);
+        s.booked = booked;
+        localSaveSlots(slots);
+      }
+    }
+    return booking;
+  }
+  try {
+    const c = await supabase.getClient();
+    const { error } = await c.from('bookings').update({ status: booking.status }).eq('id', booking.id);
+    if (error) throw new Error(error.message);
+    return booking;
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return updateBooking(booking);
+  }
+}
+
 export {
   localSignUp as signUp, localSignIn as signIn, signOut, getSession, setSession,
   getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
   getPosts, addPost, addComment, getMessages, addMessage,
   addActivity, getLeaderboard,
+  getSlots, createSlot, getBookings, bookSlot, updateBooking,
   getTheme, setTheme,
   checkSupabaseHealth, isSupabaseBroken, setLocalMode, isLocalMode,
 };

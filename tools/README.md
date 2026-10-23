@@ -5,14 +5,21 @@ set an honest `MATCH_THRESHOLD` and `MATCH_MARGIN` instead of guessing.
 
 ## Run it
 
-1. Open `tools/calibrate.html` (serve the repo with `python3 -m http.server` or
-   open the file directly — it only needs the internet for the MobileNet CDN).
-2. Click **Load MobileNet**.
-3. **Same animal (genuine)** — pick 3–8 photos of ONE animal from different angles.
-4. **Other animals (impostor)** — pick 8–12 photos of *different* animals,
-   ideally the same species (e.g. other cows).
-5. Click **Compute**. It reports the genuine vs. impostor similarity
-   distributions and recommends a threshold + margin.
+**Do not open the file via `file://`** — the CDN model often fails. Serve the repo:
+
+```bash
+cd /path/to/Build-with-AI-BASICS
+python3 -m http.server 8000
+```
+
+Then open: [http://localhost:8000/tools/calibrate.html](http://localhost:8000/tools/calibrate.html)
+
+1. Click **Загрузить MobileNet** (needs internet).
+2. **Same animal (genuine)** — tap **«+ Добавить фото»** repeatedly (each pick *adds* to the list; phone pickers often allow only one file at a time). Need ≥ 2 photos of ONE animal. JPG/PNG/WebP, not HEIC.
+3. **Other animals (impostor)** — same: add 1+ photos of *different* animals.
+4. Click **Посчитать**.
+
+If something fails, the red banner and black log panel show the real error (bad image format, CDN blocked, etc.).
 
 ## Copy the numbers
 
