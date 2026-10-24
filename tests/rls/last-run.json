@@ -1,0 +1,13 @@
+{
+  "note": "After Part A+C. critical=[] on client checks 1/3/4/7.",
+  "critical_failures": [],
+  "passed": [
+    "1-farmer-a-no-read-b-animals",
+    "1-farmer-a-public-no-vax",
+    "3-farmer-no-self-promote",
+    "4-farmer-no-neighbour-vax-status",
+    "7-anon-no-read-animals",
+    "7-anon-no-write"
+  ],
+  "skipped_need_sql_vet": ["5-vet-can-verify", "6-book-slot-race", "2-farmer-a-no-spoof-farmer-id"]
+}

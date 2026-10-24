@@ -1,6 +1,7 @@
 // Moo — vaccination rewards. Trophies/points only for vet-verified vaccinations.
 
 import { getLang } from './i18n.js';
+import { dateStrInTz, validUntilFromDoneAt } from './logic.js';
 
 const DAY = 86400e3;
 const REMIND_AT = [30, 7, 1];
@@ -116,8 +117,9 @@ function mk(a, code, v, streak, now) {
 
 /** Apply a vet-verified vaccination (browser local fallback when SQL trigger absent). */
 export function applyVerifiedVaccination(animal, code = 'fmd', disease = 'FMD', now = Date.now(), bookingId = null) {
-  const date = new Date(now).toISOString().slice(0, 10);
-  const validUntil = new Date(now + 365 * DAY).toISOString().slice(0, 10);
+  // Calendar day in Asia/Bishkek — avoid UTC toISOString midnight drift.
+  const date = dateStrInTz(now, 'Asia/Bishkek');
+  const validUntil = validUntilFromDoneAt(date);
   animal.vaccinations = animal.vaccinations || [];
   animal.vaccinations.push({
     id: 'v' + now.toString(36) + Math.random().toString(36).slice(2, 5),

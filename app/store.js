@@ -27,7 +27,7 @@ async function checkSupabaseHealth() {
   if (!supabase.isReady() || supabaseBroken) return;
   try {
     const c = await supabase.getClient();
-    const { error } = await c.from('animals').select('id').limit(1);
+    const { error } = await c.from('animals_public').select('id').limit(1);
     if (error) markBroken();
   } catch {
     markBroken();
@@ -310,7 +310,8 @@ async function getAnimals() {
   if (!supabase.isReady() || forceLocal) return localGetAnimals();
   try {
     const c = await supabase.getClient();
-    const { data, error } = await c.from('animals').select('*').order('created_at', { ascending: false });
+    // Read via animals_public: fingerprints for matching, vaccinations only for owner/vet.
+    const { data, error } = await c.from('animals_public').select('*').order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return (data || []).map(mapAnimal);
   } catch (e) {

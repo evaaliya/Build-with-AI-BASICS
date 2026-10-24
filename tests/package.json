@@ -1,0 +1,15 @@
+{
+  "name": "moo-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "unit": "node --test ../tests/unit/*.test.js",
+    "unit:local": "node --test unit/logic.test.js",
+    "rls": "node rls/rls.mjs",
+    "e2e": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 node e2e/demo.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "playwright": "^1.51.0"
+  }
+}

@@ -1,5 +1,7 @@
 // Moo — demo data. User-visible copy uses i18n keys (no mixed languages).
 
+import { animalStatus } from './logic.js';
+
 export const VET = {
   id: 'vet-nurlan',
   nameKey: 'vetName',
@@ -34,25 +36,8 @@ export function daysFromNow(days) {
  * Animal vaccination status from latest *verified* FMD record.
  * @returns {{ status: 'ok'|'soon'|'urgent'|'overdue'|'never'|'claimed', record, daysLeft }}
  */
-export function vaccinationStatus(a) {
-  const list = (a.vaccinations || []).filter((v) =>
-    (v.diseaseCode || '').toLowerCase() === 'fmd' || /fmd|foot|ящур|шарп/i.test(v.disease || '')
-  );
-  const verified = list.filter((v) => (v.status || 'verified') === 'verified');
-  const claimed = list.filter((v) => v.status === 'claimed');
-  const vax = verified.sort((a, b) => (b.validUntil || '').localeCompare(a.validUntil || ''))[0]
-    || null;
-  if (!vax) {
-    if (claimed.length) return { status: 'claimed', record: claimed[0], daysLeft: null };
-    return { status: 'never', record: null, daysLeft: null };
-  }
-  if (!vax.validUntil) return { status: 'ok', record: vax, daysLeft: 999 };
-  const days = Math.floor((new Date(vax.validUntil + 'T23:59:59').getTime() - Date.now()) / 86400e3);
-  if (days < 0) return { status: 'overdue', record: vax, daysLeft: days };
-  if (days <= 1) return { status: 'urgent', record: vax, daysLeft: days };
-  if (days <= 7) return { status: 'urgent', record: vax, daysLeft: days };
-  if (days <= 30) return { status: 'soon', record: vax, daysLeft: days };
-  return { status: 'ok', record: vax, daysLeft: days };
+export function vaccinationStatus(a, now = Date.now()) {
+  return animalStatus(a, now);
 }
 
 export function demoAnimals(ownerId) {
