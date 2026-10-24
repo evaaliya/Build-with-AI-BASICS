@@ -21,7 +21,7 @@ Open the app → see animals with FMD statuses → scan an animal → owner + st
 
 ## What "Working" Looks Like
 
-A seeded demo farm shows green / yellow / red FMD badges. Scanning an animal returns owner + status. Entering the vet code (`VET-2026`) reveals outbreak markers. Vaccinating an animal earns a trophy; an expired vaccination marks the trophy as lost.
+A seeded demo farm shows green / yellow / red FMD badges. Scanning an animal returns owner + status. The vet role reveals outbreak markers. Vaccinating an animal earns a trophy; an expired vaccination marks the trophy as lost.
 
 ## POC Boundary (frozen)
 
@@ -30,7 +30,7 @@ In:
 - Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal (milk / expense / illness / death).
 - FMD vaccination status badges (green / yellow / red) on cards and the scan plaque.
 - Private vet chat (farmer threads + vet inbox); village chat removed.
-- Vet role (demo code `VET-2026`) + vet-only outbreak markers.
+- Vet role (invite code + manual review) + vet-only outbreak markers.
 - Rewards (trophies) with 30 / 7 / 1-day reminders and lost trophies.
 - Categorized feed (feed & hay, machinery & herders, quarantine, lost & found).
 - Muzzle recognition (honest matching + species gate).

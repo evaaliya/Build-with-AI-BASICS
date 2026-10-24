@@ -22,7 +22,10 @@
 | Роль | Кто | Как определяется |
 |---|---|---|
 | `farmer` | житель села | по умолчанию |
-| `vet` | ветеринар | `profiles.role = 'vet'`, назначает администратор (не код в браузере) |
+| `vet` | ветеринар | `profiles.role = 'vet'` после ручного одобрения заявки |
+| `admin` | владелец проекта | только через SQL |
+
+Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
 Один аккаунт — одна роль. После входа приложение показывает **кабинет по роли**.
 

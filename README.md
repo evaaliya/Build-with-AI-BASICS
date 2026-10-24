@@ -16,7 +16,9 @@ Built as a proof of concept for the **Build with AI: Basics** hackathon.
 4. **Chat** — private conversation with the village veterinarian, plus broadcast alerts and village health stats.
 5. **Trophies** — trophies for vaccination, with reminders at 30 / 7 / 1 days before expiry.
 6. **Map** — vet clinic + vaccination points; red outbreak markers appear only in vet mode.
-7. **My farm (profile)** — animal list and the "I'm the vet" mode (code `VET-2026`).
+7. **My farm (profile)** — animal list and personal cabinet.
+
+Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
 ## Features
 
@@ -33,7 +35,7 @@ Built as a proof of concept for the **Build with AI: Basics** hackathon.
 
 ## Vet role
 
-The veterinarian role is unlocked with the demo code **`VET-2026`** (`VET_CODE` in `app/vet.js`). Enter it in **My farm → "I'm the vet"**. In local mode this is a `localStorage` flag; for production, store `profiles.is_vet` and gate it with Row Level Security (see the SQL in `supabase/schema.sql`).
+Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
 ## How the recognition works (and how we measured it)
 
@@ -134,7 +136,7 @@ Known limitations:
 
 - Photos are stored as data URLs in Postgres (`text`); move to Supabase Storage for scale.
 - Recognition is honest but bounded by MobileNet (see above); threshold/margin are defaults to re-measure with `tools/calibrate.html`.
-- The veterinarian role is a demo code (`VET-2026`) stored in `localStorage`; use `profiles.is_vet` + RLS for production.
+- Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 - Outbreak markers and rewards are local demo state; the outbreak coordinates currently live in `app/vet.js` (not in the database).
 - The village name shown is **Nizhny-Chuy village**; verify the map center `[43.18807, 74.34209]` in `app/app.js` matches it.
 

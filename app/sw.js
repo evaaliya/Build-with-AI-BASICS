@@ -1,5 +1,5 @@
 // Moo — service worker: network-first offline + Web Push for vaccination reminders.
-const CACHE = 'moo-v24';
+const CACHE = 'moo-v25';
 const ASSETS = [
   './',
   './index.html',
@@ -14,9 +14,12 @@ const ASSETS = [
   './i18n.js',
   './vet.js',
   './rewards.js',
+  './auth-logic.js',
   './supabase.js',
   './supabase-config.js',
+  './loader.js',
   './village-map.html',
+  './three.min.js',
   './manifest.webmanifest',
   './icons/icon.svg',
 ];
@@ -37,6 +40,14 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+function isTopLevelNavigate(request) {
+  // Only fall back to index.html for top-level document navigations.
+  // Iframe / embed requests for village-map.html must NEVER get index.html
+  // (that caused the offline "mirror tunnel").
+  if (request.mode === 'navigate' && request.destination !== 'iframe') return true;
+  return false;
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
@@ -48,7 +59,13 @@ self.addEventListener('fetch', (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return res;
       })
-      .catch(() => caches.match(e.request).then((cached) => cached || caches.match('./index.html')))
+      .catch(() =>
+        caches.match(e.request).then((cached) => {
+          if (cached) return cached;
+          if (isTopLevelNavigate(e.request)) return caches.match('./index.html');
+          return new Response('', { status: 503, statusText: 'Offline' });
+        })
+      )
   );
 });
 

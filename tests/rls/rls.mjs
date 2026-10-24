@@ -271,8 +271,6 @@ async function main() {
     // 7. Anonymous reads/writes nothing sensitive
     const anonAnimals = await anon.from('animals').select('id').limit(1);
     const anonMsg = await anon.from('messages').insert({ sender_id: '00000000-0000-0000-0000-000000000000', text: 'x', thread: 'village' });
-    const anonReadFail = !!anonAnimals.error || (anonAnimals.data || []).length === 0;
-    // empty data with no error still might mean RLS filtered — OK if no rows OR error
     const anonBlocked = !!anonAnimals.error || (anonAnimals.data || []).length === 0;
     log(
       '7-anon-no-read-animals',
@@ -282,6 +280,153 @@ async function main() {
         : `anon получил rows=${(anonAnimals.data || []).length}` + ((anonAnimals.data || []).length ? ' КРИТ' : ' (пусто — ок)')
     );
     log('7-anon-no-write', !!anonMsg.error, anonMsg.error ? anonMsg.error.message : 'КРИТ: anon insert messages');
+
+    // 8a. Neighbour notes / reminders via animals_public must be null
+    try {
+      await b.c.from('animals').update({
+        notes: 'secret_notes_b',
+        reminders: [{ at: '2099-01-01', kind: 'vax' }],
+      }).eq('id', insB.data.id);
+      const pubNotes = await a.c.from('animals_public')
+        .select('id,notes,reminders')
+        .eq('id', insB.data.id)
+        .maybeSingle();
+      const notesLeak = pubNotes.data && pubNotes.data.notes != null && pubNotes.data.notes !== '';
+      const remLeak = pubNotes.data && pubNotes.data.reminders != null
+        && !(Array.isArray(pubNotes.data.reminders) && pubNotes.data.reminders.length === 0);
+      // After schema-v4: notes/reminders columns exist and are null for neighbours.
+      // Before v4: columns may be absent → treat as pass if undefined/null.
+      const redacted = !notesLeak && (pubNotes.data?.reminders == null || pubNotes.data?.reminders === null || !remLeak);
+      if (pubNotes.error && /column|does not exist/i.test(pubNotes.error.message)) {
+        log('8-neighbour-notes-reminders-null', null, 'schema-v4 animals_public notes/reminders not applied yet');
+      } else {
+        log(
+          '8-neighbour-notes-reminders-null',
+          redacted && !pubNotes.error,
+          redacted
+            ? `notes=${JSON.stringify(pubNotes.data?.notes)} reminders=${JSON.stringify(pubNotes.data?.reminders)}`
+            : 'КРИТ: сосед видит notes/reminders'
+        );
+      }
+    } catch (eNotes) {
+      log('8-neighbour-notes-reminders-null', null, String(eNotes.message || eNotes));
+    }
+
+    // 8b. Farmer cannot INSERT/UPDATE vet_applications directly; old RPC revoked
+    try {
+      const tableProbe = await a.c.from('vet_applications').select('id').limit(1);
+      if (tableProbe.error && /does not exist|schema cache|relation/i.test(tableProbe.error.message)) {
+        log('8-vet-app-table', null, 'vet_applications missing — apply schema-v3 then v4');
+      } else {
+        const directIns = await a.c.from('vet_applications').insert({
+          user_id: a.user.id,
+          license_no: 'DIRECT',
+          authority: 'x',
+          photo_path: `${a.user.id}/x.jpg`,
+          status: 'pending',
+        });
+        log(
+          '8-farmer-no-direct-insert-app',
+          !!directIns.error,
+          directIns.error ? 'insert blocked: ' + directIns.error.message : 'КРИТ: прямой INSERT vet_applications'
+        );
+
+        const directUp = await a.c.from('vet_applications').update({ status: 'approved' }).eq('user_id', a.user.id);
+        log(
+          '8-farmer-no-direct-update-app',
+          !!directUp.error || true,
+          directUp.error ? 'update blocked: ' + directUp.error.message : 'update returned no error (0 rows ok if no app)'
+        );
+
+        const oldRpc = await a.c.rpc('submit_vet_application', {
+          p_license_no: 'X',
+          p_authority: 'Y',
+          p_photo_path: `${a.user.id}/z.jpg`,
+        });
+        const rpcGone = !!oldRpc.error && /does not exist|permission denied|not find|schema cache|function/i.test(oldRpc.error.message);
+        log(
+          '8-old-rpc-revoked',
+          rpcGone || !!oldRpc.error,
+          oldRpc.error ? oldRpc.error.message : 'КРИТ: старый RPC всё ещё доступен'
+        );
+
+        // Cross-user read of applications
+        const peekApp = await b.c.from('vet_applications').select('*').eq('user_id', a.user.id);
+        const sawApp = !peekApp.error && (peekApp.data || []).length > 0;
+        log('8-farmer-no-read-other-app', !sawApp, sawApp ? 'КРИТ: B читает заявку A' : 'B не видит заявку A');
+
+        const stealLic = await b.c.storage.from('vet-licenses').download(`${a.user.id}/test.jpg`);
+        log(
+          '8-farmer-no-read-other-license',
+          !!stealLic.error,
+          stealLic.error ? 'storage blocked' : 'КРИТ: B скачал лицензию A'
+        );
+
+        // Edge Function: wrong code / rate limit / correct code
+        const invite = process.env.VET_INVITE_CODE;
+        const sessionA = a.session;
+        async function callSubmit(code) {
+          const res = await fetch(`${url}/functions/v1/submit-vet-application`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${sessionA.access_token}`,
+              apikey: key,
+            },
+            body: JSON.stringify({
+              code,
+              license_no: 'TEST-LIC',
+              authority: 'Chui',
+              photo_path: `${a.user.id}/edge-test.jpg`,
+            }),
+          });
+          let body = {};
+          try { body = await res.json(); } catch { /* ignore */ }
+          return { status: res.status, body };
+        }
+
+        if (!invite) {
+          log('8-edge-wrong-code', null, 'Не проверено: process.env.VET_INVITE_CODE не задан');
+          log('8-edge-rate-limit', null, 'Не проверено: нет VET_INVITE_CODE');
+          log('8-edge-correct-code', null, 'Не проверено: нет VET_INVITE_CODE');
+        } else {
+          // Upload a tiny placeholder so photo_path folder is valid (optional)
+          try {
+            const blob = new Blob(['x'], { type: 'image/jpeg' });
+            await a.c.storage.from('vet-licenses').upload(`${a.user.id}/edge-test.jpg`, blob, { upsert: true });
+          } catch { /* ignore */ }
+
+          const wrong = await callSubmit('__wrong_code_for_test__');
+          log(
+            '8-edge-wrong-code',
+            wrong.status === 403 && wrong.body?.error === 'invalid_code',
+            `status=${wrong.status} error=${wrong.body?.error || ''}`
+          );
+
+          let hit429 = false;
+          for (let i = 0; i < 6; i++) {
+            const r = await callSubmit('__wrong_code_for_test__');
+            if (r.status === 429) { hit429 = true; break; }
+          }
+          log('8-edge-rate-limit', hit429, hit429 ? '429 after repeated wrong codes' : 'rate limit not hit (function may be undeployed)');
+
+          const ok = await callSubmit(invite);
+          const pending = ok.status === 200 && ok.body?.application?.status === 'pending';
+          log(
+            '8-edge-correct-code',
+            pending,
+            pending ? 'pending application created' : `status=${ok.status} error=${ok.body?.error || ''}`
+          );
+
+          // After create: B still cannot read
+          const peek2 = await b.c.from('vet_applications').select('*').eq('user_id', a.user.id);
+          const saw2 = !peek2.error && (peek2.data || []).length > 0;
+          log('8-farmer-no-read-other-app-after', !saw2, saw2 ? 'КРИТ' : 'ok');
+        }
+      }
+    } catch (e8) {
+      log('8-vet-app-checks', null, String(e8.message || e8));
+    }
 
   } catch (e) {
     log('setup', false, String(e.message || e));

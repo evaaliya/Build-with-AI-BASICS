@@ -16,7 +16,7 @@ Moo is a PWA (no build step). MobileNet v2 turns a muzzle close-up into a 1280-n
 - Scan → infer + classify → filter by species → cosine rank → threshold + margin → owner + FMD status, or "not found → feed".
 - Vaccinate → append a vaccination record (disease, date, validUntil) → rewards recompute (earned / renewed / remind / lost).
 - Chat → messages carry a `thread` (village or farmer id); farmers see their own thread, the vet sees all.
-- Vet role → `is_vet` / `VET-2026` → outbreak markers render only for the vet.
+- Vet role → `profiles.role = 'vet'` after manual review → outbreak markers render only for the vet.
 
 ## Stack
 
@@ -33,7 +33,7 @@ Moo is a PWA (no build step). MobileNet v2 turns a muzzle close-up into a 1280-n
 - Phone or desktop browser; camera + internet on first load.
 - Start: `cd app && python3 -m http.server 8000 --bind 127.0.0.1`, open `http://localhost:8000`.
 - DB: run `supabase/schema.sql`; put URL + anon key in `app/supabase-config.js`; set `is_vet` for the vet.
-- Demo: the app opens directly with a seeded farm; enable vet mode with `VET-2026`.
+- Demo: "Try demo" opens a seeded farm; real vet access uses an invite code reviewed by the project owner.
 
 ## Components
 

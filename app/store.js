@@ -85,12 +85,12 @@ function mapAnimal(row) {
     name: row.name,
     type: row.type,
     breed: row.breed || '',
-    notes: row.notes || '',
+    notes: row.notes == null ? null : (row.notes || ''),
     photo: row.photo || '',
     tagNumber: row.tag_number || '',
     fingerprint: Array.isArray(row.fingerprint) ? row.fingerprint : [],
     frames: row.frame_count || 1,
-    reminders: Array.isArray(row.reminders) ? row.reminders : [],
+    reminders: row.reminders == null ? null : (Array.isArray(row.reminders) ? row.reminders : []),
     vaccinations: Array.isArray(row.vaccinations) ? row.vaccinations : [],
     health: Array.isArray(row.health) ? row.health : [],
     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
@@ -115,6 +115,7 @@ function toAnimalRow(a) {
 }
 
 function mapProfile(row) {
+  const role = row.role === 'vet' || row.role === 'admin' ? row.role : 'farmer';
   return {
     id: row.id,
     name: row.name || '',
@@ -122,7 +123,8 @@ function mapProfile(row) {
     mobile: row.mobile || '',
     email: row.email || '',
     address: row.address || '',
-    role: row.role === 'vet' ? 'vet' : 'farmer',
+    houseId: row.house_id == null ? null : row.house_id,
+    role,
   };
 }
 
@@ -261,10 +263,264 @@ function localAddMessage(msg) {
 // ---- session / theme (fast local cache; auth source of truth is Supabase) ----
 function setSession(user) { write(KEYS.session, user); }
 const getSession = () => read(KEYS.session, null);
-function signOut() { localStorage.removeItem(KEYS.session); }
+
+async function signOut() {
+  localStorage.removeItem(KEYS.session);
+  try { localStorage.removeItem('moo_demo_mode'); } catch {}
+  if (supabase.isReady()) {
+    try { await supabase.signOut(); } catch {}
+  }
+}
 
 const getTheme = () => read(KEYS.theme, 'light');
 function setTheme(t) { write(KEYS.theme, t); }
+
+/** Load profile for auth user; create row if missing. */
+async function fetchMyProfile(authUser) {
+  if (!authUser) return null;
+  if (!supabase.isReady() || forceLocal) {
+    const local = getLocalUsers().find((u) => u.id === authUser.id) || getSession();
+    if (local) return local;
+    return {
+      id: authUser.id,
+      name: authUser.user_metadata?.name || '',
+      email: authUser.email || '',
+      phone: authUser.email || '',
+      role: 'farmer',
+      houseId: null,
+    };
+  }
+  try {
+    const c = await supabase.getClient();
+    let { data, error } = await c.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) {
+      const row = {
+        id: authUser.id,
+        name: authUser.user_metadata?.name || '',
+        phone: authUser.email || '',
+        email: authUser.email || '',
+        role: 'farmer',
+      };
+      const ins = await c.from('profiles').upsert(row, { onConflict: 'id' }).select().single();
+      if (ins.error) throw new Error(ins.error.message);
+      data = ins.data;
+    }
+    const profile = mapProfile(data);
+    if (!profile.email && authUser.email) profile.email = authUser.email;
+    setSession(profile);
+    return profile;
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    console.warn('fetchMyProfile', e.message);
+    return {
+      id: authUser.id,
+      name: authUser.user_metadata?.name || '',
+      email: authUser.email || '',
+      phone: '',
+      role: 'farmer',
+      houseId: null,
+    };
+  }
+}
+
+/** Real email/password sign-up via Supabase Auth. Always creates farmer profile. */
+async function authSignUp({ name, email, password }) {
+  if (!supabase.isReady() || forceLocal) {
+    const r = localSignUp(name, email, password);
+    if (r.ok && r.user) r.user.email = email;
+    return r;
+  }
+  try {
+    const data = await supabase.signUp(email, password, name, email);
+    if (!data.session && data.user) {
+      // email confirm may be on — try sign-in (demo has confirm off)
+      try {
+        const si = await supabase.signIn(email, password);
+        data.session = si.session;
+        data.user = si.user || data.user;
+      } catch { /* leave without session */ }
+    }
+    if (!data.user) return { ok: false, error: 'authNetwork' };
+    const profile = await fetchMyProfile(data.user);
+    profile.name = name || profile.name;
+    profile.email = email;
+    await upsertProfile({ ...profile, name, email, role: 'farmer' });
+    return { ok: true, user: getSession() || profile, needsConfirm: !data.session };
+  } catch (e) {
+    return { ok: false, error: e.message || 'authNetwork' };
+  }
+}
+
+async function authSignIn({ email, password }) {
+  if (!supabase.isReady() || forceLocal) {
+    return localSignIn(email, password);
+  }
+  try {
+    const data = await supabase.signIn(email, password);
+    if (!data.user) return { ok: false, error: 'authWrongPassword' };
+    const profile = await fetchMyProfile(data.user);
+    return { ok: true, user: profile };
+  } catch (e) {
+    return { ok: false, error: e.message || 'authWrongPassword' };
+  }
+}
+
+async function restoreAuthSession() {
+  if (!supabase.isReady() || forceLocal) return getSession();
+  try {
+    const u = await supabase.getCurrentUser();
+    if (!u) return null;
+    return fetchMyProfile(u);
+  } catch {
+    return getSession();
+  }
+}
+
+async function getMyVetApplication() {
+  if (!supabase.isReady() || forceLocal) {
+    return read('moo_vet_app', null);
+  }
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('vet_applications').select('*').eq('user_id', (await supabase.getCurrentUser())?.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return read('moo_vet_app', null);
+  }
+}
+
+/**
+ * Submit vet application via Edge Function (invite code checked server-side).
+ * Never sends the code to logs. Maps server errors to i18n keys.
+ */
+async function submitVetApplication({ code, licenseNo, authority, photoPath, photoFile }) {
+  let path = photoPath || '';
+  if (!navigator.onLine) {
+    return { ok: false, error: 'authOffline' };
+  }
+  if (!supabase.isReady() || forceLocal) {
+    // Demo / local: store pending app without server code check
+    const app = {
+      id: uid(), user_id: getSession()?.id, license_no: licenseNo,
+      authority: authority || '', photo_path: path, status: 'pending', created_at: new Date().toISOString(),
+    };
+    write('moo_vet_app', app);
+    return { ok: true, application: app };
+  }
+  try {
+    const c = await supabase.getClient();
+    const user = await supabase.getCurrentUser();
+    if (!user) return { ok: false, error: 'not_authenticated' };
+    const { data: sessionData } = await c.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return { ok: false, error: 'not_authenticated' };
+
+    if (photoFile) {
+      path = `${user.id}/${Date.now()}-${(photoFile.name || 'license').replace(/[^\w.-]+/g, '_')}`;
+      const up = await c.storage.from('vet-licenses').upload(path, photoFile, { upsert: true });
+      if (up.error) return { ok: false, error: up.error.message };
+    }
+    if (!path || !path.startsWith(user.id + '/')) {
+      return { ok: false, error: 'bad_photo_path' };
+    }
+
+    const base = (typeof window !== 'undefined' && window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url)
+      ? window.SUPABASE_CONFIG.url.replace(/\/$/, '')
+      : '';
+    const res = await fetch(`${base}/functions/v1/submit-vet-application`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: window.SUPABASE_CONFIG.key,
+      },
+      body: JSON.stringify({
+        code: code || '',
+        license_no: licenseNo,
+        authority: authority || '',
+        photo_path: path,
+      }),
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch { /* ignore */ }
+    if (!res.ok) {
+      const err = String(payload.error || '');
+      if (err === 'invalid_code') return { ok: false, error: 'authWrongVetCode' };
+      if (err === 'too_many_attempts') return { ok: false, error: 'authTooManyAttempts' };
+      if (err === 'already_submitted') return { ok: false, error: 'authAlreadySubmitted' };
+      if (res.status === 401) return { ok: false, error: 'not_authenticated' };
+      return { ok: false, error: 'authNetwork' };
+    }
+    return { ok: true, application: payload.application };
+  } catch (e) {
+    if (!navigator.onLine) return { ok: false, error: 'authOffline' };
+    if (isSchemaError(e.message)) markBroken();
+    return { ok: false, error: 'authNetwork' };
+  }
+}
+
+async function listPendingVetApplications() {
+  if (!supabase.isReady() || forceLocal) return [];
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.from('vet_applications').select('*, profiles(name, email)').eq('status', 'pending');
+    if (error) throw new Error(error.message);
+    return data || [];
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return [];
+  }
+}
+
+async function reviewVetApplication(applicationId, approve) {
+  if (!supabase.isReady() || forceLocal) {
+    return { ok: false, error: 'not_available' };
+  }
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.rpc('review_vet_application', {
+      p_application_id: applicationId,
+      p_approve: !!approve,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, application: data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function signedLicenseUrl(photoPath) {
+  if (!photoPath || !supabase.isReady() || forceLocal) return null;
+  try {
+    const c = await supabase.getClient();
+    const { data, error } = await c.storage.from('vet-licenses').createSignedUrl(photoPath, 3600);
+    if (error) return null;
+    return data?.signedUrl || null;
+  } catch {
+    return null;
+  }
+}
+
+async function subscribeProfile(userId, onChange) {
+  if (!userId || !supabase.isReady() || forceLocal) return () => {};
+  try {
+    const c = await supabase.getClient();
+    const ch = c.channel('moo-profile-' + userId)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, (payload) => {
+        onChange(mapProfile(payload.new));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vet_applications', filter: `user_id=eq.${userId}` }, () => {
+        onChange(null);
+      })
+      .subscribe();
+    return () => { try { c.removeChannel(ch); } catch {} };
+  } catch {
+    return () => {};
+  }
+}
 
 // ---- profiles ----
 async function getUsers() {
@@ -284,6 +540,7 @@ async function getUsers() {
 async function upsertProfile(profile) {
   // Always mirror into local users + session so the profile card stays in sync
   // even when Supabase is up (or drops unknown columns like mobile).
+  // Client upsert must not try to set vet/admin — role omitted on update; insert forces farmer.
   localUpsertProfile(profile);
   setSession(profile);
   if (!supabase.isReady() || forceLocal) return profile;
@@ -292,11 +549,26 @@ async function upsertProfile(profile) {
     const row = {
       id: profile.id,
       name: profile.name || '',
-      phone: profile.phone || profile.mobile || '',
+      phone: profile.phone || profile.mobile || profile.email || '',
+      email: profile.email || '',
       address: profile.address || '',
-      role: profile.role === 'vet' ? 'vet' : 'farmer',
+      house_id: profile.houseId == null ? null : profile.houseId,
+      // role omitted on purpose for updates that are not inserts — trigger blocks role change.
+      // On insert, DB default / trigger forces farmer.
     };
-    const { error } = await c.from('profiles').upsert(row, { onConflict: 'id' });
+    // Prefer update of non-role fields; insert only if missing
+    const { data: existing } = await c.from('profiles').select('id').eq('id', profile.id).maybeSingle();
+    let error;
+    if (existing) {
+      const { house_id, ...rest } = row;
+      const upd = await c.from('profiles').update({
+        name: row.name, phone: row.phone, email: row.email, address: row.address, house_id: row.house_id,
+      }).eq('id', profile.id);
+      error = upd.error;
+    } else {
+      const ins = await c.from('profiles').insert({ ...row, role: 'farmer' });
+      error = ins.error;
+    }
     if (error) throw new Error(error.message);
     return profile;
   } catch (e) {
@@ -602,7 +874,8 @@ async function updateBooking(booking) {
 }
 
 export {
-  localSignUp as signUp, localSignIn as signIn, signOut, getSession, setSession,
+  authSignUp as signUp, authSignIn as signIn, signOut, getSession, setSession,
+  restoreAuthSession, fetchMyProfile,
   getUsers, upsertProfile,
   getAnimals, addAnimal, updateAnimal,
   getPosts, addPost, addComment, getMessages, addMessage,
@@ -610,4 +883,6 @@ export {
   getSlots, createSlot, getBookings, bookSlot, updateBooking,
   getTheme, setTheme,
   checkSupabaseHealth, isSupabaseBroken, setLocalMode, isLocalMode,
+  getMyVetApplication, submitVetApplication, listPendingVetApplications,
+  reviewVetApplication, signedLicenseUrl, subscribeProfile,
 };

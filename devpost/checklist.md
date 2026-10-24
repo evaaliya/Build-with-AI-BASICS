@@ -110,12 +110,12 @@ Build mode: fast
   Commit: `Add glass design, trophies, vet mode and private vet chat`
 
 - [x] **11. Vet role and outbreak map**
-  Becomes usable: Entering VET-2026 enables vet mode; red outbreak markers appear on the map only then.
+  Becomes usable: Vet role enables vet mode; red outbreak markers appear on the map only then.
   Why now: The vet needs outbreak visibility; everyone else should not see it.
   PRD ref: `prd.md > Features and Behavior` (Vet role)
   Spec ref: `spec.md > Components` (vet.js)
   Build: Add vet.js (isVet/enableVet/disableVet/renderOutbreaks), the profile vet toggle, and the map outbreak layer.
-  Verify (mechanical): With vet off, no outbreak pins; with VET-2026, 3 pins render; disabling removes them.
+  Verify (mechanical): With vet off, no outbreak pins; with vet role on, 3 pins render; disabling removes them.
   Learner check: Enable vet mode and confirm the map changes.
   Commit: `Add glass design, trophies, vet mode and private vet chat`
 

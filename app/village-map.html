@@ -244,13 +244,26 @@ const dots=new THREE.InstancedMesh(new THREE.CylinderGeometry(.28,.28,.06,10),ne
 dots.count=0;scene.add(dots);
 const me={x:0,z:0,ok:false};
 const toScene=(lon,lat)=>[(lon-D.lon0)*D.kx,-(lat-D.lat0)*D.kz];
-// очаги болезней: app.js присылает postMessage({type:'outbreaks',list:[...]}) только ветеринару
+// очаги болезней + статусы домов: только через moo:overlay с role:'vet' (фермеру статусы не шлём)
 const outbreakGroup=new THREE.Group();scene.add(outbreakGroup);
-function setOutbreaks(list){
+const houseOverlayGroup=new THREE.Group();scene.add(houseOverlayGroup);
+const STATUS_COL={ok:0x6fdc5a,soon:0xffd24a,urgent:0xff9a3d,overdue:0xff4a3d,never:0xcfd8dc};
+const outbreakLabels=[];
+function clearOutbreaks(){
   while(outbreakGroup.children.length)outbreakGroup.remove(outbreakGroup.children[0]);
+  outbreakLabels.forEach(el=>{try{el.remove()}catch(_){}});outbreakLabels.length=0;
+}
+function setOutbreaks(list){
+  clearOutbreaks();
   (Array.isArray(list)?list:[]).forEach(o=>{
-    const [x,z]=toScene(o.lng,o.lat);
+    let x,z;
+    if(o.lng!=null&&o.lat!=null){[x,z]=toScene(o.lng,o.lat)}
+    else if(o.x!=null&&o.y!=null){[x,z]=toScene(D.lon0+(o.x-180)/D.kx*0.02,D.lat0-(o.y-155)/D.kz*0.02)}
+    else return;
     const g=new THREE.Group();g.position.set(x,BY,z);
+    const zone=new THREE.Mesh(new THREE.CircleGeometry(2.4,28),
+      new THREE.MeshBasicMaterial({color:0xff4a3d,transparent:true,opacity:.22,side:THREE.DoubleSide}));
+    zone.rotation.x=-Math.PI/2;zone.position.y=.03;g.add(zone);
     const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.3,28),
       new THREE.MeshBasicMaterial({color:0xff4a3d,transparent:true,opacity:.55,side:THREE.DoubleSide}));
     ring.rotation.x=-Math.PI/2;ring.position.y=.04;g.add(ring);
@@ -259,7 +272,37 @@ function setOutbreaks(list){
     const cap=new THREE.Mesh(new THREE.SphereGeometry(.28,12,10),M('#ff4a3d'));
     cap.position.y=1.8;cap.castShadow=true;g.add(cap);
     g.userData.ring=ring;outbreakGroup.add(g);
+    if(o.disease){
+      const lab=document.createElement('div');lab.className='tag sub';lab.textContent=o.disease+(o.cases?' · '+o.cases:'');
+      lab.style.pointerEvents='none';document.body.appendChild(lab);
+      outbreakLabels.push(lab);g.userData.label=lab;g.userData.labelY=3.2;
+    }
   });
+}
+function clearHouseOverlays(){while(houseOverlayGroup.children.length)houseOverlayGroup.remove(houseOverlayGroup.children[0])}
+function setHouseOverlays(houses){
+  clearHouseOverlays();
+  (Array.isArray(houses)?houses:[]).forEach(h=>{
+    if(h.lat==null||h.lng==null)return;
+    const [x,z]=toScene(h.lng,h.lat);
+    const col=STATUS_COL[h.status]||STATUS_COL.never;
+    const g=new THREE.Group();g.position.set(x,BY,z);g.userData.houseId=h.id;
+    const marker=new THREE.Mesh(new THREE.SphereGeometry(.55,12,10),new THREE.MeshBasicMaterial({color:col}));
+    marker.position.y=2.4;g.add(marker);
+    if(h.status==='never'||h.status==='overdue'){
+      const outline=new THREE.Mesh(new THREE.RingGeometry(.7,.95,20),
+        new THREE.MeshBasicMaterial({color:0xff4a3d,side:THREE.DoubleSide,transparent:true,opacity:.9}));
+      outline.rotation.x=-Math.PI/2;outline.position.y=.06;g.add(outline);
+    }
+    if(h.dim){marker.material.opacity=.25;marker.material.transparent=true}
+    houseOverlayGroup.add(g);
+  });
+}
+function applyOverlay(m){
+  // Farmers: never apply status/outbreak data even if somehow present
+  if(!m||m.role!=='vet'){clearOutbreaks();clearHouseOverlays();return}
+  setHouseOverlays(m.houses||[]);
+  setOutbreaks(m.outbreaks||[]);
 }
 function onFix(lon,lat){
   const [x,z]=toScene(lon,lat);if(Math.abs(x)>HX||Math.abs(z)>HZ)return;
@@ -267,13 +310,20 @@ function onFix(lon,lat){
   if(dots.count<3000){mA.compose(V3.set(x,BY+.03,z),Q.identity(),ONE);dots.setMatrixAt(dots.count++,mA);dots.instanceMatrix.needsUpdate=true}
 }
 window.trackPoint=onFix;
-// мост для WebView/iframe: postMessage({type:'gps',lon,lat}) и postMessage({type:'focus',lon,lat,zoom})
-function onMsg(e){let m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(_){return}}
+function allowedOrigin(o){
+  try{return !o||o==='null'||o===location.origin||o===location.protocol+'//'+location.host}catch(_){return true}
+}
+// мост: moo:overlay | outbreaks (legacy) | gps | focus
+function onMsg(e){
+  if(!allowedOrigin(e.origin))return;
+  let m=e.data;if(typeof m==='string'){try{m=JSON.parse(m)}catch(_){return}}
   if(!m||typeof m!=='object')return;
   if(m.type==='gps')onFix(m.lon,m.lat);
-  if(m.type==='outbreaks')setOutbreaks(m.list);
-  if(m.type==='focus'){const [x,z]=toScene(m.lon,m.lat);goal.x=x;goal.z=z;goal.zoom=m.zoom||3}}
-addEventListener('message',onMsg);document.addEventListener('message',onMsg); // onFix(lon, lat) — сюда подавайте GPS-точки из приложения
+  if(m.type==='outbreaks'){/* legacy — only if list non-empty treated as vet */setOutbreaks(m.list)}
+  if(m.type==='moo:overlay')applyOverlay(m);
+  if(m.type==='focus'){const [x,z]=toScene(m.lon,m.lat);goal.x=x;goal.z=z;goal.zoom=m.zoom||3}
+}
+addEventListener('message',onMsg);document.addEventListener('message',onMsg);
 try{!/nogps/.test(location.search)&&navigator.geolocation&&navigator.geolocation.watchPosition(p=>onFix(p.coords.longitude,p.coords.latitude),()=>{},{enableHighAccuracy:true})}catch(e){}
 
 // подписи
@@ -318,6 +368,24 @@ cv.addEventListener('pointermove',e=>{
 });
 cv.addEventListener('wheel',e=>{e.preventDefault();goal.zoom=Math.min(6,Math.max(.3,goal.zoom*(e.deltaY<0?1.12:.89)))},{passive:false});
 
+// tap house overlay → parent app opens house sheet
+let _tapX=0,_tapY=0;
+cv.addEventListener('pointerdown',e=>{_tapX=e.clientX;_tapY=e.clientY},{capture:true});
+cv.addEventListener('pointerup',e=>{
+  if(Math.hypot(e.clientX-_tapX,e.clientY-_tapY)>12)return;
+  if(!houseOverlayGroup.children.length)return;
+  const rect=cv.getBoundingClientRect();
+  const nx=((e.clientX-rect.left)/rect.width)*2-1,ny=-((e.clientY-rect.top)/rect.height)*2+1;
+  const ray=new THREE.Raycaster();ray.setFromCamera({x:nx,y:ny},cam);
+  const hits=ray.intersectObjects(houseOverlayGroup.children,true);
+  if(!hits.length)return;
+  let g=hits[0].object;while(g&&g.userData.houseId==null&&g.parent)g=g.parent;
+  if(g&&g.userData.houseId!=null){
+    const msg={type:'moo:house-click',id:g.userData.houseId};
+    try{parent.postMessage(msg,location.origin)}catch(_){try{parent.postMessage(msg,'*')}catch(__){}}
+  }
+});
+
 const clock=new THREE.Clock(),v3=new THREE.Vector3();
 function loop(){
   requestAnimationFrame(loop);
@@ -347,7 +415,15 @@ function loop(){
     s.g.position.set(s.x,1.04+(d>.15&&m?Math.abs(Math.sin(t*8+s.ph))*.06:0),s.z);
   });
   if(pin.visible)pin.position.y=BY+Math.abs(Math.sin(t*3))*.25*m;
-  outbreakGroup.children.forEach((g,i)=>{const s=1+Math.sin(t*3+i)*.18;g.userData.ring.scale.set(s,s,s)});
+  outbreakGroup.children.forEach((g,i)=>{
+    const s=1+Math.sin(t*3+i)*.18;if(g.userData.ring)g.userData.ring.scale.set(s,s,s);
+    if(g.userData.label){
+      v3.set(g.position.x,g.userData.labelY||3.2,g.position.z).project(cam);
+      const st=g.userData.label.style;
+      st.left=(v3.x*.5+.5)*innerWidth+'px';st.top=(-v3.y*.5+.5)*innerHeight+'px';
+      st.display=v3.z<1?'':'none';
+    }
+  });
   // подписи
   D.lab.forEach((l,i)=>{
     v3.set(l.x,l.main?7:4,l.z).project(cam);

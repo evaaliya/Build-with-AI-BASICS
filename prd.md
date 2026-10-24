@@ -42,7 +42,7 @@ Green = protected, yellow = due (within 30 days or missing), red = overdue. Show
 Trophies per vaccinated animal; reminders at 30 / 7 / 1 days; a trophy is lost when a vaccination lapses. Re-vaccination renews it.
 
 ### Vet role
-Unlocked with `VET-2026`. Enables outbreak markers on the map and the "Appeals" inbox in chat.
+Unlocked after the project owner approves a vet application. Enables outbreak markers on the map and the "Appeals" inbox in chat.
 
 ### Private vet chat
 Farmer threads = farmer id; the vet sees all farmer threads. Village chat removed.
@@ -66,7 +66,7 @@ Register with 3–5 averaged frames; scan matches by cosine similarity with a sp
 - **Supabase (free tier)** optional; localStorage fallback.
 - **Name "Moo".**
 - **Village "Nizhny-Chuy"** (demo).
-- **Vet demo code `VET-2026`.**
+- Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
 ## What We're Building
 

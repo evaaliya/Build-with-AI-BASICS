@@ -149,8 +149,10 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments / secrets (never commit real values)
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -227,7 +229,4 @@ __marimo__/
 /export.geojson
 /moo-glass-kit
 
-# Local credential files (secret-free .env.example is allowed)
-.env.*
-!.env.example
 .DB_Store

@@ -1,0 +1,5 @@
+# Minimal Supabase config for Edge Functions deploy from this repo.
+# Project ref is also visible in the dashboard URL.
+
+[functions.submit-vet-application]
+verify_jwt = true

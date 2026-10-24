@@ -25,10 +25,10 @@ create trigger protect_profile_role
   before insert or update on public.profiles
   for each row execute function public.protect_profile_role();
 
--- проверь, кто сейчас ветеринар (должен быть только Нурлан), остальных верни в farmer:
+-- проверь, кто сейчас ветеринар (должен быть только N), остальных верни в farmer:
 -- select id, name, role from public.profiles where role = 'vet';
 -- update public.profiles set role = 'farmer' where id = '<лишний id>';
--- назначить ветеринара (из SQL-редактора): update public.profiles set role = 'vet' where id = '<id Нурлана>';
+-- назначить ветеринара (из SQL-редактора): update public.profiles set role = 'vet' where id = '<id N>';
 
 
 -- ============ ЧАСТЬ B. Только просмотр (ничего не меняет) ============
@@ -39,11 +39,23 @@ create trigger protect_profile_role
 
 
 -- ============ ЧАСТЬ C. Закрытие утечки (только после переключения приложения на view) ============
--- 1) Замени список колонок на настоящий из части B.
+-- Column order MUST match live animals_public (CREATE OR REPLACE cannot rename columns):
+-- id, owner_id, name, type, breed, notes, photo, fingerprint, frame_count,
+-- reminders, tag_number, created_at, vaccinations, health
 create or replace view public.animals_public as
 select
-  a.id, a.owner_id, a.name, a.type, a.breed, a.tag_number,
-  a.fingerprint, a.frame_count, a.photo, a.created_at,
+  a.id,
+  a.owner_id,
+  a.name,
+  a.type,
+  a.breed,
+  case when a.owner_id = auth.uid() then a.notes else null end as notes,
+  a.photo,
+  a.fingerprint,
+  a.frame_count,
+  case when a.owner_id = auth.uid() then a.reminders else null end as reminders,
+  a.tag_number,
+  a.created_at,
   case when a.owner_id = auth.uid()
          or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'vet')
        then a.vaccinations else '[]'::jsonb end as vaccinations,

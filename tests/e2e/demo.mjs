@@ -109,12 +109,25 @@ async function main() {
     await page.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(800);
 
-    // Ensure farmer
-    const roleLabel = await page.locator('#roleBtn').getAttribute('aria-label');
-    if (roleLabel && /Vet|Ветеринар|вет/i.test(roleLabel) && !/Farmer|Фермер/i.test(roleLabel)) {
-      // already vet? switch
+    // Auth gate: vet sign-up must show access-code field; then try demo
+    const tryDemo = page.locator('[data-act="try-demo"]');
+    if (await tryDemo.count()) {
+      await page.screenshot({ path: join(SCREENS, '00-auth.png') });
+      await page.locator('[data-act="auth-tab"][data-v="up"]').click();
+      await page.waitForTimeout(200);
+      await page.locator('[data-act="auth-role"][data-v="vet"]').click();
+      await page.waitForTimeout(200);
+      const codeField = await page.locator('#authVetCode').count();
+      log('4-auth-vet-code-field', codeField === 1, codeField ? 'vet access code field present' : 'missing #authVetCode');
+      await tryDemo.click();
+      await page.waitForTimeout(900);
+      log('4-auth-demo', true, 'Try demo → cabinet');
+    } else {
+      log('4-auth-vet-code-field', null, 'auth screen not shown');
+      log('4-auth-demo', null, 'auth screen not shown (maybe already in demo session)');
     }
-    // If currently vet, click to farmer
+
+    // Ensure farmer
     const rl = await page.locator('#roleBtn').innerText().catch(() => '');
     if (/Вет|Vet|🩺/.test(rl) && !/Фермер|Farmer|🧑‍🌾|👨‍🌾/.test(rl)) {
       await page.locator('#roleBtn').click();
@@ -272,6 +285,11 @@ async function main() {
     const err2 = await collectConsole(p2);
     await p2.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
     await p2.waitForTimeout(600);
+    const tryDemo2 = p2.locator('[data-act="try-demo"]');
+    if (await tryDemo2.count()) {
+      await tryDemo2.click();
+      await p2.waitForTimeout(800);
+    }
     // farmer camera
     const role2 = await p2.locator('#roleBtn').innerText().catch(() => '');
     if (/Вет|Vet/.test(role2) && !/Фермер|Farmer/.test(role2)) await p2.locator('#roleBtn').click();
@@ -291,15 +309,42 @@ async function main() {
       log('4-camera-fallback', null, 'нет кнопки камеры');
     }
 
-    // Offline SW
+    // Offline SW + map iframe must not mirror the app
     await p2.goto(BASE + '/', { waitUntil: 'networkidle' });
     await p2.waitForTimeout(1500);
+    const tryDemo3 = p2.locator('[data-act="try-demo"]');
+    if (await tryDemo3.count()) { await tryDemo3.click(); await p2.waitForTimeout(800); }
+    await p2.locator('[data-go="map"]').click().catch(() => {});
+    await p2.waitForTimeout(1200);
     await ctx2.setOffline(true);
     await p2.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
-    await p2.waitForTimeout(1000);
+    await p2.waitForTimeout(1200);
+    if (await p2.locator('[data-act="try-demo"]').count()) {
+      await p2.locator('[data-act="try-demo"]').click();
+      await p2.waitForTimeout(600);
+    }
+    await p2.locator('[data-go="map"]').click().catch(() => {});
+    await p2.waitForTimeout(800);
     const body = await p2.locator('body').innerText().catch(() => '');
     const offlineOk = body.length > 10 && !/cannot get|failed to fetch/i.test(body);
+    const nested = await p2.evaluate(() => {
+      const f = document.querySelector('#map3d');
+      if (!f) return { hasFrame: false, nestedApp: false };
+      try {
+        const doc = f.contentDocument;
+        if (!doc) return { hasFrame: true, nestedApp: false };
+        const nestedNav = !!doc.querySelector('#nav, .phone, [data-act="try-demo"]');
+        return { hasFrame: true, nestedApp: nestedNav };
+      } catch {
+        return { hasFrame: true, nestedApp: false };
+      }
+    });
     log('4-offline-shell', offlineOk, offlineOk ? 'оболочка после offline reload' : 'пустой/ошибочный экран офлайн');
+    log(
+      '4-offline-map-no-mirror',
+      !nested.nestedApp,
+      nested.nestedApp ? 'КРИТ: app mirrored inside map iframe' : `map frame ok hasFrame=${nested.hasFrame}`
+    );
     await p2.screenshot({ path: join(SCREENS, 'offline.png') });
     await ctx2.setOffline(false);
     await ctx2.close();

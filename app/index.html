@@ -9,8 +9,16 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=25">
+  <link rel="stylesheet" href="styles.css?v=26">
   <script defer src="supabase-config.js?v=5"></script>
+  <script>
+    // Recursion guard: if index.html is loaded inside an iframe (SW fallback bug),
+    // render nothing so the map never mirrors the whole app.
+    window.__MOO_NESTED__ = window.top !== window.self;
+    if (window.__MOO_NESTED__) {
+      document.write('<!doctype html><title></title><body style="margin:0;background:transparent"></body>');
+    }
+  </script>
 </head>
 <body>
 <svg class="defs" aria-hidden="true"><defs>
@@ -62,6 +70,6 @@
   </div>
 </div>
 
-<script type="module" src="app.js?v=25"></script>
+<script type="module" src="app.js?v=26"></script>
 </body>
 </html>

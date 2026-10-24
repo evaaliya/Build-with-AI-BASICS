@@ -405,7 +405,9 @@ textarea.area.tall { min-height: 120px; }
 .hidden { display: none !important; }
 .map-frame { width: 100%; height: min(62vh, 420px); border: 0; border-radius: 22px; background: rgba(0,0,0,.2); display: block; }
 .mapbox .map-frame { height: min(58vh, 400px); }
+.map-placeholder { display: grid; place-items: center; min-height: min(58vh, 400px); padding: 24px; text-align: center; color: var(--ink-soft); font-size: 15px; }
 .map-tools { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.auth-screen .seg { margin-top: 4px; }
 .langbtn { height: 46px; min-width: 46px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 14px; }
 .capture-box video, .capture-box img { width: 100%; border-radius: 22px; max-height: 40vh; object-fit: cover; background: rgba(0,0,0,.35); }
 select.field { appearance: none; }
