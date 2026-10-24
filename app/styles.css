@@ -409,5 +409,6 @@ textarea.area.tall { min-height: 120px; }
 .map-tools { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .auth-screen .seg { margin-top: 4px; }
 .langbtn { height: 46px; min-width: 46px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 14px; }
+.authbtn { min-width: auto; max-width: 120px; padding: 0 14px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .capture-box video, .capture-box img { width: 100%; border-radius: 22px; max-height: 40vh; object-fit: cover; background: rgba(0,0,0,.35); }
 select.field { appearance: none; }
