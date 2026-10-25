@@ -54,16 +54,16 @@ Moo is a PWA (no build step). MobileNet v2 turns a muzzle close-up into a 1280-n
 
 RLS: profiles readable by signed-in, writable by self; animals/posts readable by signed-in, writable by owner; messages — the village thread is readable by signed-in, private threads are readable only by the farmer and any `is_vet` account.
 
-## Recognition Constants (defaults — re-measure)
+## Recognition Constants (measured on animal muzzle photos)
 
-| Constant | Default | Meaning |
+| Constant | Value | Meaning |
 | --- | --- | --- |
-| `MATCH_THRESHOLD` | 0.88 | cosine similarity for "found it" |
-| `MATCH_MARGIN` | 0.06 | best must beat runner-up by this |
+| `MATCH_THRESHOLD` | 0.53 | cosine similarity for "found it" |
+| `MATCH_MARGIN` | 0.05 | best must beat runner-up by this |
 | `SPECIES_CONFIDENCE` | 0.35 | classify score to trust the species |
-| `FRAMES_TO_CAPTURE` | 4 | frames averaged at registration |
+| `FRAMES_TO_CAPTURE` | 3 | frames averaged at registration |
 
-Measure on real photos with `tools/calibrate.html` and record the numbers here and in `README.md`.
+Source: `tools/calibrate.html` on real cow/livestock photos (6 same cow + 5 other animals); genuine min 0.519 / impostor max 0.521 (near-touch). Shipped threshold 0.53 (above impostor max). Details in `README.md`.
 
 ## Important Failure Modes
 

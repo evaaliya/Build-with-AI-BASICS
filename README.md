@@ -45,16 +45,25 @@ There is no free "animal Face ID" API. Moo uses a **MobileNet v2** model (Tensor
 - **Species gate** — `mobilenet.classify` labels the image; if it disagrees strongly with the chosen type we warn, and at scan time we only compare against the detected species.
 - **Match rule** — cosine similarity must be ≥ **threshold** *and* the best candidate must be ≥ **margin** above the second-best. Below threshold we show no phone and instead offer "publish to feed."
 
-Current shipped thresholds (see `app/recognition.js`):
+Current shipped thresholds (see `app/recognition.js`), measured on **real animal muzzle photos** (one cow + other livestock), not village scenery:
 
 | Constant | Value | Meaning |
 | --- | --- | --- |
-| `MATCH_THRESHOLD` | 0.88 | cosine similarity required for "found it" |
-| `MATCH_MARGIN` | 0.06 | best candidate must beat 2nd best by this |
+| `MATCH_THRESHOLD` | 0.53 | cosine similarity required for "found it" |
+| `MATCH_MARGIN` | 0.05 | best candidate must beat 2nd best by this |
 | `SPECIES_CONFIDENCE` | 0.35 | `mobilenet.classify` score to trust the species |
-| `FRAMES_TO_CAPTURE` | 4 | frames averaged at registration |
+| `FRAMES_TO_CAPTURE` | 3 | frames averaged at registration |
 
-These are the shipped defaults. **Tune them against your own data** with `tools/calibrate.html` (load ~10–20 real photos: one group of the same animal, one group of other animals) and paste the measured numbers back here and into `spec.md`.
+### Calibration run (animal photos)
+
+Photos: **6** of the **same cow** (different angles), **5** of **other animals**.
+
+| Distribution | n | min | median | mean | max |
+| --- | --- | --- | --- | --- | --- |
+| Genuine (same animal) | 15 | 0.5192 | 0.6552 | 0.6572 | 0.9004 |
+| Impostor (different) | 30 | 0.2997 | 0.4174 | 0.4170 | 0.5205 |
+
+Tool midpoint was ~0.520 with gap ≈ 0 (tails touch). Shipped **0.53 / 0.05** — slightly above impostor max so a different cow is less likely to win. Re-run `tools/calibrate.html` with more animal photos anytime.
 
 ### What we learned about MobileNet (limitations)
 

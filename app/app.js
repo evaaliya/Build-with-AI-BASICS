@@ -845,6 +845,13 @@ import * as supabase from './supabase.js';
         <h2 class="sec">${esc(t('whoToBring'))}</h2><div class="stack">${picks}</div>
         <div class="info">${esc(info)}${n > free ? '<br>' + esc(t('notEnoughSpots')) : ''}</div>
         <button class="glass btn go full" data-act="confirmbook" ${ok ? '' : 'disabled'}>${ic('check', 22)}${esc(t('confirmBook'))}</button>`;
+    } else if (sh.t === 'add-animal') {
+      const typ = sh.type || 'cow';
+      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('addAnimal'))}</h2><p class="sub">${esc(t('scanMuzzleToSave'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
+        <label>${esc(t('name'))}<input class="field" id="addAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
+        <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
+        <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="add-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
+        <button class="glass btn go full" data-act="add-animal-go">${ic('cam', 22)}${esc(t('saveAnimal'))}</button>`;
     } else {
       const DAYS = [0, 1, 2, 3], TIMES = [['09:00', '13:00'], ['14:00', '17:00'], ['08:00', '12:00']], PLACES = [t('placeFarm2'), t('placeSquare'), t('placeClinic')];
       inner = `<div class="head"><div style="flex:1"><h2>${esc(t('openSlotTitle'))}</h2><p class="sub">${esc(t('openSlotSub'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
@@ -854,13 +861,6 @@ import * as supabase from './supabase.js';
         <h2 class="sec">${esc(t('capacityLabel'))}</h2><div class="stepper"><button class="glass round" data-act="slcap" data-v="-5" aria-label="${esc(t('less'))}">${ic('minus', 22)}</button><b>${sh.cap}</b><button class="glass round" data-act="slcap" data-v="5" aria-label="${esc(t('more'))}">${ic('plus', 22)}</button></div>
         <button class="switch" data-act="sl" data-k="notify" role="switch" aria-checked="${sh.notify}"><span class="sw"></span><span>${esc(t('notifyNeedy', { n: String(needFarmers().length) }))}</span></button>
         <button class="glass btn go full" data-act="createslot">${ic('check', 22)}${esc(t('publishSlot'))}</button>`;
-    } else if (sh.t === 'add-animal') {
-      const typ = sh.type || 'cow';
-      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('addAnimal'))}</h2><p class="sub">${esc(t('scanMuzzleToSave'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
-        <label>${esc(t('name'))}<input class="field" id="addAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
-        <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
-        <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="add-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
-        <button class="glass btn go full" data-act="add-animal-go">${ic('cam', 22)}${esc(t('saveAnimal'))}</button>`;
     }
     h.innerHTML = `<div class="sheet" data-act="sheetbg"><div class="glass card stack" role="dialog" aria-modal="true">${inner}</div></div>`;
   }

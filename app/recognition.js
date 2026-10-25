@@ -19,9 +19,12 @@
 import { captureFrame, captureSquare, toSquare } from './camera.js';
 import { loadScript } from './loader.js';
 
-// Recognition constants (tune via tools/calibrate.html).
-const MATCH_THRESHOLD = 0.88;   // cosine similarity required for "found it"
-const MATCH_MARGIN = 0.06;      // best candidate must beat 2nd best by this
+// Recognition constants — calibrated on real cow/animal muzzle photos
+// (tools/calibrate.html: 6 angles of one cow + 5 other animals).
+// Tails nearly touch (genuine min 0.519 / impostor max 0.521);
+// ship slightly above impostor max to prefer fewer false IDs.
+const MATCH_THRESHOLD = 0.53;   // cosine similarity required for "found it"
+const MATCH_MARGIN = 0.05;      // best candidate must beat 2nd best by this
 const SPECIES_CONFIDENCE = 0.35; // mobilenet.classify score to trust the species
 const FRAMES_TO_CAPTURE = 3;    // frames averaged at registration (was 4)
 
