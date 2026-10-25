@@ -75,6 +75,7 @@ button { cursor: pointer; }
 .btn:active { transform: scale(.96); }
 .btn.go { background: linear-gradient(158deg, rgba(255,255,255,.34), rgba(255,255,255,0) 50%), var(--glass-accent); }
 .btn.full { width: 100%; }
+.btn.danger { background: linear-gradient(158deg, rgba(255,255,255,.2), rgba(255,255,255,0) 50%), rgba(180, 40, 40, .72); color: #fff; }
 .btn.sm { min-height: 44px; padding: 8px 14px; font-size: 14.5px; }
 
 /* top bar — keep brand + lang + auth + role + theme on one row without clipping */

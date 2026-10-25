@@ -1,7 +1,7 @@
 // Moo v2 — farmer & vet cabinets (from moo-kit-v2/reference-prototype.html).
 import {
   getSession, setSession, signUp, signIn, signOut, getTheme, setTheme,
-  getAnimals, addAnimal, updateAnimal, getUsers, upsertProfile,
+  getAnimals, addAnimal, updateAnimal, deleteAnimal, getUsers, upsertProfile,
   getPosts, addPost, addComment, getMessages, addMessage, addActivity, getLeaderboard,
   getSlots, createSlot, getBookings, bookSlot, updateBooking,
   checkSupabaseHealth, setLocalMode, isLocalMode, restoreAuthSession,
@@ -149,7 +149,8 @@ import * as supabase from './supabase.js';
     auth: null, // null | { tab, err, busy, roleChoice, ... }
     pendingVet: false, onboarding: null, webglOk: true, adminApps: [],
     camMode: 'find', // 'find' | 'register'
-    regDraft: null, // { name, type, photos, fps } while registering via camera
+    regDraft: null, // { name, type, photos, avatar } while registering via camera
+    regSaving: false,
   };
 
   function reset() {
@@ -499,14 +500,14 @@ import * as supabase from './supabase.js';
     const busy = sc.phase === 'busy';
     const title = registering ? t('registerAnimal') : t('cameraTitle');
     const sub = registering
-      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('photosCount', { n: String(draftPhotos.length) })))
+      ? (S.regDraft.name + ' · ' + (busy ? (S.regSaving ? t('registerBusy') : t('photoAdding')) : t('photosCount', { n: String(draftPhotos.length) })))
       : (busy ? t('cameraBusy') : t('cameraHint'));
     const back = registering ? 'animals' : 'home';
     return head(title, sub, back) +
       `<div class="glass cam"><div class="viewport">${view}<div class="guide"><i></i><i></i><i></i><i></i></div></div></div>${res}`;
   }
   function camBarHtml() {
-    const busy = S.scan.phase === 'busy';
+    const busy = S.scan.phase === 'busy' || S.regSaving;
     const registering = S.camMode === 'register' && !!S.regDraft;
     const n = registering ? ((S.regDraft.photos || []).length) : 0;
     return `<button class="glass round" data-act="gallery" aria-label="${esc(t('pickGallery'))}" ${busy ? 'disabled' : ''}>${ic('gallery', 26)}</button>
@@ -1014,7 +1015,8 @@ import * as supabase from './supabase.js';
         <small style="color:var(--ink-soft)">${esc(t('tapStarProfile'))}</small>
         <div class="phrow">${thumbs}<button type="button" class="phslot add" data-act="edit-add-photo" aria-label="${esc(t('addPhotos'))}">+</button></div>
         <input type="file" id="editAnimalFile" accept="image/*" multiple hidden>
-        <button class="glass btn go full" data-act="edit-animal-save">${ic('check', 22)}${esc(t('save'))}</button>`;
+        <button class="glass btn go full" data-act="edit-animal-save">${ic('check', 22)}${esc(t('save'))}</button>
+        <button class="glass btn full danger" data-act="edit-animal-delete">${esc(t('deleteAnimal'))}</button>`;
     } else {
       const DAYS = [0, 1, 2, 3], TIMES = [['09:00', '13:00'], ['14:00', '17:00'], ['08:00', '12:00']], PLACES = [t('placeFarm2'), t('placeSquare'), t('placeClinic')];
       inner = `<div class="head"><div style="flex:1"><h2>${esc(t('openSlotTitle'))}</h2><p class="sub">${esc(t('openSlotSub'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
@@ -1273,7 +1275,7 @@ import * as supabase from './supabase.js';
 
   /** Profile photo: compact JPEG data URL from the muzzle shot (not emoji). */
   async function profilePhotoFromUrl(url, maxSide) {
-    maxSide = maxSide || 320;
+    maxSide = maxSide || 256;
     const img = new Image();
     img.src = url;
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
@@ -1287,7 +1289,7 @@ import * as supabase from './supabase.js';
     c.height = ch;
     c.getContext('2d').drawImage(img, 0, 0, cw, ch);
     try {
-      return c.toDataURL('image/jpeg', 0.72);
+      return c.toDataURL('image/jpeg', 0.62);
     } catch (e) {
       console.warn(e);
       return '';
@@ -1309,7 +1311,7 @@ import * as supabase from './supabase.js';
     return out.map((x) => x / norm);
   }
 
-  /** Register: append one muzzle photo. Unlimited count; never searches. */
+  /** Register: append photo fast (compress only). Fingerprint runs on final Save. */
   async function finishRegisterScan(url) {
     const draft = S.regDraft;
     if (!draft || !draft.name) {
@@ -1318,19 +1320,14 @@ import * as supabase from './supabase.js';
       return;
     }
     if (!draft.photos) draft.photos = [];
-    if (!draft.fps) draft.fps = [];
     if (typeof draft.avatar !== 'number') draft.avatar = 0;
     try {
-      const photo = await profilePhotoFromUrl(url, 320);
       prefetchModel();
-      const c = await canvasFromUrl(url);
-      let fp = [];
-      try { fp = await fingerprintOf(c); } catch (e) { console.warn(e); }
+      const photo = await profilePhotoFromUrl(url, 256);
       if (photo) {
         draft.photos.push(photo);
         if (draft.photos.length === 1) draft.avatar = 0;
       }
-      if (fp && fp.length) draft.fps.push(fp);
       S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
       renderAll(true);
       startCamera();
@@ -1341,6 +1338,18 @@ import * as supabase from './supabase.js';
       renderAll(true);
       toast('warn', t('authNetwork'), 'bell');
     }
+  }
+
+  async function fingerprintsFromPhotos(photos) {
+    const fps = [];
+    for (let i = 0; i < (photos || []).length; i++) {
+      try {
+        const c = await canvasFromUrl(photos[i]);
+        const fp = await fingerprintOf(c);
+        if (fp && fp.length) fps.push(fp);
+      } catch (e) { console.warn(e); }
+    }
+    return fps;
   }
 
   async function saveEditedAnimal() {
@@ -1400,11 +1409,17 @@ import * as supabase from './supabase.js';
       toast('warn', t('needOnePhoto'), 'cam');
       return;
     }
+    if (S.regSaving) return;
     const avatar = clamp(typeof draft.avatar === 'number' ? draft.avatar : 0, 0, photos.length - 1);
+    S.regSaving = true;
+    S.scan = { phase: 'busy', img: photos[avatar] || photos[0], hit: null, conf: 0 };
+    renderAll(true);
     try {
+      prefetchModel();
+      const fps = await fingerprintsFromPhotos(photos);
       const ownerId = (S.user && S.user.id) || 'me';
       const photo = encodePhotos(photos, avatar);
-      const fp = averageFingerprints(draft.fps || []);
+      const fp = averageFingerprints(fps);
       const saved = await addAnimal({
         ownerId,
         name: draft.name,
@@ -1428,6 +1443,7 @@ import * as supabase from './supabase.js';
       });
       S.camMode = 'find';
       S.regDraft = null;
+      S.regSaving = false;
       S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
       stopCamera();
       S.view = 'animals';
@@ -1435,6 +1451,28 @@ import * as supabase from './supabase.js';
       prepComposer();
       renderAll(false);
       toast('good', t('animalSaved') + ': ' + saved.name, 'check');
+    } catch (e) {
+      console.warn(e);
+      S.regSaving = false;
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      toast('warn', t('authNetwork'), 'bell');
+    }
+  }
+
+  async function deleteEditedAnimal() {
+    const sh = S.sheet;
+    if (!sh || sh.t !== 'edit-animal') return;
+    if (!window.confirm(t('deleteAnimalConfirm'))) return;
+    const a = S.animals.find((x) => String(x.id) === String(sh.aid));
+    if (!a) { S.sheet = null; drawSheet(); return; }
+    try {
+      await deleteAnimal(a.id);
+      S.animals = S.animals.filter((x) => String(x.id) !== String(a.id));
+      S.sheet = null;
+      drawSheet();
+      renderAll(true);
+      toast('info', t('animalDeleted'), 'x');
     } catch (e) {
       console.warn(e);
       toast('warn', t('authNetwork'), 'bell');
@@ -1482,7 +1520,7 @@ import * as supabase from './supabase.js';
     setTimeout(() => finishDemoScan(url, seed), 350);
   }
   async function shutter() {
-    if (S.scan.phase === 'busy') return;
+    if (S.scan.phase === 'busy' || S.regSaving) return;
     const v = $('#camVideo');
     if (S.stream && v) {
       const ready = await waitVideoReady(v, 1500);
@@ -1740,7 +1778,9 @@ import * as supabase from './supabase.js';
         S.sheet = null;
         drawSheet();
         S.camMode = 'register';
-        S.regDraft = { name, type: typ, photos: [], fps: [], avatar: 0 };
+        S.regDraft = { name, type: typ, photos: [], avatar: 0 };
+        S.regSaving = false;
+        prefetchModel();
         go('camera', { register: true });
         break;
       }
@@ -1763,7 +1803,6 @@ import * as supabase from './supabase.js';
           const i = parseInt(d.i, 10);
           if (i >= 0) {
             S.regDraft.photos.splice(i, 1);
-            if (S.regDraft.fps && i < S.regDraft.fps.length) S.regDraft.fps.splice(i, 1);
             if (typeof S.regDraft.avatar !== 'number') S.regDraft.avatar = 0;
             if (S.regDraft.avatar >= S.regDraft.photos.length) S.regDraft.avatar = Math.max(0, S.regDraft.photos.length - 1);
             else if (i < S.regDraft.avatar) S.regDraft.avatar -= 1;
@@ -1831,6 +1870,10 @@ import * as supabase from './supabase.js';
       }
       case 'edit-animal-save': {
         saveEditedAnimal();
+        break;
+      }
+      case 'edit-animal-delete': {
+        deleteEditedAnimal();
         break;
       }
       case 'fopen':

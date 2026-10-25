@@ -230,6 +230,11 @@ function localUpdateAnimal(animal) {
   return animal;
 }
 
+function localDeleteAnimal(id) {
+  write(KEYS.animals, localGetAnimals().filter((a) => a.id !== id));
+  return true;
+}
+
 const localGetPosts = () => read(KEYS.posts, []);
 
 function localAddPost(post) {
@@ -619,6 +624,21 @@ async function updateAnimal(animal) {
   }
 }
 
+async function deleteAnimal(id) {
+  if (!id) return false;
+  if (!supabase.isReady() || forceLocal) return localDeleteAnimal(id);
+  try {
+    const c = await supabase.getClient();
+    const { error } = await c.from('animals').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    localDeleteAnimal(id);
+    return true;
+  } catch (e) {
+    if (isSchemaError(e.message)) markBroken();
+    return localDeleteAnimal(id);
+  }
+}
+
 // ---- posts ----
 async function getPosts() {
   if (!supabase.isReady() || forceLocal) return localGetPosts();
@@ -877,7 +897,7 @@ export {
   authSignUp as signUp, authSignIn as signIn, signOut, getSession, setSession,
   restoreAuthSession, fetchMyProfile,
   getUsers, upsertProfile,
-  getAnimals, addAnimal, updateAnimal,
+  getAnimals, addAnimal, updateAnimal, deleteAnimal,
   getPosts, addPost, addComment, getMessages, addMessage,
   addActivity, getLeaderboard,
   getSlots, createSlot, getBookings, bookSlot, updateBooking,
