@@ -5,47 +5,52 @@ status: approved
 
 # Moo
 
-One line: a livestock-biosecurity PWA for a village — a digital vet passport for every animal, Foot-and-Mouth (FMD) vaccination tracking, a private hotline to the village veterinarian, and outbreak awareness on a map.
+One line: a livestock-biosecurity PWA for a village — digital vet passports, Foot-and-Mouth (FMD) vaccination deadlines with reminders, booking with the village vet, trophies only for vet-confirmed vaccinations, and outbreak awareness on a map (vet only).
 
 ## The Unique Kernel
 
-A village-wide biosecurity layer: every animal has a **vet passport** (ear tag, vaccination history, health journal) and an **FMD vaccination status** at a glance (green = protected, yellow = due, red = overdue). There is a direct **private chat with the vet**, and only the vet sees **outbreak markers** on the map. On-time vaccination earns **trophies**, so protection is visible and rewarding.
+A village-wide biosecurity layer: every animal has a **vet passport** and an **FMD status** at a glance (green / yellow / red). Farmers **book a visit** with the village vet and see their **queue number**. The vet **confirms** the vaccination; only then do **trophies and points** appear. Farmers chat privately with the vet; only the vet sees **outbreak markers** on the map.
 
 ## Who It's For
 
-Smallholders and the single village veterinarian. Villagers need a simple way to keep animals protected and reach the vet fast; the vet needs one place to see outbreaks and answer farmers.
+Smallholders and the village veterinarian. Villagers need deadlines, reminders, and a way to book and reach the vet; the vet needs a queue, map statuses, broadcasts, and chats in one place. An admin (project owner) reviews vet applications until funding allows automation.
 
 ## The Core Loop
 
-Open the app → see animals with FMD statuses → scan an animal → owner + status → chat with the vet → earn trophies for on-time vaccination → (vet only) see outbreaks on the map.
+Sign in (or Try demo) → see animals with FMD statuses → book a slot → get a queue number → vet marks vaccinated → status turns green and a trophy is earned → reminders at 30 / 7 / 1 days before the next deadline. (Optional: muzzle scan to identify an animal + owner.)
 
 ## What "Working" Looks Like
 
-A seeded demo farm shows green / yellow / red FMD badges. Scanning an animal returns owner + status. The vet role reveals outbreak markers. Vaccinating an animal earns a trophy; an expired vaccination marks the trophy as lost.
+Auth screen with a short "What is Moo?" welcome. Demo or real account opens a farm with green / yellow / red badges. Booking produces a queue place. Vet «Привит» / Vaccinated sets `verified` and awards a trophy. Vet map shows house statuses and outbreak pins; farmer map does not.
 
 ## POC Boundary (frozen)
 
 In:
 
-- Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal (milk / expense / illness / death).
-- FMD vaccination status badges (green / yellow / red) on cards and the scan plaque.
-- Private vet chat (farmer threads + vet inbox); village chat removed.
-- Vet role (invite code + manual review) + vet-only outbreak markers.
-- Rewards (trophies) with 30 / 7 / 1-day reminders and lost trophies.
-- Categorized feed (feed & hay, machinery & herders, quarantine, lost & found).
-- Muzzle recognition (honest matching + species gate).
-- Glass design with per-tab backdrops; i18n (ru / ky / en).
+- Auth gate: email/password Sign in / Sign up for everyone, plus Try demo; welcome block on the auth screen.
+- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function; admin reviews manually.
+- Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal.
+- FMD status badges (green / yellow / red); reminders at 30 / 7 / 1 days.
+- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified.
+- Farmer cabinet tabs: Home, Animals, Feed, Chat, Map, Rating.
+- Vet cabinet tabs: Today (queue), Map, Broadcasts, Chats, Stats.
+- Private vet chat; categorized feed; muzzle recognition (honest matching + species gate).
+- 3D village map; vet-only overlays; glass UI; i18n (ru / ky / en); PWA service worker.
+- Privacy: RLS + `animals_public` masking private neighbour fields.
 
 ## Later
 
-- Real roles/permissions (store `is_vet` in `profiles`, gate with RLS).
-- Move outbreaks to a database table with a vet-only read policy.
-- Supabase Storage for photos (instead of data URLs).
-- Offline recognition (on-device model).
-- More species.
+- Native app.
+- Offline chat.
+- Admin assistant agent that issues vet access codes (today: project owner issues codes and reviews applications manually until funding).
+- Real push-notification server (SW has a reminder push stub only).
+- Supabase Storage for all animal photos (license photos already use the `vet-licenses` bucket).
+- Outbreaks as a database table with vet-only RLS (today: demo constants in `vet.js`).
+- Offline on-device recognition model; more species.
 
 ## Explicitly Cut
 
 - True "Face ID" magic — approximated with MobileNet + honest matching.
-- Payments, marketplace, breeding/genetics analytics.
-- Bluetooth.
+- Farmer self-mark earning trophies (self-mark is `claimed` only; no points).
+- Telegram login.
+- Payments, marketplace, breeding/genetics analytics, Bluetooth.

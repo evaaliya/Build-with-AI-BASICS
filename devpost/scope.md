@@ -3,48 +3,54 @@ doc: scope
 status: approved
 ---
 
-> ⚠️ Superseded — the canonical, updated copy is at the repo root: [`scope.md`](../scope.md).
-
 # Moo
 
-One line: a dead-simple phone app where anyone in a village can point their camera at a stray cow, sheep, or horse and instantly see the animal and its owner — then message the owner to come get it.
+One line: a livestock-biosecurity PWA for a village — digital vet passports, Foot-and-Mouth (FMD) vaccination deadlines with reminders, booking with the village vet, trophies only for vet-confirmed vaccinations, and outbreak awareness on a map (vet only).
 
 ## The Unique Kernel
-Animal face recognition built for a whole village, not one farmer. The magic isn't record-keeping — it's that a lost animal in your garden now has a name and an owner attached to it. Owners register each animal once by scanning its face; later, *anyone* (not just the owner) can scan it and get the owner's identity on the spot. If the animal isn't registered, you snap a photo and post it to a feed: "is anyone looking for this?"
+
+A village-wide biosecurity layer: every animal has a **vet passport** and an **FMD status** at a glance (green / yellow / red). Farmers **book a visit** with the village vet and see their **queue number**. The vet **confirms** the vaccination; only then do **trophies and points** appear. Farmers chat privately with the vet; only the vet sees **outbreak markers** on the map.
 
 ## Who It's For
-Residents of a village where livestock grazes freely and wanders into other people's gardens and orchards, eating produce and trampling crops — with no way to know who to hold accountable. Also the owners, who want to find a missing or swapped animal fast. Both sides on one app, kept simple enough for people who aren't comfortable with technology.
+
+Smallholders and the village veterinarian. Villagers need deadlines, reminders, and a way to book and reach the vet; the vet needs a queue, map statuses, broadcasts, and chats in one place. An admin (project owner) reviews vet applications until funding allows automation.
 
 ## The Core Loop
-Open the app → point the camera at an animal's face → it's identified with its owner instantly → message the owner (voice or text) about it. Owners register each animal once by scanning its face. People come back because it turns a recurring village frustration ("whose animal is in my field?") into a two-second answer.
 
-## Inspiration & Identity
-Warm, earthy, rural — greens, creams, browns — with light and dark modes. Simple to the point of being obvious: camera-first, big buttons, minimal steps. Think "the WhatsApp of livestock": something a villager who barely uses tech can use on the first try.
-
-## Why This Matters to the Learner
-Wants something cool that people actually use — and this solves a real, concrete problem in a village rather than being another demo.
+Sign in (or Try demo) → see animals with FMD statuses → book a slot → get a queue number → vet marks vaccinated → status turns green and a trophy is earned → reminders at 30 / 7 / 1 days before the next deadline. (Optional: muzzle scan to identify an animal + owner.)
 
 ## What "Working" Looks Like
-Register a handful of animals (a cow, a sheep, a horse) by scanning each face once. Then scan any of them later, from a different angle, and watch it come back with the right animal and owner — instantly. The "oh, that's cool" beat is pointing a phone at a cow and having its name and owner pop up like magic.
 
-## The POC Boundary
+Auth screen with a short "What is Moo?" welcome. Demo or real account opens a farm with green / yellow / red badges. Booking produces a queue place. Vet «Привит» / Vaccinated sets `verified` and awards a trophy. Vet map shows house statuses and outbreak pins; farmer map does not.
+
+## POC Boundary (frozen)
+
 In:
-- Accounts on a free backend, for villagers.
-- Register an animal by scanning its face once (name, type, breed, owner).
-- Scan-to-identify: point the camera, get the animal and its owner.
-- An "unregistered animal" feed: post a photo, "is anyone looking for this?"
-- Shared voice/text chat about lost stock.
-- Per-animal reminders (vaccination, heat cycle, vet visit, weighing).
-- A simple searchable list of registered animals.
-- Light + dark mode.
+
+- Auth gate: email/password Sign in / Sign up for everyone, plus Try demo; welcome block on the auth screen.
+- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function; admin reviews manually.
+- Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal.
+- FMD status badges (green / yellow / red); reminders at 30 / 7 / 1 days.
+- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified.
+- Farmer cabinet tabs: Home, Animals, Feed, Chat, Map, Rating.
+- Vet cabinet tabs: Today (queue), Map, Broadcasts, Chats, Stats.
+- Private vet chat; categorized feed; muzzle recognition (honest matching + species gate).
+- 3D village map; vet-only overlays; glass UI; i18n (ru / ky / en); PWA service worker.
+- Privacy: RLS + `animals_public` masking private neighbour fields.
 
 ## Later
-- Offline recognition (a small model running on the device).
-- More species (goats, pigs, and beyond).
-- Roles and permissions (owner vs vet vs resident).
-- Herd/group management — counts, moving animals between groups.
+
+- Native app.
+- Offline chat.
+- Admin assistant agent that issues vet access codes (today: project owner issues codes and reviews applications manually until funding).
+- Real push-notification server (SW has a reminder push stub only).
+- Supabase Storage for all animal photos (license photos already use the `vet-licenses` bucket).
+- Outbreaks as a database table with vet-only RLS (today: demo constants in `vet.js`).
+- Offline on-device recognition model; more species.
 
 ## Explicitly Cut
-- **True "Face ID" magic** — no off-the-shelf service recognizes animal faces; we approximate it with a free vision model plus matching. Cut because the real thing doesn't exist for free.
-- **Bluetooth** — bluetooth moves data between nearby devices; it can't run recognition offline. Offline is a "later" item instead.
-- **Payments, marketplace, breeding/genetics analytics** — out of scope for the POC.
+
+- True "Face ID" magic — approximated with MobileNet + honest matching.
+- Farmer self-mark earning trophies (self-mark is `claimed` only; no points).
+- Telegram login.
+- Payments, marketplace, breeding/genetics analytics, Bluetooth.

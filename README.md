@@ -10,13 +10,13 @@ Built as a proof of concept for the **Build with AI: Basics** hackathon.
 
 ## The 90-second demo
 
-1. Open the app — there is **no login screen**; it opens straight into the app with a seeded demo farm (4 animals with different FMD vaccination statuses).
-2. **Find** — point at a muzzle and tap Scan → a quick-info plaque shows the owner + FMD vaccination status.
-3. **Feed** — feed & hay, machinery & herders, quarantine, lost & found.
-4. **Chat** — private conversation with the village veterinarian, plus broadcast alerts and village health stats.
-5. **Trophies** — trophies for vaccination, with reminders at 30 / 7 / 1 days before expiry.
-6. **Map** — vet clinic + vaccination points; red outbreak markers appear only in vet mode.
-7. **My farm (profile)** — animal list and personal cabinet.
+1. Open the app → **auth screen** (Sign in / Sign up / Try demo) with a short "What is Moo?" welcome. Tap **Try demo (no account)** for a seeded farm, or sign in with email/password.
+2. **Home / Animals** — FMD status badges (green / yellow / red); book a vaccination slot and see your queue number.
+3. **Feed** — categorized posts and open reception slots.
+4. **Chat** — private conversation with the village veterinarian.
+5. **Rating / trophies** — trophies and points appear only after the vet confirms a vaccination; reminders at 30 / 7 / 1 days.
+6. **Map** — 3D village map; house statuses and outbreak markers appear only for the vet role.
+7. **Profile** — personal cabinet; demo mode can switch farmer ↔ vet in the header.
 
 Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
@@ -28,12 +28,14 @@ Veterinarians receive an individual access code and their applications are revie
 - **Vet hotline & broadcasts** — pinned vet profile with an emergency call button and top-level broadcast alerts (e.g. scheduled FMD vaccination, quarantine).
 - **Village health stats** — aggregated suspected-FMD / brucellosis / deaths / vaccinated-this-week counts.
 - **Outbreak map (vet only)** — red outbreak markers appear only after the vet role is enabled.
-- **Rewards** — trophies for vaccinating animals, reminders at 30 / 7 / 1 days before expiry, and a trophy is lost if a vaccination lapses.
+- **Rewards** — trophies and points only for vaccinations confirmed by the vet (`verified`); reminders at 30 / 7 / 1 days; a trophy is lost if a vaccination lapses.
 - **Categorized feed** — feed & hay, machinery & herders, quarantine, and lost & found.
 - **Muzzle recognition** — register with 3–5 averaged frames; later scans identify the animal and owner (honest matching + species gate).
 - **i18n** — Russian (default), Kyrgyz, English; light/dark + glass theme.
 
 ## Vet role
+
+Everyone signs up with email/password. Choosing "I am a veterinarian" on Sign up also asks for a license photo and an individual access code. Applications are stored for admin review; until approved, the account stays on the farmer cabinet. Roles live in `profiles.role` (`farmer` / `vet` / `admin`), not a client-side flag.
 
 Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
@@ -74,8 +76,8 @@ MobileNet is an image **classifier**, not a face-ID/metric model. Its embeddings
 - Vanilla **JavaScript** (ES modules) — no build step.
 - **TensorFlow.js + MobileNet v2** — muzzle embeddings + species classification.
 - **Supabase** — Auth + Postgres (RLS) for animals, fingerprints, posts, messages, profiles (optional; see below).
-- **Leaflet + OpenStreetMap** — interactive map.
-- **PWA** — manifest + service worker (unregistered by default so stale cache never breaks the app).
+- **Three.js** — 3D village map in an iframe (`village-map.html`).
+- **PWA** — manifest + service worker (registered on boot; network-first cache).
 
 ## Getting started
 
@@ -91,16 +93,16 @@ cd app
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open `http://localhost:8000`. The app opens directly (no login) and seeds a demo farm. To open from a phone on the same Wi-Fi, drop `--bind 127.0.0.1` and visit `http://<your-mac-ip>:8000`.
+Open `http://localhost:8000`. You land on the auth screen; use **Try demo** or Sign up / Sign in. To open from a phone on the same Wi-Fi, drop `--bind 127.0.0.1` and visit `http://<your-mac-ip>:8000`.
 
 ### 2. (Optional) Supabase for shared data across devices
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Run the SQL in `supabase/schema.sql` in the SQL editor — it creates `profiles`, `animals`, `posts`, and `messages` with Row Level Security, plus the private-vet-chat columns (`messages.thread`, `profiles.is_vet`) and their policies.
+2. Apply migrations in order: `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql` (and deploy Edge Function `submit-vet-application`). Older `supabase/schema.sql` is a baseline only.
 3. Copy the **Project URL** and **publishable (anon) key** into `app/supabase-config.js`.
-4. Assign the vet flag manually: `update public.profiles set is_vet = true where id = '<vet uuid>';`.
+4. Promote an admin in the SQL editor after that user signs up: `update public.profiles set role = 'admin' where id = '<uuid>';`. Vet access uses the application + invite-code path (a special code is issued by the project owner).
 
-If Supabase isn't configured, or its tables are missing, the app **automatically falls back to per-device `localStorage`** and seeds demo data.
+If Supabase isn't configured, or its tables are missing, the app **automatically falls back to per-device `localStorage`** and demo mode.
 
 ## 3D village map
 
@@ -139,17 +141,20 @@ scope.md, prd.md, spec.md   # canonical planning docs
 devpost/              # hackathon learning workspace (app-map, checklist, learner profile)
 ```
 
+Keep the root copies of `scope.md`, `prd.md`, and `spec.md` byte-identical to `devpost/scope.md`, `devpost/prd.md`, and `devpost/spec.md` — the pack's skills read `devpost/`, so drift there silently breaks planning.
+
 ## Scope, limitations, and next steps
 
 Known limitations:
 
-- Photos are stored as data URLs in Postgres (`text`); move to Supabase Storage for scale.
+- Photos for animals are often stored as data URLs in Postgres (`text`); move to Supabase Storage for scale (vet license photos already use the `vet-licenses` bucket).
 - Recognition is honest but bounded by MobileNet (see above); threshold/margin are defaults to re-measure with `tools/calibrate.html`.
 - Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
-- Outbreak markers and rewards are local demo state; the outbreak coordinates currently live in `app/vet.js` (not in the database).
-- The village name shown is **Nizhny-Chuy village**; verify the map center `[43.18807, 74.34209]` in `app/app.js` matches it.
+- Outbreak markers are demo constants in `app/vet.js` (not a database table); map overlays are vet-only.
+- Offline: shell/cache after first visit; the 3D map needs a connection the first time; chat is not a full offline client.
+- No native app, no automated admin agent for issuing vet codes, no production push-notification server yet.
 
-Roadmap: Supabase Storage for photos, offline recognition (on-device model), native app, roles/permissions, real push notifications.
+Roadmap: Supabase Storage for all photos, offline recognition, native app, admin assistant for vet codes, real push notifications, outbreaks table + RLS.
 
 ## License
 

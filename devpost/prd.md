@@ -3,98 +3,106 @@ doc: prd
 status: approved
 ---
 
-> ⚠️ Superseded — the canonical, updated copy is at the repo root: [`prd.md`](../prd.md).
-
 # Moo — Product Requirements
 
-One line: Moo is a dead-simple phone app (a PWA) that lets anyone in a village identify a cow, sheep, or horse by its face, see who owns it, and message them. Source: `scope.md > The Unique Kernel`, `scope.md > The Core Loop`.
+One line: Moo is a livestock-biosecurity PWA — digital vet passports, FMD vaccination deadlines with reminders, booking with the village vet, trophies only for vet-confirmed vaccinations, and a private chat with the vet. Source: `scope.md`.
 
 ## The Core Journey
 
-1. Villager opens Moo on their phone (a link, or a home-screen icon).
-2. They create an account once — name, phone/email, password.
-3. Home is camera-first: a big **Scan** button and a framing circle.
-4. They point the camera at an animal's face and tap Scan.
-5. The app matches the face against registered animals and shows the animal (name, photo, type) **and its owner (name, phone)**.
-6. They tap **Message owner** to send a voice or text message about the stray animal.
-7. If there's no match, they snap a photo and post it to the feed: "Is anyone looking for this?"
-8. Owners register each animal once: name, type, breed, notes, then scan its face once to create its "fingerprint."
+1. Open Moo → **auth screen** (Sign in / Sign up / Try demo) with a compact "What is Moo?" welcome.
+2. Enter as farmer (account or demo) → Home shows animals with FMD status badges (green / yellow / red).
+3. Book a vaccination slot → pick animals → receive a **queue number**.
+4. Vet opens Today → sees the queue → marks **Vaccinated** → animal becomes protected and the farmer gets a **trophy + points** (verified only).
+5. Reminders at 30 / 7 / 1 days before the next deadline; a lapsed vaccination loses the trophy.
+6. Optional: scan a muzzle → owner + FMD status; chat privately with the vet; use Feed / Map / Rating.
+7. Vet Map: house vaccination statuses + outbreak markers; farmer Map: village 3D without those overlays.
+
+Implements: `scope.md > The Core Loop`. Source: `app/app.js` (`renderAuth`, `confirmBook`, `vDone`), `app/rewards.js`.
+
+## Auth and roles
+
+- Everyone signs up the same way (email + password). "Try demo (no account)" seeds a local demo farm.
+- On Sign up, choose farmer or veterinarian. Vets additionally submit a license photo and an **individual access code** issued by the project owner. Applications go to `vet_applications` via Edge Function `submit-vet-application`; the owner (admin) reviews them manually until the project receives funding. Pending vets use the farmer cabinet with an under-review banner.
+- Roles: `farmer` | `vet` | `admin` on `profiles.role`. Demo role switch farmer↔vet appears only in demo mode.
+
+Implements: `scope.md > POC Boundary` (auth / roles). Source: `app/app.js`, `app/store.js`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`, `supabase/functions/submit-vet-application/`.
+
+## Booking and queue
+
+- Vet opens reception slots (day, time, place, capacity, disease).
+- Farmer books from Feed/Home → selects animals → `book_slot` assigns a queue number under capacity.
+- Farmer sees "my booking"; can cancel. Vet marks done or no-show.
+
+Implements: `scope.md > The Unique Kernel`. Source: `app/store.js` (`bookSlot`), `schema-v2.sql` (`book_slot`), `app/logic.js`.
 
 ## Screens and Layout
 
-- **Sign in / Sign up** — name + phone/email + password.
-- **Home / Scan** — live camera with a framing circle and a big Scan button; the match result appears below.
-- **Register animal** — form (name, type cow/sheep/horse, breed, notes) + "Scan face" capture.
-- **Animals** — searchable list of registered animals; tap one to see its profile and reminders.
-- **Feed** — posts of lost/unregistered animals with photos + "is anyone looking for this?"
-- **Chat** — messages about lost stock, voice and text.
-- **Reminders** — per animal: vaccination, heat cycle, vet visit, weighing (with date + note).
+- **Auth** — logo, tagline, "What is Moo?" card, Sign in / Sign up tabs, form, Try demo; language + day/night in the top bar.
+- **Farmer:** Home, Animals, Feed, Chat, Map, Rating (+ profile, camera/register sheets).
+- **Vet:** Today (queue), Map, Broadcasts, Chats, Stats (+ profile).
+- **Admin:** pending vet applications (approve / reject).
+- **Find (scan)** — camera + Scan; plaque shows owner + status (reached from animal flows).
+- **Trophies** — shelf with rank, reminders, lost trophies (farmer rating / rewards views).
 
 ## Look and Feel
 
-Earthy palette — greens, creams, browns — with light and dark mode. Camera-first, big buttons, minimal steps. Rounded, friendly type with large tap targets. Tone is plain, warm, zero jargon. Avoid clutter, tiny text, and techy labels.
+Glassmorphism over painted meadow backdrops. Big rounded controls, status colors green / yellow / red. i18n: Russian (default), Kyrgyz, English; light + dark theme.
 
 ## Features and Behavior
 
-### Accounts
-Sign up with name + phone/email + password; sign in. Stored locally for the POC; Firebase is the documented multi-user swap-in.
+### Vet passport
+Per animal: photo(s), ear tag, vaccination history, next re-vaccination, health journal. Implements: `scope.md > POC Boundary`.
 
-### Register an animal
-Form fields: name (required), type (cow/sheep/horse), breed, notes; owner = current user. "Scan face" captures one photo → computes its fingerprint → saves it with the profile.
+### Vaccination status (FMD)
+Green = protected, yellow = soon, red = overdue / urgent; also `never` and `claimed` (self-mark, not verified). Shown on cards and the scan plaque. Source: `app/logic.js` → `animalStatus`.
 
-### Scan to identify
-Point camera, tap Scan → capture → fingerprint → compare to all registered fingerprints → show the top match + confidence if similar enough; otherwise "no match" → offer to post to the feed.
+### Booking
+See **Booking and queue**.
+
+### Rewards
+Trophies and points **only** for vaccinations with `status = verified` (vet confirmed). Self-mark is `claimed` and awards 0 points. Reminders at 30 / 7 / 1 days; trophy lost when validity lapses. Source: `app/rewards.js`, `app/logic.js` → `pointsForVaccinationRecord`.
+
+### Vet cabinet
+Queue with Vaccinated / No-show; map overlays; broadcast segments; farmer chats; village stats. Source: `navVet()` in `app/app.js`.
+
+### Private vet chat
+Farmer↔vet threads; vet inbox of farmer threads. Village-wide chat removed.
 
 ### Feed
-Post a photo + note ("is anyone looking for this?") with animal type and location.
+Categorized posts (including slot cards to book).
 
-### Chat
-Threaded messages about lost stock — voice (recorded) and text — stored locally.
+### Muzzle recognition
+Register with averaged frames; scan matches by cosine similarity with species gate, threshold + margin. Source: `app/recognition.js`.
 
-### Reminders
-Per animal: type (vaccination / heat / vet / weighing), date, note.
-
-### Animal list / search
-List all registered animals; search by name or type.
+### Map
+3D village map in an iframe. Vet sees house statuses + demo outbreaks; farmers do not. Offline: shell/cache after first load; map needs a connection the first time; SW must not inject the app into the map iframe.
 
 ## States and Boundaries
 
-- **First use** — no account → sign-up screen.
-- **Empty state** — no animals → prompt to register one; empty feed → prompt to post.
-- **Persistence** — everything in the browser's local storage (per device) for the POC; survives restart.
-- **Camera permission** — required; denial shows a friendly fallback (upload a photo instead).
+- Auth screen first; demo is opt-in via Try demo.
+- Supabase missing / unhealthy → localStorage fallback + demo data.
+- Camera denied → upload / demo-scan fallback.
+- No match → offer to publish to the feed.
+- Neighbour animal private fields hidden via `animals_public` + RLS.
 
 ## Product Decisions
 
-- **PWA, not native** — free, instant, no app store; native later.
-- **Local-first storage for the POC** — zero setup and verifiable now; Firebase for real multi-user later.
-- **Name "Moo"** — from the learner's "Muu."
-- **Earthy, light + dark** — warm rural feel, usable by non-tech-savvy villagers.
+- **PWA, not native.**
+- **Supabase (free tier)** for Auth + Postgres (RLS); localStorage fallback.
+- **Name "Moo".**
+- **Everyone signs up by email the same way;** vets additionally apply with a license and an individual code; the project owner reviews applications manually until funding.
+- **Trophies only for vet-confirmed (`verified`) vaccinations.**
+- **Telegram login was dropped.**
+- Demo village name stays in existing UI copy only; new docs stay generic ("your village", "the village vet").
 
 ## What We're Building
 
-The full Core Journey: accounts, register-with-scan, scan-to-identify, feed, chat (text + voice), reminders, animal list/search, light/dark theme. Face recognition = a free in-browser MobileNet model turning each face into a "fingerprint" (a list of numbers) and matching by similarity.
-
-## Deferred From the POC
-
-- Real multi-user backend (Firebase auth + database + storage) — so villagers on different phones share data.
-- Offline recognition (bundling a small model on-device).
-- Native app (app store).
-- Roles/permissions (owner vs vet vs resident).
-- Herd/group management.
-
-## Possible Later Enhancements
-
-- More species (goats, pigs).
-- Animal-detection crop for better face focus.
-- Push notifications.
+The full core loop above: auth + roles, passports, statuses, booking/queue, vet confirmation → trophies, cabinets, map, feed, recognition, glass, i18n, PWA.
 
 ## Non-Goals
 
-- Payments / marketplace.
-- Breeding / genetics analytics.
-- Bluetooth.
+Payments / marketplace, breeding analytics, Bluetooth, native app, automated vet-code issuance, offline chat, full push notification backend, Storage for every photo.
 
-## Open Questions
+## Later / Deferred
 
-None blocking.
+Native app; offline chat; admin agent that issues vet codes; push notifications; Supabase Storage for all photos; outbreaks table; offline recognition; more species.
