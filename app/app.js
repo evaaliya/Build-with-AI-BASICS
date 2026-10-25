@@ -57,7 +57,8 @@ import * as supabase from './supabase.js';
     list: '<rect x="5" y="4" width="14" height="16" rx="2.5"/><path d="M9 4v2h6V4M9 11h6M9 15h4"/>',
     mega: '<path d="M4 10v4h3l7 4V6L7 10H4Z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>',
     chart: '<path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/>',
-    cal: '<rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>'
+    cal: '<rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>',
+    paw: '<circle cx="7.5" cy="8" r="2.2"/><circle cx="16.5" cy="8" r="2.2"/><circle cx="5.5" cy="13.5" r="2"/><circle cx="18.5" cy="13.5" r="2"/><path d="M12 21c3.2 0 5.5-2.2 5.5-5.2 0-2.4-1.6-4-3.2-5.1-.7-.5-1.5-.8-2.3-.8s-1.6.3-2.3.8c-1.6 1.1-3.2 2.7-3.2 5.1C6.5 18.8 8.8 21 12 21Z"/>'
   };
   const ic = (n, s) => `<svg class="ic" width="${s || 24}" height="${s || 24}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
   function cupSvg(h, lost, extra) {
@@ -73,6 +74,7 @@ import * as supabase from './supabase.js';
   /* ---------- constants ---------- */
   const navFarmer = () => [
     { id: 'home', label: t('navHome'), icon: 'home' },
+    { id: 'animals', label: t('navAnimals'), icon: 'paw' },
     { id: 'feed', label: t('feedNav'), icon: 'feed' },
     { id: 'chat', label: t('chatNav'), icon: 'chat' },
     { id: 'map', label: t('mapNav'), icon: 'map' },
@@ -86,8 +88,8 @@ import * as supabase from './supabase.js';
     { id: 'vstats', label: t('navStats'), icon: 'chart' }
   ];
   const BGS = { home: 'img/home.jpg', feed: 'img/profile.jpg', chat: 'img/rewards.jpg', map: 'img/map.jpg', rewards: 'img/animals.jpg', rating: 'img/rating.jpg' };
-  const VIEW_BG = { home: 'home', feed: 'feed', chat: 'chat', map: 'map', rating: 'rating', rewards: 'rewards', camera: 'rewards', profile: 'home', vtoday: 'home', vcast: 'feed', vchats: 'chat', vstats: 'rating', auth: 'home', onboarding: 'map', admin: 'home' };
-  const NAV_OF = { camera: 'home', profile: '', rewards: 'rating', auth: '', onboarding: '', admin: 'admin' };
+  const VIEW_BG = { home: 'home', animals: 'rewards', feed: 'feed', chat: 'chat', map: 'map', rating: 'rating', rewards: 'rewards', camera: 'rewards', profile: 'home', vtoday: 'home', vcast: 'feed', vchats: 'chat', vstats: 'rating', auth: 'home', onboarding: 'home', admin: 'home' };
+  const NAV_OF = { camera: 'animals', profile: '', rewards: 'rating', auth: '', onboarding: '', admin: 'admin' };
   const typeInfo = (k) => ({ cow: [t('cowShort'), '🐄'], sheep: [t('sheepShort'), '🐑'], horse: [t('horseShort'), '🐴'] }[k] || [t('other'), '🐾']);
   const TYPE = new Proxy({}, { get: (_, k) => typeInfo(String(k)) });
   const TYPES = ['cow', 'sheep', 'horse'];
@@ -145,7 +147,10 @@ import * as supabase from './supabase.js';
     mf: 'all', msel: null, cast: { seg: 'overdue', text: t('tplOverdue'), post: true }, vslot: 1,
     scan: { phase: 'idle', img: null, hit: null, conf: 0 },
     auth: null, // null | { tab, err, busy, roleChoice, ... }
-    pendingVet: false, onboarding: null, webglOk: true, adminApps: [] };
+    pendingVet: false, onboarding: null, webglOk: true, adminApps: [],
+    camMode: 'find', // 'find' | 'register'
+    regDraft: null, // { name, type } while registering via camera
+  };
 
   function reset() {
     S.today = 0; S.animals = freshAnimals(); S.vil = {};
@@ -358,13 +363,29 @@ import * as supabase from './supabase.js';
     return '';
   }
 
+  function renderAnimals() {
+    const q = (S.animalQ || '').trim().toLowerCase();
+    const list = S.animals
+      .filter((a) => !q || a.name.toLowerCase().includes(q) || String(a.type).includes(q) || String(a.tag || '').toLowerCase().includes(q))
+      .slice()
+      .sort((a, b) => urgency(a) - urgency(b));
+    const rows = list.length
+      ? list.map(trackHtml).join('')
+      : `<div class="glass card">${esc(t('noMyAnimals'))}</div>`;
+    return head(t('myAnimals'), t('villageLine', { n: String(S.animals.length) })) +
+      `<button class="glass btn go full" data-act="add-animal">${ic('plus', 22)}${esc(t('addAnimal'))}</button>
+       <input class="field glass" id="animalSearch" type="search" value="${esc(S.animalQ || '')}" placeholder="${esc(t('search'))}" aria-label="${esc(t('search'))}" style="width:100%;margin:10px 0;padding:12px 14px;border-radius:14px;border:0">
+       <div class="stack">${rows}</div>`;
+  }
+
   function renderCamera() {
     const sc = S.scan;
+    const registering = S.camMode === 'register' && S.regDraft;
     let view;
     if (sc.img) view = `<img src="${sc.img}" alt="${esc(t('animalShotAlt'))}">` + (sc.phase === 'busy' ? '<div class="scanline"></div>' : '');
     else view = `<video id="camVideo" playsinline muted autoplay ${S.stream ? '' : 'hidden'}></video>` + (S.stream ? '' : `<div class="camhint">${ic('cam', 44)}<span>${esc(t('cameraTap'))}${S.camReady === false ? '<br>' + esc(t('cameraUnavailable')) : ''}</span></div>`);
     let res = '';
-    if (sc.phase === 'done') {
+    if (sc.phase === 'done' && !registering) {
       const a = S.animals.find((x) => x.id === sc.hit), tp = TYPE[a.type], st = status(a);
       res = `<div class="glass card stack"><div class="row" style="padding:0"><span class="av" aria-hidden="true">${tp[1]}</span>
         <span class="meta"><b>${esc(t('foundMatch', { name: a.name }))}</b><small>${esc(t('matchPct', { type: tp[0], tag: a.tag, pct: String(sc.conf) }))}</small></span><span class="chip ${st.k}">${st.t}</span></div>
@@ -373,7 +394,12 @@ import * as supabase from './supabase.js';
         <small style="color:var(--ink-soft);text-align:center">${esc(t('cameraDemoNote'))}</small></div>`;
     }
     const busy = sc.phase === 'busy';
-    return head(t('cameraTitle'), busy ? t('cameraBusy') : t('cameraHint'), 'home') +
+    const title = registering ? t('registerAnimal') : t('cameraTitle');
+    const sub = registering
+      ? (S.regDraft.name + ' · ' + (busy ? t('cameraBusy') : t('scanMuzzleToSave')))
+      : (busy ? t('cameraBusy') : t('cameraHint'));
+    const back = registering ? 'animals' : 'home';
+    return head(title, sub, back) +
       `<div class="glass cam"><div class="viewport">${view}<div class="guide"><i></i><i></i><i></i><i></i></div></div></div>${res}`;
   }
   function camBarHtml() {
@@ -682,38 +708,8 @@ import * as supabase from './supabase.js';
   }
 
   function renderOnboarding() {
-    const step = (S.onboarding && S.onboarding.step) || 'village';
-    if (step === 'village') {
-      return head(t('onboardingVillage'), t('villageName')) +
-        `<div class="glass card stack"><p>${esc(t('villageName'))}</p>
-         <button class="glass btn go full" data-act="ob-village">${esc(t('continueBtn'))}</button></div>`;
-    }
-    if (step === 'house') {
-      const ob = S.onboarding || {};
-      if (!ob.geoAsked) {
-        return head(t('onboardingHouse'), t('location')) +
-          `<div class="glass card stack">
-            <p>${esc(t('allowLocationBody'))}</p>
-            <button class="glass btn go full" data-act="ob-geo">${esc(t('allowLocation'))}</button>
-            <button class="glass btn full" data-act="ob-geo-skip">${esc(t('skipForNow'))}</button>
-          </div>`;
-      }
-      const geoNote = ob.geoOk ? t('locationReady') : t('locationDeniedContinue');
-      const picks = HOUSE_PINS.map((pin) => {
-        const i = pin.id;
-        return `<button class="glass fc" data-act="ob-house" data-v="${i}" aria-pressed="${ob.houseId === i}">🏠 ${i + 1}</button>`;
-      }).join('');
-      const mapCard = S.webglOk
-        ? `<div class="glass mapbox"><div id="mapPlaceholder" class="map-placeholder" hidden>${esc(t('mapNeedsConnection'))}</div><iframe id="map3d" class="map-frame" src="village-map.html" title="${esc(t('map3dOnly'))}"></iframe></div>`
-        : `<div class="glass card"><p class="sub">${esc(t('webglFallback'))}</p><p>${esc(t('pickHouseHint'))}</p></div>`;
-      return head(t('onboardingHouse'), t('map3dOnly')) +
-        `<div class="glass card"><p class="sub">${esc(geoNote)}</p><p class="sub">${esc(t('pickHouseHint'))}</p></div>
-         ${mapCard}
-         <div class="fchips">${picks}</div>
-         <button class="glass btn go full" data-act="ob-house-next" ${ob.houseId == null ? 'disabled' : ''}>${esc(t('continueBtn'))}</button>
-         <button class="glass btn full" data-act="ob-skip">${esc(t('skipForNow'))}</button>`;
-    }
-    return head(t('onboardingAnimal'), '') +
+    // House-on-map step removed. Optional: add first animal, or skip to cabinet.
+    return head(t('onboardingAnimal'), t('villageName')) +
       `<div class="glass card stack">
         <button class="glass btn go full" data-act="ob-animal">${esc(t('onboardingAnimal'))}</button>
         <button class="glass btn full" data-act="ob-skip">${esc(t('skipForNow'))}</button></div>`;
@@ -858,6 +854,13 @@ import * as supabase from './supabase.js';
         <h2 class="sec">${esc(t('capacityLabel'))}</h2><div class="stepper"><button class="glass round" data-act="slcap" data-v="-5" aria-label="${esc(t('less'))}">${ic('minus', 22)}</button><b>${sh.cap}</b><button class="glass round" data-act="slcap" data-v="5" aria-label="${esc(t('more'))}">${ic('plus', 22)}</button></div>
         <button class="switch" data-act="sl" data-k="notify" role="switch" aria-checked="${sh.notify}"><span class="sw"></span><span>${esc(t('notifyNeedy', { n: String(needFarmers().length) }))}</span></button>
         <button class="glass btn go full" data-act="createslot">${ic('check', 22)}${esc(t('publishSlot'))}</button>`;
+    } else if (sh.t === 'add-animal') {
+      const typ = sh.type || 'cow';
+      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('addAnimal'))}</h2><p class="sub">${esc(t('scanMuzzleToSave'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
+        <label>${esc(t('name'))}<input class="field" id="addAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
+        <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
+        <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="add-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
+        <button class="glass btn go full" data-act="add-animal-go">${ic('cam', 22)}${esc(t('saveAnimal'))}</button>`;
     }
     h.innerHTML = `<div class="sheet" data-act="sheetbg"><div class="glass card stack" role="dialog" aria-modal="true">${inner}</div></div>`;
   }
@@ -873,7 +876,7 @@ import * as supabase from './supabase.js';
   /* ---------- nav / render ---------- */
   const scroller = $('#scroller');
   const RENDER = {
-    home: renderHome, camera: renderCamera, feed: renderFeed, chat: renderChat, map: renderMap,
+    home: renderHome, animals: renderAnimals, camera: renderCamera, feed: renderFeed, chat: renderChat, map: renderMap,
     rating: renderRating, rewards: renderRewards, profile: renderProfile,
     vtoday: renderVToday, vcast: renderVCast, vchats: renderVChats, vstats: renderVStats,
     admin: renderAdmin, auth: renderAuth, onboarding: renderOnboarding,
@@ -892,6 +895,7 @@ import * as supabase from './supabase.js';
     if (S.role === 'admin') nav = [{ id: 'admin', label: t('adminApps'), icon: 'shield' }, { id: 'profile', label: t('profileTitle'), icon: 'home' }];
     else if (S.role === 'vet') nav = navVet();
     else nav = navFarmer();
+    $('#nav').style.gridTemplateColumns = 'repeat(' + nav.length + ', 1fr)';
     const cur = S.view in NAV_OF ? NAV_OF[S.view] : S.view;
     $('#nav').innerHTML = nav.map((item) => {
       let b = 0;
@@ -950,9 +954,7 @@ import * as supabase from './supabase.js';
       camBar.innerHTML = on ? camBarHtml() : '';
     }
     if (S.view === 'camera') attachStream();
-    if (S.view === 'map' || (S.view === 'onboarding' && S.onboarding && S.onboarding.step === 'house' && S.onboarding.geoAsked)) {
-      setTimeout(syncMap3d, 0);
-    }
+    if (S.view === 'map') setTimeout(syncMap3d, 0);
     if (composerOn() && !keep) scrollChat();
     if (S.focus) {
       const el = $('[data-aid="' + S.focus + '"]');
@@ -975,9 +977,17 @@ import * as supabase from './supabase.js';
     o = o || {};
     if (o.thread) S.thread = o.thread;
     if (o.focus) S.focus = o.focus;
-    if (S.view === 'camera' && v !== 'camera') stopCamera();
+    if (S.view === 'camera' && v !== 'camera') {
+      stopCamera();
+      S.camMode = 'find';
+      S.regDraft = null;
+    }
     S.view = v;
-    if (v === 'camera') { S.scan = { phase: 'idle', img: null, hit: null, conf: 0 }; startCamera(); }
+    if (v === 'camera') {
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      if (!o.register) { S.camMode = 'find'; S.regDraft = null; }
+      startCamera();
+    }
     if (v === 'chat') S.unread = 0;
     if (v === 'vchats' && !o.keepThread) S.vthread = o.vthread || null;
     if (v === 'vchats' && S.vthread) S.vun[S.vthread] = 0;
@@ -1083,23 +1093,80 @@ import * as supabase from './supabase.js';
     const a = S.animals.find((x) => x.id === S.scan.hit);
     toast('good', t('foundIt') + ': ' + (a ? a.name : ''), 'check');
   }
+  async function canvasFromUrl(url) {
+    const img = new Image();
+    img.src = url;
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const c = document.createElement('canvas');
+    const side = 224;
+    c.width = side;
+    c.height = side;
+    const ctx = c.getContext('2d');
+    const sideSrc = Math.min(img.width || side, img.height || side) || side;
+    ctx.drawImage(img, ((img.width || side) - sideSrc) / 2, ((img.height || side) - sideSrc) / 2, sideSrc, sideSrc, 0, 0, side, side);
+    return c;
+  }
+
+  async function finishRegisterScan(url) {
+    const draft = S.regDraft;
+    if (!draft || !draft.name) {
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      return;
+    }
+    try {
+      prefetchModel();
+      const c = await canvasFromUrl(url);
+      let fp = [];
+      try { fp = await fingerprintOf(c); } catch (e) { console.warn(e); }
+      const ownerId = (S.user && S.user.id) || 'me';
+      const saved = await addAnimal({
+        ownerId,
+        name: draft.name,
+        type: draft.type || 'cow',
+        breed: '',
+        tagNumber: '',
+        photo: '',
+        fingerprint: fp || [],
+        frames: 1,
+        reminders: [],
+        vaccinations: [],
+        health: [],
+        createdAt: Date.now(),
+      });
+      S.animals.push({
+        id: saved.id, name: saved.name, type: saved.type, tag: saved.tagNumber || '',
+        due: null, earned: false, streak: 0, stage: 0, lostShown: false, _raw: saved,
+      });
+      S.camMode = 'find';
+      S.regDraft = null;
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      stopCamera();
+      S.view = 'animals';
+      setBg('animals');
+      prepComposer();
+      renderAll(false);
+      toast('good', t('animalSaved') + ': ' + saved.name, 'check');
+    } catch (e) {
+      console.warn(e);
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      toast('warn', t('authNetwork'), 'bell');
+    }
+  }
+
   async function startScan(url, seed) {
     S.scan = { phase: 'busy', img: url, hit: null, conf: 0 };
     renderAll(true);
+    if (S.camMode === 'register' && S.regDraft) {
+      await finishRegisterScan(url);
+      return;
+    }
     prefetchModel();
     const timedOut = new Promise((resolve) => setTimeout(() => resolve('timeout'), 3500));
     try {
       const work = (async () => {
-        const img = new Image();
-        img.src = url;
-        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-        const c = document.createElement('canvas');
-        const side = 224;
-        c.width = side;
-        c.height = side;
-        const ctx = c.getContext('2d');
-        const sideSrc = Math.min(img.width || side, img.height || side) || side;
-        ctx.drawImage(img, ((img.width || side) - sideSrc) / 2, ((img.height || side) - sideSrc) / 2, sideSrc, sideSrc, 0, 0, side, side);
+        const c = await canvasFromUrl(url);
         const fp = await fingerprintOf(c);
         const raw = await getAnimals();
         return findMatch(fp, raw, { threshold: MATCH_THRESHOLD, margin: MATCH_MARGIN });
@@ -1357,7 +1424,26 @@ import * as supabase from './supabase.js';
       case 'shutter': shutter(); break;
       case 'gallery': $('#camFile').removeAttribute('capture'); $('#camFile').click(); setTimeout(() => $('#camFile').setAttribute('capture', 'environment'), 500); break;
       case 'rescan': S.scan = { phase: 'idle', img: null, hit: null, conf: 0 }; renderAll(true); startCamera(); break;
-      case 'openanimal': go('home', { focus: d.aid }); break;
+      case 'openanimal': go('animals', { focus: d.aid }); break;
+      case 'add-animal':
+        S.sheet = { t: 'add-animal', name: '', type: 'cow' };
+        drawSheet();
+        break;
+      case 'add-type':
+        if (S.sheet && S.sheet.t === 'add-animal') { S.sheet.type = d.v; drawSheet(); }
+        break;
+      case 'add-animal-go': {
+        const nameEl = $('#addAnimalName');
+        const name = ((nameEl && nameEl.value) || (S.sheet && S.sheet.name) || '').trim();
+        if (!name) { toast('warn', t('nameRequired'), 'bell'); break; }
+        const typ = (S.sheet && S.sheet.type) || 'cow';
+        S.sheet = null;
+        drawSheet();
+        S.camMode = 'register';
+        S.regDraft = { name, type: typ };
+        go('camera', { register: true });
+        break;
+      }
       case 'thread': S.thread = d.th; S.unread = 0; prepComposer(); renderAll(false); break;
       case 'attach': $('#chatFile').click(); break;
       case 'compose': S.composing = !S.composing; renderAll(true); break;
@@ -1397,21 +1483,16 @@ import * as supabase from './supabase.js';
       case 'try-demo': startDemoMode(); break;
       case 'signout': doSignOut(); break;
       case 'leave-demo': leaveDemoMode(); break;
-      case 'ob-village': S.onboarding = { step: 'house', houseId: null, geoAsked: false, geoOk: false }; renderAll(false); break;
-      case 'ob-geo': requestOnboardingGeo(false); break;
-      case 'ob-geo-skip': requestOnboardingGeo(true); break;
-      case 'ob-house': S.onboarding = { ...S.onboarding, houseId: parseInt(d.v, 10) }; renderAll(true); break;
-      case 'ob-house-next':
-        if (S.onboarding && S.onboarding.houseId != null) {
-          ME.house = S.onboarding.houseId;
-          if (S.user) {
-            S.user.houseId = S.onboarding.houseId;
-            upsertProfile(S.user).catch(() => {});
-          }
-          S.onboarding = { step: 'animal' }; renderAll(false);
-        }
+      case 'ob-animal':
+        S.onboarding = null;
+        S.sheet = { t: 'add-animal', name: '', type: 'cow' };
+        S.view = 'animals';
+        setBg('animals');
+        prepComposer();
+        $('#nav').hidden = false;
+        renderAll(false);
+        drawSheet();
         break;
-      case 'ob-animal': S.onboarding = null; go('camera'); break;
       case 'ob-skip': finishOnboarding(); break;
       case 'admin-approve': doReviewApp(d.id, true); break;
       case 'admin-reject': doReviewApp(d.id, false); break;
@@ -1420,6 +1501,16 @@ import * as supabase from './supabase.js';
   document.addEventListener('input', (e) => {
     if (e.target.id === 'postText') S.draft = e.target.value;
     if (e.target.id === 'castText') S.cast.text = e.target.value;
+    if (e.target.id === 'animalSearch') {
+      S.animalQ = e.target.value;
+      const keep = e.target.selectionStart;
+      renderAll(true);
+      const el = $('#animalSearch');
+      if (el) { el.focus(); try { el.setSelectionRange(keep, keep); } catch (_) {} }
+    }
+    if (e.target.id === 'addAnimalName' && S.sheet && S.sheet.t === 'add-animal') {
+      S.sheet.name = e.target.value;
+    }
   });
   document.addEventListener('submit', (e) => {
     const id = e.target.id;
@@ -1447,54 +1538,9 @@ import * as supabase from './supabase.js';
     const m = e.data;
     if (!m || m.type !== 'moo:house-click') return;
     const id = Number(m.id);
-    if (S.view === 'onboarding' && S.onboarding && S.onboarding.step === 'house') {
-      S.onboarding = { ...S.onboarding, houseId: id };
-      renderAll(true);
-      return;
-    }
     const f = farmers().find((x) => x.house === id) || fById(m.id);
     if (f) { S.msel = f.house; S.view = 'map'; renderAll(true); }
   });
-
-  function requestOnboardingGeo(skip) {
-    const finish = (ok) => {
-      S.onboarding = { ...(S.onboarding || {}), step: 'house', houseId: S.onboarding && S.onboarding.houseId != null ? S.onboarding.houseId : null, geoAsked: true, geoOk: !!ok };
-      renderAll(false);
-      setTimeout(syncMap3d, 50);
-    };
-    if (skip) {
-      finish(false);
-      return;
-    }
-    if (!navigator.geolocation) {
-      toast('warn', t('geoUnavailable'), 'bell');
-      finish(false);
-      return;
-    }
-    toast('info', t('geoLocating'), 'map');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        finish(true);
-        setTimeout(() => {
-          const frame = $('#map3d');
-          if (frame && frame.contentWindow) {
-            try {
-              frame.contentWindow.postMessage({
-                type: 'gps',
-                lon: pos.coords.longitude,
-                lat: pos.coords.latitude,
-              }, window.location.origin);
-            } catch (err) {}
-          }
-        }, 400);
-      },
-      () => {
-        toast('warn', t('geoDenied'), 'bell');
-        finish(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    );
-  }
 
   /* ---------- theme ---------- */
   const root = document.documentElement, themeBtn = $('#themeBtn');
@@ -1682,8 +1728,9 @@ import * as supabase from './supabase.js';
 
     if (S.role === 'admin') await loadAdminApps();
 
-    if (opts.onboarding && !opts.demo) {
-      S.onboarding = { step: 'village', houseId: null, geoAsked: false, geoOk: false };
+    if (opts.onboarding && !opts.demo && S.role === 'farmer') {
+      // No house-on-map. Optional first-animal prompt only.
+      S.onboarding = { step: 'animal' };
       S.view = 'onboarding';
     } else {
       S.view = S.role === 'vet' ? 'vtoday' : S.role === 'admin' ? 'admin' : 'home';
