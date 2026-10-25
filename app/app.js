@@ -2,7 +2,7 @@
 import {
   getSession, setSession, signUp, signIn, signOut, getTheme, setTheme,
   getAnimals, addAnimal, updateAnimal, getUsers, upsertProfile,
-  getPosts, addPost, getMessages, addMessage, addActivity, getLeaderboard,
+  getPosts, addPost, addComment, getMessages, addMessage, addActivity, getLeaderboard,
   getSlots, createSlot, getBookings, bookSlot, updateBooking,
   checkSupabaseHealth, setLocalMode, isLocalMode, restoreAuthSession,
   getMyVetApplication, submitVetApplication, listPendingVetApplications,
@@ -142,14 +142,15 @@ import * as supabase from './supabase.js';
   ];
   const mkA = (fid, dues) => dues.map((d, i) => ({ id: fid + 'a' + i, name: POOL[i % POOL.length], type: TYPES[i % 3], tag: 'KG-' + (100 + i * 7 + fid.charCodeAt(1) * 3), due: d }));
 
-  const S = { view: 'home', role: 'farmer', thread: 'village', vthread: null, filter: 'all', period: 'week', composing: false, draft: '', draftCat: 'ask',
+  const MAX_ANIMAL_PHOTOS = 6;
+  const S = { view: 'home', role: 'farmer', thread: null, vthread: null, filter: 'all', period: 'week', composing: false, draft: '', draftCat: 'ask',
     unread: 0, focus: null, stream: null, typing: false, villageIdx: 0, ratingTab: 'rating', sheet: null,
     mf: 'all', msel: null, cast: { seg: 'overdue', text: t('tplOverdue'), post: true }, vslot: 1,
     scan: { phase: 'idle', img: null, hit: null, conf: 0 },
     auth: null, // null | { tab, err, busy, roleChoice, ... }
     pendingVet: false, onboarding: null, webglOk: true, adminApps: [],
     camMode: 'find', // 'find' | 'register'
-    regDraft: null, // { name, type } while registering via camera
+    regDraft: null, // { name, type, photos, fps } while registering via camera
   };
 
   function reset() {
@@ -164,23 +165,28 @@ import * as supabase from './supabase.js';
     [['n2', ['n2a8', 'n2a7'], 1], ['n4', ['n4a5', 'n4a6', 'n4a4'], 1], ['n5', ['n5a3', 'n5a4', 'n5a5'], 1], ['n3', ['n3a4'], 1], ['n6', ['n6a2', 'n6a3'], 1], ['n7', ['n7a0', 'n7a1', 'n7a2'], 1], ['n8', ['n8a4', 'n8a3'], 2], ['n9', ['n9a2', 'n9a3'], 2]]
       .forEach((b) => addBooking(b[0], b[1], b[2]));
     S.posts = [
-      { id: 1, slot: 1, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: 0 },
-      { id: 2, slot: 2, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: 0 },
-      { id: 3, author: 'Гульнара Сыдыкова', cat: 'ads', text: 'Продаю трёх ягнят, по четыре месяца. Все привиты. Звоните вечером, договоримся о цене.', time: t('hoursAgo', { n: '5' }), likes: 9, liked: false, comments: 3 },
-      { id: 4, author: 'Бакыт Орозов', cat: 'ask', text: 'Чем лучше подкормить корову после отёла? Зорька стала хуже есть.', time: t('yesterday'), likes: 6, liked: false, comments: 8 },
-      { id: 5, author: 'Moo', sys: true, cat: 'news', text: 'Кубок за прививку держится год. Мы напомним трижды: за 30, за 7 и за 1 день до срока. Не потеряй его!', time: t('yesterday'), likes: 31, liked: false, comments: 0 }
+      { id: 1, slot: 1, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: [] },
+      { id: 2, slot: 2, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: [] },
+      { id: 3, author: 'Гульнара Сыдыкова', cat: 'ads', text: 'Продаю трёх ягнят, по четыре месяца. Все привиты. Звоните вечером, договоримся о цене.', time: t('hoursAgo', { n: '5' }), likes: 9, liked: false, comments: [
+        { id: 'c1', from: 'Бакыт', text: 'Какая цена за голову?', t: '10:12' },
+        { id: 'c2', from: 'Айгуль', text: 'Ещё есть?', t: '11:02' },
+        { id: 'c3', from: 'Гульнара', text: 'Да, пишите в личку.', t: '11:20' }
+      ] },
+      { id: 4, author: 'Бакыт Орозов', cat: 'ask', text: 'Чем лучше подкормить корову после отёла? Зорька стала хуже есть.', time: t('yesterday'), likes: 6, liked: false, comments: [
+        { id: 'c4', from: 'Нурлан', vet: true, text: 'Тёплая вода + сено люцерны, следите за жвачкой.', t: '18:40' },
+        { id: 'c5', from: 'Гульнара', text: 'У нас помог свёкольный жом.', t: '19:05' }
+      ] },
+      { id: 5, author: 'Moo', sys: true, cat: 'news', text: 'Кубок за прививку держится год. Мы напомним трижды: за 30, за 7 и за 1 день до срока. Не потеряй его!', time: t('yesterday'), likes: 31, liked: false, comments: [] }
     ];
-    S.msgs = { village: [
-      { from: 'Гульнара', text: 'Соседи, кто завтра едет в райцентр? Нужно забрать корм.', t: '09:12' },
-      { from: 'Бакыт', text: 'Я еду в 10 утра. Места в машине хватит.', t: '09:15' },
-      { from: 'Нурлан', vet: true, text: 'Напоминаю: приём на ферме №2, записывайтесь в ленте.', t: '09:40' }
-    ] };
+    S.msgs = { village: [] };
     S.threads = {
       me: [{ from: 'Нурлан', vet: true, text: t('demoHelloVet'), t: '08:30' }],
-      n2: [{ from: 'Гульнара', text: 'Нурлан, у Зорьки кашель. Посмотрите?', t: '08:10' }],
+      n1: [{ from: 'Бакыт', text: 'Айбек, завтра в райцентр поедешь?', t: '09:18' }],
+      n2: [{ from: 'Гульнара', text: 'Нурлан, у Зорьки кашель. Посмотрите?', t: '08:10' }, { from: 'Гульнара', text: 'Айбек, сено ещё нужно?', t: '12:40' }],
       n4: [{ from: 'Айгуль', text: 'Можно записать на приём трёх овец?', t: '08:44' }]
     };
     S.vun = { n2: 1, n4: 1 };
+    S.thread = null;
   }
 
   /* ---------- helpers ---------- */
@@ -300,14 +306,46 @@ import * as supabase from './supabase.js';
   const vunTotal = () => Object.keys(S.vun).reduce((n, k) => n + S.vun[k], 0);
 
   /* ---------- renderers: farmer ---------- */
+  function decodePhotos(photo) {
+    if (!photo || typeof photo !== 'string') return [];
+    const s = photo.trim();
+    if (!s) return [];
+    if (s.charAt(0) === '[') {
+      try {
+        const arr = JSON.parse(s);
+        return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string' && x) : [];
+      } catch (_) { return [s]; }
+    }
+    return [s];
+  }
+  function encodePhotos(photos) {
+    const list = (photos || []).filter(Boolean);
+    if (!list.length) return '';
+    if (list.length === 1) return list[0];
+    return JSON.stringify(list);
+  }
+  function animalPhotos(a) {
+    if (!a) return [];
+    if (Array.isArray(a.photos) && a.photos.length) return a.photos.filter(Boolean);
+    return decodePhotos(a.photo || (a._raw && a._raw.photo) || '');
+  }
   function animalPhotoUrl(a) {
-    return (a && (a.photo || (a._raw && a._raw.photo))) || '';
+    const photos = animalPhotos(a);
+    return photos[0] || '';
   }
   function animalAvatarHtml(a) {
     const url = animalPhotoUrl(a);
     const tp = TYPE[a.type];
     if (url) return `<span class="av av-photo" aria-hidden="true"><img src="${esc(url)}" alt=""></span>`;
     return `<span class="av" aria-hidden="true">${tp[1]}</span>`;
+  }
+  function postComments(p) {
+    if (!p) return [];
+    if (Array.isArray(p.comments)) return p.comments;
+    return [];
+  }
+  function commentCount(p) {
+    return postComments(p).length;
   }
   function trackHtml(a) {
     const k = lvl(a), st = status(a), tp = TYPE[a.type], l = left(a);
@@ -320,7 +358,9 @@ import * as supabase from './supabase.js';
     if (booked && bk) cta = `<div class="chip ok" style="max-width:none">${esc(t('youBooked', { q: String(bk.q) }))}</div>`;
     else if (k !== 'ok') cta = `<button class="glass btn go full" data-act="bookfirst" data-aid="${a.id}">${ic('cal', 22)}${esc(t('bookReception'))}</button>`;
     return `<div class="glass trk" data-aid="${a.id}"><div class="row">${animalAvatarHtml(a)}
-      <span class="meta"><b>${esc(a.name)}</b><small>${tp[0]} · ${esc(a.tag)}</small></span><span class="chip ${st.k}">${st.t}</span></div>
+      <span class="meta"><b>${esc(a.name)}</b><small>${tp[0]} · ${esc(a.tag || '—')}</small></span>
+      <button class="glass btn sm" data-act="edit-animal" data-aid="${a.id}" aria-label="${esc(t('editAnimal'))}">${esc(t('edit'))}</button>
+      <span class="chip ${st.k}">${st.t}</span></div>
       <div class="bar" aria-hidden="true"><i style="width:${pct}%;--c:${LV()[k].col}"></i></div>
       <div class="trkline"><span>${line}</span>${dots}</div>${cta}</div>`;
   }
@@ -390,6 +430,7 @@ import * as supabase from './supabase.js';
   function renderCamera() {
     const sc = S.scan;
     const registering = S.camMode === 'register' && !!S.regDraft;
+    const draftPhotos = registering ? (S.regDraft.photos || []) : [];
     let view;
     if (sc.img) {
       const busyFx = sc.phase === 'busy'
@@ -410,10 +451,17 @@ import * as supabase from './supabase.js';
           <div class="grid2"><button class="glass btn sm" data-act="openanimal" data-aid="${a.id}">${esc(t('inList'))}</button><button class="glass btn sm" data-act="rescan">${esc(t('shootAgain'))}</button></div></div>`;
       }
     }
+    if (registering && draftPhotos.length) {
+      const thumbs = draftPhotos.map((src, i) => `<button type="button" class="phthumb" data-act="reg-rm-photo" data-i="${i}" aria-label="${esc(t('removePhoto'))}"><img src="${esc(src)}" alt=""><span>×</span></button>`).join('');
+      res += `<div class="glass card stack"><div class="phrow">${thumbs}${draftPhotos.length < MAX_ANIMAL_PHOTOS ? `<span class="phslot">+${MAX_ANIMAL_PHOTOS - draftPhotos.length}</span>` : ''}</div>
+        <small style="color:var(--ink-soft);text-align:center">${esc(t('photosCount', { n: String(draftPhotos.length), max: String(MAX_ANIMAL_PHOTOS) }))}</small>
+        <button class="glass btn go full" data-act="reg-save" ${S.scan.phase === 'busy' ? 'disabled' : ''}>${ic('check', 22)}${esc(t('saveAnimalNow'))}</button>
+        <small style="color:var(--ink-soft);text-align:center">${esc(t('addMorePhotos'))}</small></div>`;
+    }
     const busy = sc.phase === 'busy';
     const title = registering ? t('registerAnimal') : t('cameraTitle');
     const sub = registering
-      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('scanMuzzleToSave')))
+      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('photosCount', { n: String(draftPhotos.length), max: String(MAX_ANIMAL_PHOTOS) })))
       : (busy ? t('cameraBusy') : t('cameraHint'));
     const back = registering ? 'animals' : 'home';
     return head(title, sub, back) +
@@ -421,9 +469,14 @@ import * as supabase from './supabase.js';
   }
   function camBarHtml() {
     const busy = S.scan.phase === 'busy';
-    return `<button class="glass round" data-act="gallery" aria-label="${esc(t('pickGallery'))}">${ic('gallery', 26)}</button>
-      <button class="shutter" data-act="shutter" aria-label="${esc(t('takePhoto'))}" ${busy ? 'disabled' : ''}></button>
-      <span class="spacer" style="width:58px"></span>`;
+    const registering = S.camMode === 'register' && !!S.regDraft;
+    const n = registering ? ((S.regDraft.photos || []).length) : 0;
+    const canMore = !registering || n < MAX_ANIMAL_PHOTOS;
+    return `<button class="glass round" data-act="gallery" aria-label="${esc(t('pickGallery'))}" ${busy || !canMore ? 'disabled' : ''}>${ic('gallery', 26)}</button>
+      <button class="shutter" data-act="shutter" aria-label="${esc(t('takePhoto'))}" ${busy || !canMore ? 'disabled' : ''}></button>
+      ${registering && n > 0
+        ? `<button class="glass round" data-act="reg-save" aria-label="${esc(t('saveAnimalNow'))}" ${busy ? 'disabled' : ''}>${ic('check', 26)}</button>`
+        : '<span class="spacer" style="width:58px"></span>'}`;
   }
 
   function slotPost(p) {
@@ -449,10 +502,15 @@ import * as supabase from './supabase.js';
         <textarea class="area" id="postText" placeholder="${esc(t('whatsNew'))}" aria-label="${esc(t('whatsNew'))}">${esc(S.draft)}</textarea>
         <div class="grid2"><button type="button" class="glass btn" data-act="compose">${esc(t('cancel'))}</button><button type="submit" class="glass btn go">${esc(t('publish'))}</button></div></form>`
       : `<button class="glass btn go full" data-act="compose">${ic('plus', 22)}${esc(t('writeToFeed'))}</button>`;
-    const posts = list.map((p) => p.slot ? slotPost(p) : `<article class="glass post"><div class="ph"><span class="av" aria-hidden="true">${p.sys ? '🐮' : p.vet ? '🩺' : esc(p.author.charAt(0))}</span>
+    const posts = list.map((p) => {
+      if (p.slot) return slotPost(p);
+      const n = commentCount(p);
+      return `<article class="glass post" data-pid="${p.id}"><div class="ph"><span class="av" aria-hidden="true">${p.sys ? '🐮' : p.vet ? '🩺' : esc(p.author.charAt(0))}</span>
       <span class="meta"><b>${esc(p.author)}</b><small>${p.time}${p.vet ? ' · ' + esc(t('vetLabel')) : ''}</small></span><span class="chip none">${CATS()[p.cat] || ''}</span></div>
       <p class="ptxt">${esc(p.text)}</p>
-      <div class="pfoot"><button class="glass like" data-like="${p.id}" aria-pressed="${!!p.liked}">${ic('heart', 20)}${p.likes}</button><span class="cmt">${ic('chat', 20)}${p.comments}</span></div></article>`).join('');
+      <div class="pfoot"><button class="glass like" data-like="${p.id}" aria-pressed="${!!p.liked}">${ic('heart', 20)}${p.likes}</button>
+      <button type="button" class="glass cmt" data-act="comments" data-pid="${p.id}" aria-label="${esc(t('commentsTitle'))}">${ic('chat', 20)}${n}</button></div></article>`;
+    }).join('');
     return head(t('feedTitle'), t('feedSub')) + comp + `<div class="fchips">${chips}</div><div class="stack">${posts || `<div class="glass card">${esc(t('emptyFeed'))}</div>`}</div>`;
   }
 
@@ -464,20 +522,40 @@ import * as supabase from './supabase.js';
     const who = m.from === 'me' ? (other || ME.name.split(' ')[0]) : m.from;
     return `<div class="msg${mine ? ' mine' : ''}">${mine ? '' : `<span class="who">${esc(who)}${m.vet ? ' · ' + esc(t('vetLabel')) : ''}</span>`}${m.img ? `<img src="${m.img}" alt="${esc(t('photoAlt'))}">` : ''}${m.text ? `<span class="txt">${esc(m.text)}</span>` : ''}<span class="time">${m.t}</span></div>`;
   }
+  function farmerPeer() {
+    if (!S.thread) return null;
+    if (S.thread === 'vet') return { id: 'vet', name: t('vetName'), emoji: '🩺', vet: true };
+    return fById(S.thread) || null;
+  }
   function curThread() {
     if (S.role === 'vet') return S.vthread ? thr(S.vthread) : [];
-    return S.thread === 'vet' ? thr('me') : S.msgs.village;
+    if (!S.thread) return [];
+    return S.thread === 'vet' ? thr('me') : thr(S.thread);
   }
   function msgsInner() {
-    const other = S.role === 'vet' && S.vthread ? firstName(fById(S.vthread)) : '';
+    let other = '';
+    if (S.role === 'vet' && S.vthread) other = firstName(fById(S.vthread));
+    else if (S.role === 'farmer' && S.thread && S.thread !== 'vet') other = firstName(fById(S.thread) || { name: '' });
     return curThread().map((m) => msgHtml(m, other)).join('') + (S.typing && S.role === 'farmer' && S.thread === 'vet' ? '<div class="msg"><span class="typing"><i></i><i></i><i></i></span></div>' : '');
   }
   function renderChat() {
+    if (!S.thread) {
+      const peers = [{ id: 'vet', name: t('vetName'), emoji: '🩺', vet: true }].concat(FARM);
+      const rows = peers.map((p) => {
+        const key = p.id === 'vet' ? 'me' : p.id;
+        const list = thr(key);
+        const last = list.length ? list[list.length - 1] : null;
+        const preview = last ? ((last.from === 'me' || last.vet ? '' : '') + (last.text || t('photoAlt'))) : t('startChat');
+        const u = p.id === 'vet' ? S.unread : 0;
+        return `<button class="glass row" data-act="fopen" data-f="${p.id}" style="width:100%;text-align:left"><span class="av" aria-hidden="true">${p.emoji}</span><span class="meta"><b>${esc(p.name)}${p.vet ? '' : ''}</b><small>${esc(preview)}</small></span>${u ? `<span class="unread">${u}</span>` : ''}</button>`;
+      }).join('');
+      return head(t('chatTitle'), t('chatSubDMs')) + `<div class="stack">${rows}</div>`;
+    }
+    const peer = farmerPeer();
     const vet = S.thread === 'vet';
     const mb = myBookings()[0];
     const pin = vet && mb ? `<div class="glass row"><span class="qn sm">${mb.q}</span><span class="meta"><b>${esc(t('myBookingPin', { q: String(mb.q) }))}</b><small>${dayLabel(slotById(mb.slot).day)} · ${eta(slotById(mb.slot), mb.q)} · ${esc(slotById(mb.slot).place)}</small></span></div>` : '';
-    return head(t('chatTitle'), vet ? t('chatSubVet') : t('chatSubVillage')) +
-      `<div class="glass seg"><button data-act="thread" data-th="village" aria-pressed="${!vet}">${esc(t('segVillage'))}</button><button data-act="thread" data-th="vet" aria-pressed="${vet}">${esc(t('segVet'))}</button></div>` +
+    return `<div class="head"><button class="glass back btn" data-act="fback" aria-label="${esc(t('back'))}">${ic('back', 22)}</button><div style="flex:1;min-width:0"><h1>${esc(peer ? peer.name : t('chatTitle'))}</h1><p class="sub">${esc(vet ? t('chatSubVet') : t('chatSubDM'))}</p></div></div>` +
       (vet ? `<div class="glass vethead"><span class="av" aria-hidden="true">🩺</span><span class="meta"><b>${esc(t('vetName'))}</b><small><i class="live"></i>${esc(t('vetOnline'))}</small></span></div>${pin}
         <div class="fchips">${QUICK().map((q) => `<button class="glass fc" data-quick="${esc(q)}">${q}</button>`).join('')}</div>` : '') +
       `<div class="msgs" id="chatMsgs">${msgsInner()}</div>`;
@@ -868,7 +946,35 @@ import * as supabase from './supabase.js';
         <label>${esc(t('name'))}<input class="field" id="addAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
         <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
         <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="add-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
-        <button class="glass btn go full" data-act="add-animal-go">${ic('cam', 22)}${esc(t('saveAnimal'))}</button>`;
+        <button class="glass btn go full" data-act="add-animal-go">${ic('cam', 22)}${esc(t('takePhotos'))}</button>`;
+    } else if (sh.t === 'comments') {
+      const p = S.posts.find((x) => x.id === sh.pid);
+      const list = postComments(p);
+      const rows = list.length
+        ? list.map((c) => `<div class="cmtrow"><b>${esc(c.from)}${c.vet ? ' · ' + esc(t('vetLabel')) : ''}</b><span>${esc(c.text)}</span><small>${esc(c.t || '')}</small></div>`).join('')
+        : `<div class="glass card">${esc(t('noCommentsYet'))}</div>`;
+      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('commentsTitle'))}</h2><p class="sub">${esc(p ? p.author : '')}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
+        <div class="stack cmtlist">${rows}</div>
+        <form id="commentForm" class="cmtform" autocomplete="off">
+          <input type="hidden" name="pid" value="${sh.pid}">
+          <input class="field" id="commentText" value="${esc(sh.draft || '')}" placeholder="${esc(t('addComment'))}" aria-label="${esc(t('addComment'))}">
+          <button type="submit" class="glass btn go full">${ic('send', 20)}${esc(t('sendComment'))}</button>
+        </form>`;
+    } else if (sh.t === 'edit-animal') {
+      const typ = sh.type || 'cow';
+      const photos = sh.photos || [];
+      const thumbs = photos.map((src, i) => `<button type="button" class="phthumb" data-act="edit-rm-photo" data-i="${i}" aria-label="${esc(t('removePhoto'))}"><img src="${esc(src)}" alt=""><span>×</span></button>`).join('');
+      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('editAnimal'))}</h2><p class="sub">${esc(t('photosCount', { n: String(photos.length), max: String(MAX_ANIMAL_PHOTOS) }))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
+        <label>${esc(t('name'))}<input class="field" id="editAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
+        <label>${esc(t('earTag'))}<input class="field" id="editAnimalTag" value="${esc(sh.tag || '')}" placeholder="KG-0142" autocomplete="off"></label>
+        <label>${esc(t('breed'))}<input class="field" id="editAnimalBreed" value="${esc(sh.breed || '')}" placeholder="${esc(t('breedPh'))}" autocomplete="off"></label>
+        <label>${esc(t('notes'))}<textarea class="area" id="editAnimalNotes" rows="2" placeholder="${esc(t('notesPh'))}">${esc(sh.notes || '')}</textarea></label>
+        <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
+        <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="edit-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
+        <h2 class="sec">${esc(t('photos'))}</h2>
+        <div class="phrow">${thumbs}${photos.length < MAX_ANIMAL_PHOTOS ? `<button type="button" class="phslot add" data-act="edit-add-photo">+</button>` : ''}</div>
+        <input type="file" id="editAnimalFile" accept="image/*" multiple hidden>
+        <button class="glass btn go full" data-act="edit-animal-save">${ic('check', 22)}${esc(t('save'))}</button>`;
     } else {
       const DAYS = [0, 1, 2, 3], TIMES = [['09:00', '13:00'], ['14:00', '17:00'], ['08:00', '12:00']], PLACES = [t('placeFarm2'), t('placeSquare'), t('placeClinic')];
       inner = `<div class="head"><div style="flex:1"><h2>${esc(t('openSlotTitle'))}</h2><p class="sub">${esc(t('openSlotSub'))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
@@ -927,7 +1033,7 @@ import * as supabase from './supabase.js';
       rb.setAttribute('aria-label', t('switchRole') + ': ' + (S.role === 'vet' ? vt('roleVet') : vt('roleFarmer')));
     }
   }
-  const composerOn = () => (S.role === 'farmer' && S.view === 'chat') || (S.role === 'vet' && S.view === 'vchats' && !!S.vthread);
+  const composerOn = () => (S.role === 'farmer' && S.view === 'chat' && !!S.thread) || (S.role === 'vet' && S.view === 'vchats' && !!S.vthread);
   function syncChromeAuth() {
     const btn = $('#authBtn');
     if (!btn) return;
@@ -988,7 +1094,7 @@ import * as supabase from './supabase.js';
   }
   function prepComposer() {
     $('#composer').hidden = !composerOn();
-    $('#chatInput').placeholder = S.role === 'vet' ? t('msgReply') : S.thread === 'vet' ? t('msgToVet') : t('msgToNeighbours');
+    $('#chatInput').placeholder = S.role === 'vet' ? t('msgReply') : S.thread === 'vet' ? t('msgToVet') : t('msgToNeighbour');
   }
   function go(v, o) {
     o = o || {};
@@ -999,6 +1105,7 @@ import * as supabase from './supabase.js';
       S.camMode = 'find';
       S.regDraft = null;
     }
+    if (v === 'chat' && !o.keepThread && o.thread == null) S.thread = null;
     S.view = v;
     if (v === 'camera') {
       S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
@@ -1147,6 +1254,22 @@ import * as supabase from './supabase.js';
     }
   }
 
+  function averageFingerprints(list) {
+    const valid = (list || []).filter((f) => f && f.length);
+    if (!valid.length) return [];
+    const len = valid[0].length;
+    const out = new Array(len).fill(0);
+    valid.forEach((f) => {
+      for (let i = 0; i < len; i++) out[i] += Number(f[i]) || 0;
+    });
+    for (let i = 0; i < len; i++) out[i] /= valid.length;
+    let norm = 0;
+    for (let i = 0; i < len; i++) norm += out[i] * out[i];
+    norm = Math.sqrt(norm) || 1;
+    return out.map((x) => x / norm);
+  }
+
+  /** Register: append one muzzle photo (up to MAX). Does not search. */
   async function finishRegisterScan(url) {
     const draft = S.regDraft;
     if (!draft || !draft.name) {
@@ -1154,31 +1277,111 @@ import * as supabase from './supabase.js';
       renderAll(true);
       return;
     }
-    // Register path: fingerprint + save only. Never findMatch / demo search.
+    if (!draft.photos) draft.photos = [];
+    if (!draft.fps) draft.fps = [];
+    if (draft.photos.length >= MAX_ANIMAL_PHOTOS) {
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      toast('warn', t('photoLimit', { max: String(MAX_ANIMAL_PHOTOS) }), 'bell');
+      return;
+    }
     try {
       const photo = await profilePhotoFromUrl(url, 320);
       prefetchModel();
       const c = await canvasFromUrl(url);
       let fp = [];
       try { fp = await fingerprintOf(c); } catch (e) { console.warn(e); }
+      if (photo) draft.photos.push(photo);
+      if (fp && fp.length) draft.fps.push(fp);
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      startCamera();
+      toast('good', t('photoAdded', { n: String(draft.photos.length), max: String(MAX_ANIMAL_PHOTOS) }), 'check');
+    } catch (e) {
+      console.warn(e);
+      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
+      renderAll(true);
+      toast('warn', t('authNetwork'), 'bell');
+    }
+  }
+
+  async function saveEditedAnimal() {
+    const sh = S.sheet;
+    if (!sh || sh.t !== 'edit-animal') return;
+    const nameEl = $('#editAnimalName');
+    const tagEl = $('#editAnimalTag');
+    const breedEl = $('#editAnimalBreed');
+    const notesEl = $('#editAnimalNotes');
+    const name = ((nameEl && nameEl.value) || sh.name || '').trim();
+    if (!name) { toast('warn', t('nameRequired'), 'bell'); return; }
+    const a = S.animals.find((x) => String(x.id) === String(sh.aid));
+    if (!a) { S.sheet = null; drawSheet(); return; }
+    const photos = (sh.photos || []).filter(Boolean);
+    const photo = encodePhotos(photos);
+    const tag = ((tagEl && tagEl.value) || sh.tag || '').trim();
+    const breed = ((breedEl && breedEl.value) || sh.breed || '').trim();
+    const notes = ((notesEl && notesEl.value) || sh.notes || '').trim();
+    const raw = a._raw ? Object.assign({}, a._raw) : {
+      id: a.id, ownerId: (S.user && S.user.id) || 'me', fingerprint: [], frames: photos.length || 1,
+      reminders: [], vaccinations: [], health: [], createdAt: Date.now(),
+    };
+    raw.name = name;
+    raw.type = sh.type || a.type || 'cow';
+    raw.tagNumber = tag;
+    raw.breed = breed;
+    raw.notes = notes;
+    raw.photo = photo;
+    raw.frames = Math.max(raw.frames || 1, photos.length || 1);
+    try {
+      if (a._raw || (S.user && S.user.id && S.user.id !== 'me')) {
+        await updateAnimal(raw);
+      }
+      a.name = name;
+      a.type = raw.type;
+      a.tag = tag;
+      a.photo = photos[0] || '';
+      a.photos = photos.slice();
+      a._raw = raw;
+      S.sheet = null;
+      drawSheet();
+      renderAll(true);
+      toast('good', t('animalUpdated'), 'check');
+    } catch (e) {
+      console.warn(e);
+      toast('warn', t('authNetwork'), 'bell');
+    }
+  }
+
+  async function commitRegisterAnimal() {
+    const draft = S.regDraft;
+    if (!draft || !draft.name) return;
+    const photos = draft.photos || [];
+    if (!photos.length) {
+      toast('warn', t('needOnePhoto'), 'cam');
+      return;
+    }
+    try {
       const ownerId = (S.user && S.user.id) || 'me';
+      const photo = encodePhotos(photos);
+      const fp = averageFingerprints(draft.fps || []);
       const saved = await addAnimal({
         ownerId,
         name: draft.name,
         type: draft.type || 'cow',
         breed: '',
         tagNumber: '',
-        photo: photo || '',
+        photo,
         fingerprint: fp || [],
-        frames: 1,
+        frames: photos.length,
         reminders: [],
         vaccinations: [],
         health: [],
         createdAt: Date.now(),
       });
+      const photosOut = decodePhotos(saved.photo || photo);
       S.animals.push({
         id: saved.id, name: saved.name, type: saved.type, tag: saved.tagNumber || '',
-        photo: saved.photo || photo || '',
+        photo: photosOut[0] || '', photos: photosOut,
         due: null, earned: false, streak: 0, stage: 0, lostShown: false, _raw: saved,
       });
       S.camMode = 'find';
@@ -1192,8 +1395,6 @@ import * as supabase from './supabase.js';
       toast('good', t('animalSaved') + ': ' + saved.name, 'check');
     } catch (e) {
       console.warn(e);
-      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
-      renderAll(true);
       toast('warn', t('authNetwork'), 'bell');
     }
   }
@@ -1360,7 +1561,7 @@ import * as supabase from './supabase.js';
     const ta = $('#castText'); if (ta) c.text = ta.value;
     if (!c.text.trim()) { toast('warn', t('writeText'), 'bell'); return; }
     list.forEach((f) => vetSay(f.id, c.text.split('{имя}').join(firstName(f))));
-    if (c.post) S.posts.unshift({ id: S.nid++, author: t('vetName'), vet: true, cat: 'news', text: c.text.split('{имя}, ').join('').split('{имя}').join(''), time: t('justNow'), likes: 0, liked: false, comments: 0 });
+    if (c.post) S.posts.unshift({ id: S.nid++, author: t('vetName'), vet: true, cat: 'news', text: c.text.split('{имя}, ').join('').split('{имя}').join(''), time: t('justNow'), likes: 0, liked: false, comments: [] });
     renderAll(true);
     toast('good', t('sentTo', { n: String(list.length), unit: resu(list.length), feed: c.post ? t('andFeed') : '' }), 'send');
   }
@@ -1369,7 +1570,7 @@ import * as supabase from './supabase.js';
     const TIMES = [['09:00', '13:00'], ['14:00', '17:00'], ['08:00', '12:00']], PLACES = [t('placeFarm2'), t('placeSquare'), t('placeClinic')];
     const s = { id: S.nid++, day: S.today + sh.day, from: TIMES[sh.time][0], to: TIMES[sh.time][1], place: PLACES[sh.place], disease: diseaseName(), cap: sh.cap };
     S.slots.push(s);
-    S.posts.unshift({ id: S.nid++, slot: s.id, author: t('vetName'), vet: true, cat: 'slot', time: t('justNow'), likes: 0, comments: 0 });
+    S.posts.unshift({ id: S.nid++, slot: s.id, author: t('vetName'), vet: true, cat: 'slot', time: t('justNow'), likes: 0, comments: [] });
     let n = 0;
     if (sh.notify) { const l = needFarmers(); n = l.length; l.forEach((f) => vetSay(f.id, t('slotOpenMsg', { day: dayLabel(s.day).toLowerCase(), from: s.from, place: s.place }))); }
     S.vslot = s.id; S.sheet = null; drawSheet();
@@ -1422,6 +1623,7 @@ import * as supabase from './supabase.js';
       refreshChat(); renderNav();
       return;
     }
+    if (!S.thread) return;
     if (S.thread === 'vet') {
       thr('me').push({ from: 'me', text: text, img: img || null, t: hhmm() });
       S.vun.me = (S.vun.me || 0) + 1;
@@ -1431,12 +1633,18 @@ import * as supabase from './supabase.js';
         thr('me').push({ from: 'Нурлан', vet: true, text: vetReply(text, !!img), t: hhmm() });
         if (S.role === 'farmer' && S.view === 'chat' && S.thread === 'vet') refreshChat(); else { S.unread++; renderNav(); }
       }, 1700);
-    } else {
-      S.msgs.village.push({ from: 'me', text: text, img: img || null, t: hhmm() });
-      refreshChat();
-      const n = NEIGHBOR()[S.villageIdx++ % 3];
-      setTimeout(() => { S.msgs.village.push({ from: n[0], text: n[1], t: hhmm() }); if (S.role === 'farmer' && S.view === 'chat' && S.thread === 'village') refreshChat(); }, 1500);
+      return;
     }
+    const peerId = S.thread;
+    const peer = fById(peerId);
+    const peerName = peer ? firstName(peer) : '…';
+    thr(peerId).push({ from: 'me', text: text, img: img || null, t: hhmm() });
+    refreshChat();
+    const n = NEIGHBOR()[S.villageIdx++ % 3];
+    setTimeout(() => {
+      thr(peerId).push({ from: peerName || n[0], text: n[1], t: hhmm() });
+      if (S.role === 'farmer' && S.view === 'chat' && S.thread === peerId) refreshChat();
+    }, 1200);
   }
   $('#clipBtn').innerHTML = ic('clip', 22);
   $('#sendBtn').innerHTML = ic('send', 22);
@@ -1490,10 +1698,78 @@ import * as supabase from './supabase.js';
         S.sheet = null;
         drawSheet();
         S.camMode = 'register';
-        S.regDraft = { name, type: typ };
+        S.regDraft = { name, type: typ, photos: [], fps: [] };
         go('camera', { register: true });
         break;
       }
+      case 'reg-save':
+        commitRegisterAnimal();
+        break;
+      case 'reg-rm-photo': {
+        if (S.regDraft && S.regDraft.photos) {
+          const i = parseInt(d.i, 10);
+          if (i >= 0) {
+            S.regDraft.photos.splice(i, 1);
+            if (S.regDraft.fps && S.regDraft.fps[i]) S.regDraft.fps.splice(i, 1);
+            renderAll(true);
+          }
+        }
+        break;
+      }
+      case 'comments': {
+        const pid = parseInt(d.pid, 10);
+        S.sheet = { t: 'comments', pid: pid, draft: '' };
+        drawSheet();
+        setTimeout(() => { const inp = $('#commentText'); if (inp) inp.focus(); }, 50);
+        break;
+      }
+      case 'edit-animal': {
+        const a = S.animals.find((x) => String(x.id) === String(d.aid));
+        if (!a) break;
+        const raw = a._raw || {};
+        S.sheet = {
+          t: 'edit-animal',
+          aid: a.id,
+          name: a.name || '',
+          type: a.type || 'cow',
+          tag: a.tag || raw.tagNumber || '',
+          breed: raw.breed || '',
+          notes: raw.notes || '',
+          photos: animalPhotos(a).slice(),
+        };
+        drawSheet();
+        break;
+      }
+      case 'edit-type':
+        if (S.sheet && S.sheet.t === 'edit-animal') { S.sheet.type = d.v; drawSheet(); }
+        break;
+      case 'edit-rm-photo': {
+        if (S.sheet && S.sheet.t === 'edit-animal' && S.sheet.photos) {
+          const i = parseInt(d.i, 10);
+          if (i >= 0) { S.sheet.photos.splice(i, 1); drawSheet(); }
+        }
+        break;
+      }
+      case 'edit-add-photo': {
+        const file = $('#editAnimalFile');
+        if (file) file.click();
+        break;
+      }
+      case 'edit-animal-save': {
+        saveEditedAnimal();
+        break;
+      }
+      case 'fopen':
+        S.thread = d.f;
+        if (d.f === 'vet') S.unread = 0;
+        prepComposer();
+        renderAll(false);
+        break;
+      case 'fback':
+        S.thread = null;
+        prepComposer();
+        renderAll(false);
+        break;
       case 'thread': S.thread = d.th; S.unread = 0; prepComposer(); renderAll(false); break;
       case 'attach': $('#chatFile').click(); break;
       case 'compose': S.composing = !S.composing; renderAll(true); break;
@@ -1561,6 +1837,29 @@ import * as supabase from './supabase.js';
     if (e.target.id === 'addAnimalName' && S.sheet && S.sheet.t === 'add-animal') {
       S.sheet.name = e.target.value;
     }
+    if (e.target.id === 'commentText' && S.sheet && S.sheet.t === 'comments') {
+      S.sheet.draft = e.target.value;
+    }
+    if (S.sheet && S.sheet.t === 'edit-animal') {
+      if (e.target.id === 'editAnimalName') S.sheet.name = e.target.value;
+      if (e.target.id === 'editAnimalTag') S.sheet.tag = e.target.value;
+      if (e.target.id === 'editAnimalBreed') S.sheet.breed = e.target.value;
+      if (e.target.id === 'editAnimalNotes') S.sheet.notes = e.target.value;
+    }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.id !== 'editAnimalFile') return;
+    const files = e.target.files ? Array.prototype.slice.call(e.target.files, 0) : [];
+    e.target.value = '';
+    if (!S.sheet || S.sheet.t !== 'edit-animal' || !files.length) return;
+    const room = MAX_ANIMAL_PHOTOS - (S.sheet.photos || []).length;
+    if (room <= 0) { toast('warn', t('photoLimit', { max: String(MAX_ANIMAL_PHOTOS) }), 'bell'); return; }
+    const take = files.slice(0, room);
+    Promise.all(take.map((f) => profilePhotoFromUrl(URL.createObjectURL(f), 320))).then((urls) => {
+      if (!S.sheet || S.sheet.t !== 'edit-animal') return;
+      S.sheet.photos = (S.sheet.photos || []).concat(urls.filter(Boolean));
+      drawSheet();
+    }).catch((err) => { console.warn(err); toast('warn', t('authNetwork'), 'bell'); });
   });
   document.addEventListener('submit', (e) => {
     const id = e.target.id;
@@ -1569,11 +1868,26 @@ import * as supabase from './supabase.js';
       handleAuthSubmit();
       return;
     }
+    if (id === 'commentForm') {
+      e.preventDefault();
+      const p = S.posts.find((x) => x.id === (S.sheet && S.sheet.pid));
+      const txt = (($('#commentText') && $('#commentText').value) || '').trim();
+      if (!p || !txt) { toast('warn', t('writeComment'), 'bell'); return; }
+      if (!Array.isArray(p.comments)) p.comments = [];
+      const cmt = { id: 'c' + S.nid++, from: displayName().split(' ')[0] || displayName(), text: txt, t: hhmm() };
+      p.comments.push(cmt);
+      try { addComment(p.id, { from: cmt.from, text: cmt.text }); } catch (_) {}
+      if (S.sheet) S.sheet.draft = '';
+      drawSheet();
+      renderAll(true);
+      toast('good', t('commentAdded'), 'check');
+      return;
+    }
     if (id === 'postForm') {
       e.preventDefault();
       const txt = $('#postText').value.trim();
       if (!txt) { toast('warn', t('writePostText'), 'bell'); return; }
-      S.posts.unshift({ id: S.nid++, author: displayName(), cat: S.draftCat, text: txt, time: t('justNow'), likes: 0, liked: false, comments: 0 });
+      S.posts.unshift({ id: S.nid++, author: displayName(), cat: S.draftCat, text: txt, time: t('justNow'), likes: 0, liked: false, comments: [] });
       S.composing = false; S.draft = ''; S.filter = 'all';
       renderAll(false); toast('good', t('postPublished'), 'check');
     } else if (id === 'composer') {
@@ -1729,9 +2043,10 @@ import * as supabase from './supabase.js';
           const days = Math.floor((new Date(st.record.validUntil + 'T23:59:59') - Date.now()) / 864e5);
           due = S.today + days;
         } else if (st.status === 'never') due = null;
+        const photos = decodePhotos(a.photo || '');
         return {
           id: a.id, name: a.name, type: a.type, tag: a.tagNumber || '',
-          photo: a.photo || '',
+          photo: photos[0] || '', photos,
           due, earned: st.status !== 'never' && st.status !== 'claimed',
           streak: 1, stage: 0, lostShown: st.status === 'overdue', _raw: a,
         };
