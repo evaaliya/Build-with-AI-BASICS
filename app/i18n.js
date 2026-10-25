@@ -2,6 +2,32 @@
 
 const STRINGS = {
   tagline: { en: 'Biosecurity for your livestock.', ru: 'Биобезопасность вашего скота.', ky: 'Малыңыздын биокоопсуздугу.' },
+  whatIsMoo: { en: 'What is Moo?', ru: 'Что такое Moo?', ky: 'Moo деген эмне?' },
+  welcomeLead: {
+    en: "Moo keeps every animal's vaccination deadline and reminds you before it expires.",
+    ru: 'Moo хранит срок прививки каждого животного и напоминает до его истечения.',
+    ky: 'Moo ар бир жаныбардын эмдөө мөөнөтүн сактап, бүтөөрүнөн мурун эскертет.'
+  },
+  welcomeStatus: {
+    en: "Farmers: see each animal's status (green / yellow / red), get reminders 30, 7 and 1 days before the deadline.",
+    ru: 'Фермерам: статус каждого животного (зелёный / жёлтый / красный) и напоминания за 30, 7 и 1 день до срока.',
+    ky: 'Фермерлерге: ар бир жаныбардын статусу (жашыл / сары / кызыл) жана мөөнөттөн 30, 7 жана 1 күн мурун эскертме.'
+  },
+  welcomeBook: {
+    en: 'Book a visit with the village vet and see your place in the queue.',
+    ru: 'Запишитесь к сельскому ветеринару и увидьте своё место в очереди.',
+    ky: 'Айыл ветеринарына жазылып, кезектеги ордуңузду көрүңүз.'
+  },
+  welcomeTrophy: {
+    en: 'Trophies and points are given only for vaccinations confirmed by the vet.',
+    ru: 'Кубки и очки — только за прививки, подтверждённые ветеринаром.',
+    ky: 'Кубоктор менен упайлар — ветеринар ырастаган эмдөөлөр үчүн гана.'
+  },
+  welcomeVet: {
+    en: 'Veterinarian? Sign up and apply for vet access.',
+    ru: 'Ветеринар? Зарегистрируйтесь и подайте заявку на доступ.',
+    ky: 'Ветеринарсызбы? Катталып, кирүүгө арыз бериңиз.'
+  },
   signIn: { en: 'Sign in', ru: 'Войти', ky: 'Кирүү' },
   signUp: { en: 'Sign up', ru: 'Регистрация', ky: 'Катталуу' },
   createAccount: { en: 'Create account', ru: 'Создать аккаунт', ky: 'Аккаунт түзүү' },

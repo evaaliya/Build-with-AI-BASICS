@@ -805,6 +805,37 @@ import * as supabase from './supabase.js';
       ${sessionAuthCard()}`;
   }
 
+  const WELCOME_OPEN_KEY = 'moo_auth_welcome_open';
+  function getWelcomeOpen() {
+    try {
+      const v = localStorage.getItem(WELCOME_OPEN_KEY);
+      if (v === null) return true;
+      return v === '1';
+    } catch { return true; }
+  }
+  function setWelcomeOpen(open) {
+    try { localStorage.setItem(WELCOME_OPEN_KEY, open ? '1' : '0'); } catch {}
+  }
+
+  function welcomeBlock() {
+    const open = getWelcomeOpen();
+    const body = open
+      ? `<p class="welcome-lead">${esc(t('welcomeLead'))}</p>
+         <ul class="welcome-points">
+           <li>${ic('bell', 18)}<span>${esc(t('welcomeStatus'))}</span></li>
+           <li>${ic('cal', 18)}<span>${esc(t('welcomeBook'))}</span></li>
+           <li>${ic('cup', 18)}<span>${esc(t('welcomeTrophy'))}</span></li>
+         </ul>
+         <p class="welcome-vet">${ic('shield', 16)}<span>${esc(t('welcomeVet'))}</span></p>`
+      : '';
+    return `<div class="glass card welcome-card${open ? ' open' : ''}">
+      <button type="button" class="welcome-toggle" data-act="welcome-toggle" aria-expanded="${open}">
+        <span>${esc(t('whatIsMoo'))}</span>${ic(open ? 'minus' : 'plus', 18)}
+      </button>
+      ${body}
+    </div>`;
+  }
+
   function renderAuth() {
     const a = S.auth || { tab: 'in', roleChoice: 'farmer', err: '', busy: false };
     const tabIn = a.tab !== 'up';
@@ -826,6 +857,7 @@ import * as supabase from './supabase.js';
       <div class="logo" aria-hidden="true">🐄</div>
       <h1 style="text-align:center;margin:0">Moo</h1>
       <p class="sub" style="text-align:center">${esc(t('tagline'))}</p>
+      ${welcomeBlock()}
       <div class="glass seg"><button type="button" data-act="auth-tab" data-v="in" aria-pressed="${tabIn}">${esc(t('signIn'))}</button>
         <button type="button" data-act="auth-tab" data-v="up" aria-pressed="${!tabIn}">${esc(t('signUp'))}</button></div>
       <form class="glass card stack" id="authForm" autocomplete="on">
@@ -1923,6 +1955,7 @@ import * as supabase from './supabase.js';
       case 'castsend': sendCast(); break;
       case 'auth-tab': S.auth = { ...(S.auth || {}), tab: d.v, err: '' }; renderAll(true); break;
       case 'auth-role': S.auth = { ...(S.auth || {}), roleChoice: d.v }; renderAll(true); break;
+      case 'welcome-toggle': setWelcomeOpen(!getWelcomeOpen()); renderAll(true); break;
       case 'try-demo': startDemoMode(); break;
       case 'signout': doSignOut(); break;
       case 'leave-demo': leaveDemoMode(); break;
