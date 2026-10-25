@@ -398,7 +398,6 @@ import * as supabase from './supabase.js';
       <h2 class="sec">${esc(t('myAnimalsDue'))}</h2><div class="stack">${list.map(trackHtml).join('')}</div>
       <div class="glass card stack"><div class="hw"><span class="em">🏡</span><span class="nm"><b>${esc(t('villageVaccPct', { n: String(st.pct) }))}</b></span></div><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><i style="width:${st.pct}%"></i></div></div>
       <button class="glass rank" data-go="rewards">${cupSvg(46, false)}<span><b>${r.title}</b><small>${esc(t('cupsPlace', { n: String(active().length), p: String(myPos()) }))}</small></span>${ic('chev', 22)}</button>
-      ${sessionAuthCard()}
       ${isDemoModeFlag() ? demoCard() : ''}`;
   }
 
