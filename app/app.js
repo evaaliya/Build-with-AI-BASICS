@@ -142,7 +142,6 @@ import * as supabase from './supabase.js';
   ];
   const mkA = (fid, dues) => dues.map((d, i) => ({ id: fid + 'a' + i, name: POOL[i % POOL.length], type: TYPES[i % 3], tag: 'KG-' + (100 + i * 7 + fid.charCodeAt(1) * 3), due: d }));
 
-  const MAX_ANIMAL_PHOTOS = 6;
   const S = { view: 'home', role: 'farmer', thread: null, vthread: null, filter: 'all', period: 'week', composing: false, draft: '', draftCat: 'ask',
     unread: 0, focus: null, stream: null, typing: false, villageIdx: 0, ratingTab: 'rating', sheet: null,
     mf: 'all', msel: null, cast: { seg: 'overdue', text: t('tplOverdue'), post: true }, vslot: 1,
@@ -306,32 +305,67 @@ import * as supabase from './supabase.js';
   const vunTotal = () => Object.keys(S.vun).reduce((n, k) => n + S.vun[k], 0);
 
   /* ---------- renderers: farmer ---------- */
-  function decodePhotos(photo) {
-    if (!photo || typeof photo !== 'string') return [];
+  function decodePhotoPack(photo) {
+    if (!photo || typeof photo !== 'string') return { photos: [], avatar: 0 };
     const s = photo.trim();
-    if (!s) return [];
+    if (!s) return { photos: [], avatar: 0 };
+    if (s.charAt(0) === '{') {
+      try {
+        const o = JSON.parse(s);
+        const photos = Array.isArray(o.photos) ? o.photos.filter((x) => typeof x === 'string' && x) : [];
+        let avatar = Number(o.avatar);
+        if (!Number.isFinite(avatar) || avatar < 0) avatar = 0;
+        if (photos.length) avatar = Math.min(avatar, photos.length - 1);
+        else avatar = 0;
+        return { photos, avatar };
+      } catch (_) { /* fall through */ }
+    }
     if (s.charAt(0) === '[') {
       try {
         const arr = JSON.parse(s);
-        return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string' && x) : [];
-      } catch (_) { return [s]; }
+        const photos = Array.isArray(arr) ? arr.filter((x) => typeof x === 'string' && x) : [];
+        return { photos, avatar: 0 };
+      } catch (_) { return { photos: [s], avatar: 0 }; }
     }
-    return [s];
+    return { photos: [s], avatar: 0 };
   }
-  function encodePhotos(photos) {
+  function encodePhotos(photos, avatar) {
     const list = (photos || []).filter(Boolean);
     if (!list.length) return '';
-    if (list.length === 1) return list[0];
-    return JSON.stringify(list);
+    let av = Number(avatar);
+    if (!Number.isFinite(av) || av < 0) av = 0;
+    av = Math.min(av, list.length - 1);
+    if (list.length === 1 && av === 0) return list[0];
+    return JSON.stringify({ photos: list, avatar: av });
+  }
+  function decodePhotos(photo) {
+    return decodePhotoPack(photo).photos;
   }
   function animalPhotos(a) {
     if (!a) return [];
     if (Array.isArray(a.photos) && a.photos.length) return a.photos.filter(Boolean);
-    return decodePhotos(a.photo || (a._raw && a._raw.photo) || '');
+    return decodePhotoPack(a.photo || (a._raw && a._raw.photo) || '').photos;
+  }
+  function animalAvatarIndex(a) {
+    if (!a) return 0;
+    if (typeof a.avatar === 'number' && Number.isFinite(a.avatar)) {
+      const n = animalPhotos(a).length;
+      return n ? clamp(a.avatar, 0, n - 1) : 0;
+    }
+    return decodePhotoPack(a.photo || (a._raw && a._raw.photo) || '').avatar;
   }
   function animalPhotoUrl(a) {
     const photos = animalPhotos(a);
-    return photos[0] || '';
+    if (!photos.length) return '';
+    return photos[animalAvatarIndex(a)] || photos[0] || '';
+  }
+  function photoThumbHtml(src, i, avatar, rmAct, setAct) {
+    const isAv = i === avatar;
+    return `<div class="phthumb${isAv ? ' is-avatar' : ''}">
+      <img src="${esc(src)}" alt="">
+      <button type="button" class="phx" data-act="${rmAct}" data-i="${i}" aria-label="${esc(t('removePhoto'))}">×</button>
+      <button type="button" class="phav" data-act="${setAct}" data-i="${i}" aria-pressed="${isAv}" aria-label="${esc(t('setAsProfile'))}">${isAv ? '★' : '☆'}</button>
+    </div>`;
   }
   function animalAvatarHtml(a) {
     const url = animalPhotoUrl(a);
@@ -451,16 +485,21 @@ import * as supabase from './supabase.js';
       }
     }
     if (registering && draftPhotos.length) {
-      const thumbs = draftPhotos.map((src, i) => `<button type="button" class="phthumb" data-act="reg-rm-photo" data-i="${i}" aria-label="${esc(t('removePhoto'))}"><img src="${esc(src)}" alt=""><span>×</span></button>`).join('');
-      res += `<div class="glass card stack"><div class="phrow">${thumbs}${draftPhotos.length < MAX_ANIMAL_PHOTOS ? `<span class="phslot">+${MAX_ANIMAL_PHOTOS - draftPhotos.length}</span>` : ''}</div>
-        <small style="color:var(--ink-soft);text-align:center">${esc(t('photosCount', { n: String(draftPhotos.length), max: String(MAX_ANIMAL_PHOTOS) }))}</small>
+      const av = typeof S.regDraft.avatar === 'number' ? S.regDraft.avatar : 0;
+      const thumbs = draftPhotos.map((src, i) => photoThumbHtml(src, i, av, 'reg-rm-photo', 'reg-set-avatar')).join('');
+      res += `<div class="glass card stack"><div class="phrow">${thumbs}<span class="phslot add" aria-hidden="true">+</span></div>
+        <small style="color:var(--ink-soft);text-align:center">${esc(t('photosCount', { n: String(draftPhotos.length) }))}</small>
+        <small class="phhint">${esc(t('photoAnglesHint'))}</small>
+        <small style="color:var(--ink-soft);text-align:center">${esc(t('tapStarProfile'))}</small>
         <button class="glass btn go full" data-act="reg-save" ${S.scan.phase === 'busy' ? 'disabled' : ''}>${ic('check', 22)}${esc(t('saveAnimalNow'))}</button>
         <small style="color:var(--ink-soft);text-align:center">${esc(t('addMorePhotos'))}</small></div>`;
+    } else if (registering) {
+      res += `<div class="glass card"><small class="phhint">${esc(t('photoAnglesHint'))}</small></div>`;
     }
     const busy = sc.phase === 'busy';
     const title = registering ? t('registerAnimal') : t('cameraTitle');
     const sub = registering
-      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('photosCount', { n: String(draftPhotos.length), max: String(MAX_ANIMAL_PHOTOS) })))
+      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('photosCount', { n: String(draftPhotos.length) })))
       : (busy ? t('cameraBusy') : t('cameraHint'));
     const back = registering ? 'animals' : 'home';
     return head(title, sub, back) +
@@ -470,9 +509,8 @@ import * as supabase from './supabase.js';
     const busy = S.scan.phase === 'busy';
     const registering = S.camMode === 'register' && !!S.regDraft;
     const n = registering ? ((S.regDraft.photos || []).length) : 0;
-    const canMore = !registering || n < MAX_ANIMAL_PHOTOS;
-    return `<button class="glass round" data-act="gallery" aria-label="${esc(t('pickGallery'))}" ${busy || !canMore ? 'disabled' : ''}>${ic('gallery', 26)}</button>
-      <button class="shutter" data-act="shutter" aria-label="${esc(t('takePhoto'))}" ${busy || !canMore ? 'disabled' : ''}></button>
+    return `<button class="glass round" data-act="gallery" aria-label="${esc(t('pickGallery'))}" ${busy ? 'disabled' : ''}>${ic('gallery', 26)}</button>
+      <button class="shutter" data-act="shutter" aria-label="${esc(t('takePhoto'))}" ${busy ? 'disabled' : ''}></button>
       ${registering && n > 0
         ? `<button class="glass round" data-act="reg-save" aria-label="${esc(t('saveAnimalNow'))}" ${busy ? 'disabled' : ''}>${ic('check', 26)}</button>`
         : '<span class="spacer" style="width:58px"></span>'}`;
@@ -962,8 +1000,9 @@ import * as supabase from './supabase.js';
     } else if (sh.t === 'edit-animal') {
       const typ = sh.type || 'cow';
       const photos = sh.photos || [];
-      const thumbs = photos.map((src, i) => `<button type="button" class="phthumb" data-act="edit-rm-photo" data-i="${i}" aria-label="${esc(t('removePhoto'))}"><img src="${esc(src)}" alt=""><span>×</span></button>`).join('');
-      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('editAnimal'))}</h2><p class="sub">${esc(t('photosCount', { n: String(photos.length), max: String(MAX_ANIMAL_PHOTOS) }))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
+      const av = typeof sh.avatar === 'number' ? clamp(sh.avatar, 0, Math.max(0, photos.length - 1)) : 0;
+      const thumbs = photos.map((src, i) => photoThumbHtml(src, i, av, 'edit-rm-photo', 'edit-set-avatar')).join('');
+      inner = `<div class="head"><div style="flex:1"><h2>${esc(t('editAnimal'))}</h2><p class="sub">${esc(t('photosCount', { n: String(photos.length) }))}</p></div><button class="glass back btn" data-act="sheetclose" aria-label="${esc(t('close'))}">${ic('x', 22)}</button></div>
         <label>${esc(t('name'))}<input class="field" id="editAnimalName" value="${esc(sh.name || '')}" placeholder="${esc(t('animalNamePh'))}" autocomplete="off"></label>
         <label>${esc(t('earTag'))}<input class="field" id="editAnimalTag" value="${esc(sh.tag || '')}" placeholder="KG-0142" autocomplete="off"></label>
         <label>${esc(t('breed'))}<input class="field" id="editAnimalBreed" value="${esc(sh.breed || '')}" placeholder="${esc(t('breedPh'))}" autocomplete="off"></label>
@@ -971,7 +1010,9 @@ import * as supabase from './supabase.js';
         <h2 class="sec">${esc(t('animalTypeLabel'))}</h2>
         <div class="fchips">${TYPES.map((k) => `<button type="button" class="glass fc" data-act="edit-type" data-v="${k}" aria-pressed="${typ === k}">${TYPE[k][1]} ${TYPE[k][0]}</button>`).join('')}</div>
         <h2 class="sec">${esc(t('photos'))}</h2>
-        <div class="phrow">${thumbs}${photos.length < MAX_ANIMAL_PHOTOS ? `<button type="button" class="phslot add" data-act="edit-add-photo">+</button>` : ''}</div>
+        <small class="phhint">${esc(t('photoAnglesHint'))}</small>
+        <small style="color:var(--ink-soft)">${esc(t('tapStarProfile'))}</small>
+        <div class="phrow">${thumbs}<button type="button" class="phslot add" data-act="edit-add-photo" aria-label="${esc(t('addPhotos'))}">+</button></div>
         <input type="file" id="editAnimalFile" accept="image/*" multiple hidden>
         <button class="glass btn go full" data-act="edit-animal-save">${ic('check', 22)}${esc(t('save'))}</button>`;
     } else {
@@ -1268,7 +1309,7 @@ import * as supabase from './supabase.js';
     return out.map((x) => x / norm);
   }
 
-  /** Register: append one muzzle photo (up to MAX). Does not search. */
+  /** Register: append one muzzle photo. Unlimited count; never searches. */
   async function finishRegisterScan(url) {
     const draft = S.regDraft;
     if (!draft || !draft.name) {
@@ -1278,24 +1319,22 @@ import * as supabase from './supabase.js';
     }
     if (!draft.photos) draft.photos = [];
     if (!draft.fps) draft.fps = [];
-    if (draft.photos.length >= MAX_ANIMAL_PHOTOS) {
-      S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
-      renderAll(true);
-      toast('warn', t('photoLimit', { max: String(MAX_ANIMAL_PHOTOS) }), 'bell');
-      return;
-    }
+    if (typeof draft.avatar !== 'number') draft.avatar = 0;
     try {
       const photo = await profilePhotoFromUrl(url, 320);
       prefetchModel();
       const c = await canvasFromUrl(url);
       let fp = [];
       try { fp = await fingerprintOf(c); } catch (e) { console.warn(e); }
-      if (photo) draft.photos.push(photo);
+      if (photo) {
+        draft.photos.push(photo);
+        if (draft.photos.length === 1) draft.avatar = 0;
+      }
       if (fp && fp.length) draft.fps.push(fp);
       S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
       renderAll(true);
       startCamera();
-      toast('good', t('photoAdded', { n: String(draft.photos.length), max: String(MAX_ANIMAL_PHOTOS) }), 'check');
+      toast('good', t('photoAdded', { n: String(draft.photos.length) }), 'check');
     } catch (e) {
       console.warn(e);
       S.scan = { phase: 'idle', img: null, hit: null, conf: 0 };
@@ -1316,7 +1355,8 @@ import * as supabase from './supabase.js';
     const a = S.animals.find((x) => String(x.id) === String(sh.aid));
     if (!a) { S.sheet = null; drawSheet(); return; }
     const photos = (sh.photos || []).filter(Boolean);
-    const photo = encodePhotos(photos);
+    const avatar = photos.length ? clamp(typeof sh.avatar === 'number' ? sh.avatar : 0, 0, photos.length - 1) : 0;
+    const photo = encodePhotos(photos, avatar);
     const tag = ((tagEl && tagEl.value) || sh.tag || '').trim();
     const breed = ((breedEl && breedEl.value) || sh.breed || '').trim();
     const notes = ((notesEl && notesEl.value) || sh.notes || '').trim();
@@ -1338,8 +1378,9 @@ import * as supabase from './supabase.js';
       a.name = name;
       a.type = raw.type;
       a.tag = tag;
-      a.photo = photos[0] || '';
       a.photos = photos.slice();
+      a.avatar = avatar;
+      a.photo = photos[avatar] || photos[0] || '';
       a._raw = raw;
       S.sheet = null;
       drawSheet();
@@ -1359,9 +1400,10 @@ import * as supabase from './supabase.js';
       toast('warn', t('needOnePhoto'), 'cam');
       return;
     }
+    const avatar = clamp(typeof draft.avatar === 'number' ? draft.avatar : 0, 0, photos.length - 1);
     try {
       const ownerId = (S.user && S.user.id) || 'me';
-      const photo = encodePhotos(photos);
+      const photo = encodePhotos(photos, avatar);
       const fp = averageFingerprints(draft.fps || []);
       const saved = await addAnimal({
         ownerId,
@@ -1377,10 +1419,11 @@ import * as supabase from './supabase.js';
         health: [],
         createdAt: Date.now(),
       });
-      const photosOut = decodePhotos(saved.photo || photo);
+      const pack = decodePhotoPack(saved.photo || photo);
       S.animals.push({
         id: saved.id, name: saved.name, type: saved.type, tag: saved.tagNumber || '',
-        photo: photosOut[0] || '', photos: photosOut,
+        photo: pack.photos[pack.avatar] || pack.photos[0] || '',
+        photos: pack.photos, avatar: pack.avatar,
         due: null, earned: false, streak: 0, stage: 0, lostShown: false, _raw: saved,
       });
       S.camMode = 'find';
@@ -1697,19 +1740,33 @@ import * as supabase from './supabase.js';
         S.sheet = null;
         drawSheet();
         S.camMode = 'register';
-        S.regDraft = { name, type: typ, photos: [], fps: [] };
+        S.regDraft = { name, type: typ, photos: [], fps: [], avatar: 0 };
         go('camera', { register: true });
         break;
       }
       case 'reg-save':
         commitRegisterAnimal();
         break;
+      case 'reg-set-avatar': {
+        if (S.regDraft && S.regDraft.photos && S.regDraft.photos.length) {
+          const i = parseInt(d.i, 10);
+          if (i >= 0 && i < S.regDraft.photos.length) {
+            S.regDraft.avatar = i;
+            renderAll(true);
+            toast('good', t('profilePhotoSet'), 'check');
+          }
+        }
+        break;
+      }
       case 'reg-rm-photo': {
         if (S.regDraft && S.regDraft.photos) {
           const i = parseInt(d.i, 10);
           if (i >= 0) {
             S.regDraft.photos.splice(i, 1);
-            if (S.regDraft.fps && S.regDraft.fps[i]) S.regDraft.fps.splice(i, 1);
+            if (S.regDraft.fps && i < S.regDraft.fps.length) S.regDraft.fps.splice(i, 1);
+            if (typeof S.regDraft.avatar !== 'number') S.regDraft.avatar = 0;
+            if (S.regDraft.avatar >= S.regDraft.photos.length) S.regDraft.avatar = Math.max(0, S.regDraft.photos.length - 1);
+            else if (i < S.regDraft.avatar) S.regDraft.avatar -= 1;
             renderAll(true);
           }
         }
@@ -1735,6 +1792,7 @@ import * as supabase from './supabase.js';
           breed: raw.breed || '',
           notes: raw.notes || '',
           photos: animalPhotos(a).slice(),
+          avatar: animalAvatarIndex(a),
         };
         drawSheet();
         break;
@@ -1742,10 +1800,27 @@ import * as supabase from './supabase.js';
       case 'edit-type':
         if (S.sheet && S.sheet.t === 'edit-animal') { S.sheet.type = d.v; drawSheet(); }
         break;
+      case 'edit-set-avatar': {
+        if (S.sheet && S.sheet.t === 'edit-animal' && S.sheet.photos) {
+          const i = parseInt(d.i, 10);
+          if (i >= 0 && i < S.sheet.photos.length) {
+            S.sheet.avatar = i;
+            drawSheet();
+            toast('good', t('profilePhotoSet'), 'check');
+          }
+        }
+        break;
+      }
       case 'edit-rm-photo': {
         if (S.sheet && S.sheet.t === 'edit-animal' && S.sheet.photos) {
           const i = parseInt(d.i, 10);
-          if (i >= 0) { S.sheet.photos.splice(i, 1); drawSheet(); }
+          if (i >= 0) {
+            S.sheet.photos.splice(i, 1);
+            if (typeof S.sheet.avatar !== 'number') S.sheet.avatar = 0;
+            if (S.sheet.avatar >= S.sheet.photos.length) S.sheet.avatar = Math.max(0, S.sheet.photos.length - 1);
+            else if (i < S.sheet.avatar) S.sheet.avatar -= 1;
+            drawSheet();
+          }
         }
         break;
       }
@@ -1851,12 +1926,11 @@ import * as supabase from './supabase.js';
     const files = e.target.files ? Array.prototype.slice.call(e.target.files, 0) : [];
     e.target.value = '';
     if (!S.sheet || S.sheet.t !== 'edit-animal' || !files.length) return;
-    const room = MAX_ANIMAL_PHOTOS - (S.sheet.photos || []).length;
-    if (room <= 0) { toast('warn', t('photoLimit', { max: String(MAX_ANIMAL_PHOTOS) }), 'bell'); return; }
-    const take = files.slice(0, room);
-    Promise.all(take.map((f) => profilePhotoFromUrl(URL.createObjectURL(f), 320))).then((urls) => {
+    Promise.all(files.map((f) => profilePhotoFromUrl(URL.createObjectURL(f), 320))).then((urls) => {
       if (!S.sheet || S.sheet.t !== 'edit-animal') return;
+      const before = (S.sheet.photos || []).length;
       S.sheet.photos = (S.sheet.photos || []).concat(urls.filter(Boolean));
+      if (before === 0 && S.sheet.photos.length) S.sheet.avatar = 0;
       drawSheet();
     }).catch((err) => { console.warn(err); toast('warn', t('authNetwork'), 'bell'); });
   });
@@ -2042,10 +2116,11 @@ import * as supabase from './supabase.js';
           const days = Math.floor((new Date(st.record.validUntil + 'T23:59:59') - Date.now()) / 864e5);
           due = S.today + days;
         } else if (st.status === 'never') due = null;
-        const photos = decodePhotos(a.photo || '');
+        const pack = decodePhotoPack(a.photo || '');
         return {
           id: a.id, name: a.name, type: a.type, tag: a.tagNumber || '',
-          photo: photos[0] || '', photos,
+          photo: pack.photos[pack.avatar] || pack.photos[0] || '',
+          photos: pack.photos, avatar: pack.avatar,
           due, earned: st.status !== 'never' && st.status !== 'claimed',
           streak: 1, stage: 0, lostShown: st.status === 'overdue', _raw: a,
         };
