@@ -300,6 +300,15 @@ import * as supabase from './supabase.js';
   const vunTotal = () => Object.keys(S.vun).reduce((n, k) => n + S.vun[k], 0);
 
   /* ---------- renderers: farmer ---------- */
+  function animalPhotoUrl(a) {
+    return (a && (a.photo || (a._raw && a._raw.photo))) || '';
+  }
+  function animalAvatarHtml(a) {
+    const url = animalPhotoUrl(a);
+    const tp = TYPE[a.type];
+    if (url) return `<span class="av av-photo" aria-hidden="true"><img src="${esc(url)}" alt=""></span>`;
+    return `<span class="av" aria-hidden="true">${tp[1]}</span>`;
+  }
   function trackHtml(a) {
     const k = lvl(a), st = status(a), tp = TYPE[a.type], l = left(a);
     const pct = a.due === null ? 0 : clamp((365 - l) / 365 * 100, 0, 100);
@@ -310,7 +319,7 @@ import * as supabase from './supabase.js';
     let cta = '';
     if (booked && bk) cta = `<div class="chip ok" style="max-width:none">${esc(t('youBooked', { q: String(bk.q) }))}</div>`;
     else if (k !== 'ok') cta = `<button class="glass btn go full" data-act="bookfirst" data-aid="${a.id}">${ic('cal', 22)}${esc(t('bookReception'))}</button>`;
-    return `<div class="glass trk" data-aid="${a.id}"><div class="row"><span class="av" aria-hidden="true">${tp[1]}</span>
+    return `<div class="glass trk" data-aid="${a.id}"><div class="row">${animalAvatarHtml(a)}
       <span class="meta"><b>${esc(a.name)}</b><small>${tp[0]} · ${esc(a.tag)}</small></span><span class="chip ${st.k}">${st.t}</span></div>
       <div class="bar" aria-hidden="true"><i style="width:${pct}%;--c:${LV()[k].col}"></i></div>
       <div class="trkline"><span>${line}</span>${dots}</div>${cta}</div>`;
@@ -380,23 +389,31 @@ import * as supabase from './supabase.js';
 
   function renderCamera() {
     const sc = S.scan;
-    const registering = S.camMode === 'register' && S.regDraft;
+    const registering = S.camMode === 'register' && !!S.regDraft;
     let view;
-    if (sc.img) view = `<img src="${sc.img}" alt="${esc(t('animalShotAlt'))}">` + (sc.phase === 'busy' ? '<div class="scanline"></div>' : '');
-    else view = `<video id="camVideo" playsinline muted autoplay ${S.stream ? '' : 'hidden'}></video>` + (S.stream ? '' : `<div class="camhint">${ic('cam', 44)}<span>${esc(t('cameraTap'))}${S.camReady === false ? '<br>' + esc(t('cameraUnavailable')) : ''}</span></div>`);
+    if (sc.img) {
+      const busyFx = sc.phase === 'busy'
+        ? (registering ? '<div class="savelight" aria-hidden="true"></div>' : '<div class="scanline" aria-hidden="true"></div>')
+        : '';
+      view = `<img src="${sc.img}" alt="${esc(t('animalShotAlt'))}">` + busyFx;
+    } else {
+      view = `<video id="camVideo" playsinline muted autoplay ${S.stream ? '' : 'hidden'}></video>` + (S.stream ? '' : `<div class="camhint">${ic('cam', 44)}<span>${esc(registering ? t('registerHint') : t('cameraTap'))}${S.camReady === false ? '<br>' + esc(t('cameraUnavailable')) : ''}</span></div>`);
+    }
     let res = '';
-    if (sc.phase === 'done' && !registering) {
-      const a = S.animals.find((x) => x.id === sc.hit), tp = TYPE[a.type], st = status(a);
-      res = `<div class="glass card stack"><div class="row" style="padding:0"><span class="av" aria-hidden="true">${tp[1]}</span>
-        <span class="meta"><b>${esc(t('foundMatch', { name: a.name }))}</b><small>${esc(t('matchPct', { type: tp[0], tag: a.tag, pct: String(sc.conf) }))}</small></span><span class="chip ${st.k}">${st.t}</span></div>
-        ${needs(a) ? `<button class="glass btn go full" data-act="bookfirst" data-aid="${a.id}">${ic('cal', 22)}${esc(t('bookVax'))}</button>` : ''}
-        <div class="grid2"><button class="glass btn sm" data-act="openanimal" data-aid="${a.id}">${esc(t('inList'))}</button><button class="glass btn sm" data-act="rescan">${esc(t('shootAgain'))}</button></div>
-        <small style="color:var(--ink-soft);text-align:center">${esc(t('cameraDemoNote'))}</small></div>`;
+    if (sc.phase === 'done' && !registering && sc.hit) {
+      const a = S.animals.find((x) => x.id === sc.hit);
+      if (a) {
+        const tp = TYPE[a.type], st = status(a);
+        res = `<div class="glass card stack"><div class="row" style="padding:0">${animalAvatarHtml(a)}
+          <span class="meta"><b>${esc(t('foundMatch', { name: a.name }))}</b><small>${esc(t('matchPct', { type: tp[0], tag: a.tag, pct: String(sc.conf) }))}</small></span><span class="chip ${st.k}">${st.t}</span></div>
+          ${needs(a) ? `<button class="glass btn go full" data-act="bookfirst" data-aid="${a.id}">${ic('cal', 22)}${esc(t('bookVax'))}</button>` : ''}
+          <div class="grid2"><button class="glass btn sm" data-act="openanimal" data-aid="${a.id}">${esc(t('inList'))}</button><button class="glass btn sm" data-act="rescan">${esc(t('shootAgain'))}</button></div></div>`;
+      }
     }
     const busy = sc.phase === 'busy';
     const title = registering ? t('registerAnimal') : t('cameraTitle');
     const sub = registering
-      ? (S.regDraft.name + ' · ' + (busy ? t('cameraBusy') : t('scanMuzzleToSave')))
+      ? (S.regDraft.name + ' · ' + (busy ? t('registerBusy') : t('scanMuzzleToSave')))
       : (busy ? t('cameraBusy') : t('cameraHint'));
     const back = registering ? 'animals' : 'home';
     return head(title, sub, back) +
@@ -833,7 +850,7 @@ import * as supabase from './supabase.js';
       const s = slotById(sh.slot), booked = bookedAids();
       const picks = S.animals.map((a) => {
         const dis = booked.has(a.id), on = sh.sel.indexOf(a.id) >= 0;
-        return `<button class="glass pick" data-act="pick" data-aid="${a.id}" aria-pressed="${on}" ${dis ? 'disabled' : ''}><span class="box">${ic('check', 18)}</span><span class="av" style="width:40px;height:40px;font-size:22px" aria-hidden="true">${TYPE[a.type][1]}</span><span class="meta"><b>${esc(a.name)}</b><small>${dis ? esc(t('alreadyBooked')) : status(a).t}</small></span></button>`;
+        return `<button class="glass pick" data-act="pick" data-aid="${a.id}" aria-pressed="${on}" ${dis ? 'disabled' : ''}><span class="box">${ic('check', 18)}</span><span class="av av-sm" style="width:40px;height:40px;font-size:22px" aria-hidden="true">${animalPhotoUrl(a) ? `<img src="${esc(animalPhotoUrl(a))}" alt="">` : TYPE[a.type][1]}</span><span class="meta"><b>${esc(a.name)}</b><small>${dis ? esc(t('alreadyBooked')) : status(a).t}</small></span></button>`;
       }).join('');
       const n = sh.sel.length, free = slotFree(s), q = slotBooked(s) + 1;
       const ok = n > 0 && n <= free;
@@ -921,14 +938,14 @@ import * as supabase from './supabase.js';
     }
     if (isDemoModeFlag()) {
       btn.hidden = false;
-      btn.textContent = t('signIn');
+      btn.textContent = t('signInShort');
       btn.setAttribute('data-act', 'leave-demo');
       btn.setAttribute('aria-label', t('leaveDemoSignIn'));
       return;
     }
     if (S.user) {
       btn.hidden = false;
-      btn.textContent = t('signOut');
+      btn.textContent = t('signOutShort');
       btn.setAttribute('data-act', 'signout');
       btn.setAttribute('aria-label', t('signOut'));
       return;
@@ -1107,6 +1124,29 @@ import * as supabase from './supabase.js';
     return c;
   }
 
+  /** Profile photo: compact JPEG data URL from the muzzle shot (not emoji). */
+  async function profilePhotoFromUrl(url, maxSide) {
+    maxSide = maxSide || 320;
+    const img = new Image();
+    img.src = url;
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const w = img.naturalWidth || img.width || maxSide;
+    const h = img.naturalHeight || img.height || maxSide;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const c = document.createElement('canvas');
+    c.width = cw;
+    c.height = ch;
+    c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    try {
+      return c.toDataURL('image/jpeg', 0.72);
+    } catch (e) {
+      console.warn(e);
+      return '';
+    }
+  }
+
   async function finishRegisterScan(url) {
     const draft = S.regDraft;
     if (!draft || !draft.name) {
@@ -1114,7 +1154,9 @@ import * as supabase from './supabase.js';
       renderAll(true);
       return;
     }
+    // Register path: fingerprint + save only. Never findMatch / demo search.
     try {
+      const photo = await profilePhotoFromUrl(url, 320);
       prefetchModel();
       const c = await canvasFromUrl(url);
       let fp = [];
@@ -1126,7 +1168,7 @@ import * as supabase from './supabase.js';
         type: draft.type || 'cow',
         breed: '',
         tagNumber: '',
-        photo: '',
+        photo: photo || '',
         fingerprint: fp || [],
         frames: 1,
         reminders: [],
@@ -1136,6 +1178,7 @@ import * as supabase from './supabase.js';
       });
       S.animals.push({
         id: saved.id, name: saved.name, type: saved.type, tag: saved.tagNumber || '',
+        photo: saved.photo || photo || '',
         due: null, earned: false, streak: 0, stage: 0, lostShown: false, _raw: saved,
       });
       S.camMode = 'find';
@@ -1156,9 +1199,10 @@ import * as supabase from './supabase.js';
   }
 
   async function startScan(url, seed) {
+    const registering = S.camMode === 'register' && !!S.regDraft;
     S.scan = { phase: 'busy', img: url, hit: null, conf: 0 };
     renderAll(true);
-    if (S.camMode === 'register' && S.regDraft) {
+    if (registering) {
       await finishRegisterScan(url);
       return;
     }
@@ -1172,20 +1216,26 @@ import * as supabase from './supabase.js';
         return findMatch(fp, raw, { threshold: MATCH_THRESHOLD, margin: MATCH_MARGIN });
       })();
       const match = await Promise.race([work, timedOut]);
-      if (S.view !== 'camera' || S.scan.img !== url) return;
+      if (S.view !== 'camera' || S.scan.img !== url || S.camMode === 'register') return;
       if (match && match !== 'timeout' && match.matched) {
         S.scan.phase = 'done';
         S.scan.hit = match.animal.id;
         S.scan.conf = Math.round(match.similarity * 100);
         if (!S.animals.find((a) => a.id === match.animal.id)) {
           const st = vaccinationStatus(match.animal);
-          S.animals.push({ id: match.animal.id, name: match.animal.name, type: match.animal.type, tag: match.animal.tagNumber || '', due: st.daysLeft != null ? S.today + st.daysLeft : null, earned: !!st.record, streak: 1, stage: 0, lostShown: false, _raw: match.animal });
+          S.animals.push({
+            id: match.animal.id, name: match.animal.name, type: match.animal.type,
+            tag: match.animal.tagNumber || '', photo: match.animal.photo || '',
+            due: st.daysLeft != null ? S.today + st.daysLeft : null, earned: !!st.record,
+            streak: 1, stage: 0, lostShown: false, _raw: match.animal,
+          });
         }
         renderAll(true);
         toast('good', t('foundIt') + ': ' + match.animal.name, 'check');
         return;
       }
     } catch (e) { console.warn('recognition fallback', e); }
+    if (S.camMode === 'register') return;
     setTimeout(() => finishDemoScan(url, seed), 350);
   }
   async function shutter() {
@@ -1681,6 +1731,7 @@ import * as supabase from './supabase.js';
         } else if (st.status === 'never') due = null;
         return {
           id: a.id, name: a.name, type: a.type, tag: a.tagNumber || '',
+          photo: a.photo || '',
           due, earned: st.status !== 'never' && st.status !== 'claimed',
           streak: 1, stage: 0, lostShown: st.status === 'overdue', _raw: a,
         };
