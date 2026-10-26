@@ -68,12 +68,12 @@
 
 <details>
   <summary>Related: how the farmer got into the queue</summary>
-  <p><code>confirmBook()</code> in <code>app/app.js</code> → <code>bookSlot()</code> in <code>app/store.js</code> → SQL RPC <code>book_slot</code> in <code>schema-v2.sql</code> (atomic capacity + queue number).</p>
+  <p><code>confirmBook()</code> in <code>app/app.js</code> → <code>bookSlot()</code> in <code>app/store.js</code> → SQL RPC <code>book_slot</code> in <code>supabase/sql/002_booking_vaccinations.sql</code> (atomic capacity + queue number).</p>
 </details>
 
 <details>
   <summary>Related: vet application</summary>
-  <p>Sign up as vet → license upload to Storage <code>vet-licenses</code> → Edge Function <code>supabase/functions/submit-vet-application/</code> checks invite secret → row in <code>vet_applications</code> → admin <code>review_vet_application</code> in <code>schema-v3-auth.sql</code> (UI: <code>loadAdminApps</code> / <code>doReviewApp</code> in <code>app/app.js</code>).</p>
+  <p>Sign up as vet → license upload to Storage <code>vet-licenses</code> → Edge Function <code>supabase/functions/submit-vet-application/</code> checks invite secret → row in <code>vet_applications</code> → admin <code>review_vet_application</code> in <code>supabase/sql/003_auth_roles_vet_applications.sql</code> (UI: <code>loadAdminApps</code> / <code>doReviewApp</code> in <code>app/app.js</code>).</p>
 </details>
 
 <details>
@@ -86,12 +86,12 @@
   <li><strong>Reminder thresholds (30 / 7 / 1)</strong> — <code>REMIND_AT</code> in <code>app/rewards.js</code> (and matching UI copy in <code>app/i18n.js</code> / Home steps).</li>
   <li><strong>Recognition constants</strong> — <code>MATCH_THRESHOLD</code>, <code>MATCH_MARGIN</code>, <code>FRAMES_TO_CAPTURE</code> in <code>app/recognition.js</code>; re-measure with <code>tools/calibrate.html</code>.</li>
   <li><strong>Add a language</strong> — add a locale object under each key in <code>STRINGS</code> in <code>app/i18n.js</code> and extend <code>LANGS</code>.</li>
-  <li><strong>Vet application review</strong> — admin UI in <code>app/app.js</code> (<code>loadAdminApps</code> / <code>doReviewApp</code>); SQL <code>review_vet_application</code> in <code>schema-v3-auth.sql</code>; submissions via Edge Function <code>supabase/functions/submit-vet-application/</code>.</li>
+  <li><strong>Vet application review</strong> — admin UI in <code>app/app.js</code> (<code>loadAdminApps</code> / <code>doReviewApp</code>); SQL <code>review_vet_application</code> in <code>supabase/sql/003_auth_roles_vet_applications.sql</code>; submissions via Edge Function <code>supabase/functions/submit-vet-application/</code>.</li>
   <li><strong>Demo animals / map pins</strong> — <code>demoAnimals</code> in <code>app/mock.js</code>; <code>DEMO_HOUSE_PINS</code> / <code>DEMO_OUTBREAKS</code> in <code>app/vet.js</code>.</li>
 </ul>
 
 <h2>A practice to reuse</h2>
-<p>The UI never showed that a farmer could self-promote to vet or that neighbours could read another farm&apos;s vaccination history. The RLS suite in <code>tests/rls/rls.mjs</code> and the write-up in <code>tests/TEST-REPORT.md</code> found those holes; fixes landed as <code>protect_profile_role</code> and the <code>animals_public</code> view (<code>schema-v4-vet-code.sql</code>). <strong>Lesson: test the data rules, not only the screens.</strong></p>
+<p>The UI never showed that a farmer could self-promote to vet or that neighbours could read another farm&apos;s vaccination history. The RLS suite in <code>tests/rls/rls.mjs</code> and the write-up in <code>tests/TEST-REPORT.md</code> found those holes; fixes landed as <code>protect_profile_role</code> and the <code>animals_public</code> view (<code>supabase/sql/004_vet_code_and_masking.sql</code>). <strong>Lesson: test the data rules, not only the screens.</strong></p>
 
 <h2>Run it</h2>
 <pre><code>cd app
@@ -100,6 +100,6 @@ npm start
 # Auth screen first — use &quot;Try demo (no account)&quot; or Sign in / Sign up
 # Live: https://mooo-nine.vercel.app</code></pre>
 
-<p class="muted">Source commit: 85c2ad7. Paths and symbols refer to the finished code at that snapshot and can drift.</p>
+<p class="muted">Source commit: d67cfe1. Paths and symbols refer to the finished code at that snapshot and can drift.</p>
 </body>
 </html>

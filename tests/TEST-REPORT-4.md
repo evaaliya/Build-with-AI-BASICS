@@ -22,22 +22,22 @@ Already present (from earlier runs / partial apply):
 | Policy `vet_app owner insert` | Yes (clients could still INSERT) |
 | `animals_public` | Live order already correct; notes/reminders owner-only; vaccinations/health owner-or-vet |
 
-Cause of `ERROR: 42P16: cannot change name of view column "notes" to "tag_number"`: `schema-v4-vet-code.sql` previously recreated `animals_public` with a different column order. That failed run did not leave a broken view (live def matched the safe order).
+Cause of `ERROR: 42P16: cannot change name of view column "notes" to "tag_number"`: `schema-v4-vet-code.sql (file later removed or moved, see README migration table)` previously recreated `animals_public` with a different column order. That failed run did not leave a broken view (live def matched the safe order).
 
 ---
 
 ## 2. SQL file fixes (repo)
 
-- `schema-v4-vet-code.sql` — `CREATE OR REPLACE VIEW public.animals_public` rewritten to the **exact** live column order with owner-only `notes`/`reminders` and owner-or-vet `vaccinations`/`health`.
+- `schema-v4-vet-code.sql (file later removed or moved, see README migration table)` — `CREATE OR REPLACE VIEW public.animals_public` rewritten to the **exact** live column order with owner-only `notes`/`reminders` and owner-or-vet `vaccinations`/`health`.
 - `tests/rls-fixes-proposed.sql` — same view order/masks (so a re-run cannot reopen the leak or hit 42P16) (file later removed or moved, see README migration table).
-- `schema-v3-auth.sql` — comment only (still does not recreate the view).
+- `schema-v3-auth.sql (file later removed or moved, see README migration table)` — comment only (still does not recreate the view).
 
 ---
 
 ## 3. What was applied now
 
-1. Migration `schema_v3_auth` (idempotent re-apply of `schema-v3-auth.sql`).
-2. Migration `schema_v4_vet_code` (`schema-v4-vet-code.sql` with fixed view).
+1. Migration `schema_v3_auth` (idempotent re-apply of `schema-v3-auth.sql (file later removed or moved, see README migration table)`).
+2. Migration `schema_v4_vet_code` (`schema-v4-vet-code.sql (file later removed or moved, see README migration table)` with fixed view).
 3. Edge Function `submit-vet-application` deployed (ACTIVE, version 1, `verify_jwt=true`) via Supabase MCP (CLI was not installed locally).
 
 ### Post-apply confirmation

@@ -26,20 +26,44 @@ PRD ref: `prd.md > The Core Journey`.
 PRD ref: `prd.md > Auth and roles`.
 
 - Supabase Auth email/password; `app/store.js` `signIn` / `signUp`; session restore on boot.
-- `profiles.role`: farmer | vet | admin (`schema-v3-auth.sql`). Trigger `protect_profile_role` blocks client self-promotion; admin promote via SQL editor or `review_vet_application` with `moo.allow_role_change`.
-- Vet apply: license upload to Storage `vet-licenses`; code checked only in the Edge Function against server secret `VET_INVITE_CODE` (issued by the project owner — never stored in the client or in docs). Rate limit table `vet_code_attempts` (`schema-v4-vet-code.sql`).
+- `profiles.role`: farmer | vet | admin (`supabase/sql/003_auth_roles_vet_applications.sql`). Trigger `protect_profile_role` blocks client self-promotion; admin promote via SQL editor or `review_vet_application` with `moo.allow_role_change`.
+- Vet apply: license upload to Storage `vet-licenses`; code checked only in the Edge Function against server secret `VET_INVITE_CODE` (issued by the project owner — never stored in the client or in docs). Rate limit table `vet_code_attempts` (`supabase/sql/004_vet_code_and_masking.sql`).
 - Demo: `moo_demo_mode` + `setLocalMode(true)` so demo never writes to Supabase; seeds `demoAnimals` (four status colors); role switch only then (`app/vet.js`, `app/mock.js`).
 
 ## Booking and queue
 
 PRD ref: `prd.md > Booking and queue`.
 
-- Tables `slots`, `bookings` + function `book_slot` (`schema-v2.sql`).
-- Client: `getSlots`, `createSlot`, `bookSlot`, `updateBooking` in `app/store.js`; pure helpers in `app/logic.js`.
+- Tables `slots`, `bookings` + function `book_slot` (see `supabase/sql/002_booking_vaccinations.sql`).
+- Capacity is enforced server-side in `book_slot` (`heads ≤ capacity − booked`); queue number assigned atomically.
+- Client: `getSlots`, `createSlot`, `bookSlot`, `updateBooking` in `app/store.js`; pure helpers in `app/logic.js` (ETA ≈ 6 min per queue position, clamped to the same calendar day).
+
+## Vaccination statuses
+
+Computed from the latest **verified** FMD record (`app/logic.js` `animalStatus`). Not stored as a column.
+
+| Status | Condition | Color |
+| --- | --- | --- |
+| `ok` | > 30 days left | green |
+| `soon` | 8–30 days left | yellow |
+| `urgent` | 0–7 days left | orange |
+| `overdue` | past `valid_until` | red |
+| `never` | no verified vaccination | grey |
+| `claimed` | farmer self-mark only | not rewarded |
+
+`valid_until` = vaccination calendar day + 365 days. Reminders at 30 / 7 / 1 days; trophy lost when overdue. Points and trophies only for `verified`.
 
 ## Vet cabinet
 
-PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `vDone` / cast / chats in `app/app.js`. Demo house pins: `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS` in `app/vet.js`.
+PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `vDone` / cast / chats in `app/app.js`. Tabs: Today (queue), Map, Broadcasts, Chats, Stats. Demo house pins: `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS` in `app/vet.js`.
+
+## Privacy rules
+
+- Every public table has RLS; anon cannot read sensitive rows.
+- Clients read animals through `animals_public` (neighbour `notes` / `reminders` masked; `vaccinations` / `health` only for owner or vet).
+- `protect_profile_role` blocks client self-promotion; admin / `review_vet_application` only for role changes.
+- Vet invite code is Edge Function secret only; license photos in private Storage `vet-licenses`.
+- Map overlays (house statuses, outbreaks) are sent only when the effective role is vet.
 
 ## Stack
 
@@ -47,7 +71,7 @@ PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `v
 - TensorFlow.js + MobileNet v2 (CDN) for recognition.
 - Supabase Auth + Postgres + Storage + Edge Functions.
 - Three.js (`app/three.min.js`) in `village-map.html`.
-- PWA: `manifest.webmanifest` + `sw.js` (cache `moo-v33`).
+- PWA: `manifest.webmanifest` + `sw.js` (cache `moo-v34`).
 - Hosting: Vercel static from `app/` (no `vercel.json` in repo).
 - Run: any static server from `app/` (`npm start` → Python `http.server` on `127.0.0.1:8000`).
 
@@ -57,7 +81,7 @@ PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `v
 - Start: `cd app && npm start`, open `http://127.0.0.1:8000`.
 - Live: `https://mooo-nine.vercel.app`.
 - First screen is auth; use **Try demo** for a seeded farm without an account, or Sign up / Sign in.
-- DB: apply `supabase/schema.sql` (if empty), then `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`; put URL + anon key in `app/supabase-config.js`; deploy Edge Function `submit-vet-application`; set secret `VET_INVITE_CODE`; promote admin via SQL.
+- DB: apply `supabase/sql/001_baseline.sql` (if empty), then `supabase/sql/002_booking_vaccinations.sql`, `supabase/sql/003_auth_roles_vet_applications.sql`, `supabase/sql/004_vet_code_and_masking.sql`; put URL + anon key in `app/supabase-config.js`; deploy Edge Function `submit-vet-application`; set secret `VET_INVITE_CODE`; promote admin via SQL.
 
 ## Components
 
@@ -69,7 +93,7 @@ PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `v
 - `app/recognition.js` — embeddings, species gate, matching constants.
 - `app/vet.js` — demo role switch, outbreak/house demo data, map overlay send.
 - `app/mock.js`, `app/camera.js`, `app/i18n.js`, `app/supabase.js`, `app/sw.js`.
-- Schemas: `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`; function `supabase/functions/submit-vet-application/`.
+- Schemas: `supabase/sql/002_booking_vaccinations.sql`, `supabase/sql/003_auth_roles_vet_applications.sql`, `supabase/sql/004_vet_code_and_masking.sql`; function `supabase/functions/submit-vet-application/`.
 - Tests: `tests/unit/`, `tests/rls/`, `tests/e2e/`, `tests/TEST-REPORT*.md`.
 
 PRD refs: `prd.md > Features and Behavior`, `prd.md > Auth and roles`.
@@ -78,11 +102,11 @@ PRD refs: `prd.md > Features and Behavior`, `prd.md > Auth and roles`.
 
 - `profiles` — id, name, phone, email, address, house_id, **role** (`farmer`|`vet`|`admin`), created_at.
 - `animals` — passport fields + fingerprint jsonb + vaccinations/health/reminders jsonb; clients **read via `animals_public`**.
-- `animals_public` — view masking neighbour `notes`/`reminders`; `vaccinations`/`health` only for owner or vet (`schema-v4-vet-code.sql`).
-- `vaccinations` (table and/or jsonb history) — status `claimed` | `verified`; points trigger on verify (`schema-v2.sql`).
+- `animals_public` — view masking neighbour `notes`/`reminders`; `vaccinations`/`health` only for owner or vet (`supabase/sql/004_vet_code_and_masking.sql`).
+- `vaccinations` (table and/or jsonb history) — status `claimed` | `verified`; points trigger on verify (`supabase/sql/002_booking_vaccinations.sql`).
 - `slots`, `bookings` — capacity, queue_no; `book_slot` RPC.
 - `vet_applications`, `vet_code_attempts`; Storage bucket `vet-licenses`.
-- `posts`, `messages` (private threads), `activity_log` / points as implemented in schema-v2.
+- `posts`, `messages` (private threads), `activity_log` / points as implemented in `supabase/sql/002_booking_vaccinations.sql`.
 
 RLS: owners write own rows; role changes blocked for clients; vet verify paths restricted; anon denied sensitive reads. Critical holes found by `tests/rls/rls.mjs` / `tests/TEST-REPORT.md` (self-promote vet; neighbour vaccination leak) and fixed.
 
@@ -90,13 +114,13 @@ RLS: owners write own rows; role changes blocked for clients; vet verify paths r
 
 ```
 app/                 # PWA (Vercel root)
-schema-v2.sql … v4   # migrations
-supabase/            # baseline schema + Edge Function
-tests/               # unit, rls, e2e, reports, screens
-tools/               # calibrate.html
-docs/screenshots/    # README screenshots
+supabase/sql/        # 001–004 ordered SQL (not CLI migrations/)
+supabase/functions/  # submit-vet-application
+tests/               # unit, rls, e2e, reports
+tools/               # calibrate.html, prep_village_data.py
+docs/screenshots/
 scope.md prd.md spec.md
-devpost/             # pack workspace (copies + checklist + app-map)
+devpost/
 ```
 
 ## Recognition Constants

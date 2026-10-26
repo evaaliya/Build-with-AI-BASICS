@@ -23,7 +23,7 @@ npm run rls
 # → node rls/rls.mjs
 ```
 
-Talks to the configured Supabase project with the publishable key (and any env the script documents). Asserts farmers cannot self-promote, cannot read neighbour vaccinations via `animals_public`, anon is blocked, etc. Does not print secrets. Results: console + `rls/last-run.json` / `rls/PART-B-RESULTS.md`. Working RLS / view fixes live in `schema-v4-vet-code.sql`.
+Talks to the configured Supabase project with the publishable key (and any env the script documents). Asserts farmers cannot self-promote, cannot read neighbour vaccinations via `animals_public`, anon is blocked, etc. Does not print secrets. Results: console + `rls/last-run.json` / `rls/PART-B-RESULTS.md`. Working RLS / view fixes live in `supabase/sql/004_vet_code_and_masking.sql`.
 
 ## E2E / Playwright
 

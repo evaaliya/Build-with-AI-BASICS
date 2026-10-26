@@ -10,7 +10,7 @@ Veterinarians receive an individual access code and their applications are revie
 ## 1. Summary (three lines)
 
 1. **Wording** no longer mentions a “village administration”; the app says the Moo team reviews applications.  
-2. **Vet applications** are submitted only through the Edge Function `submit-vet-application` (invite code in server secret `VET_INVITE_CODE`); the old RPC is revoked in `schema-v4-vet-code.sql`.  
+2. **Vet applications** are submitted only through the Edge Function `submit-vet-application` (invite code in server secret `VET_INVITE_CODE`); the old RPC is revoked in `schema-v4-vet-code.sql (file later removed or moved, see README migration table)`.  
 3. **Unit tests pass**; RLS critical checks stay green; Edge Function / correct-code checks are **not run** until you apply v4, deploy the function, and set `VET_INVITE_CODE` for the test process.
 
 ---
@@ -65,8 +65,8 @@ Results after cleanup:
 
 ## 5. What you must run (order)
 
-1. Apply `/Users/diana/Documents/GitHub/Build-with-AI-BASICS/schema-v3-auth.sql` if not already applied.  
-2. Apply `/Users/diana/Documents/GitHub/Build-with-AI-BASICS/schema-v4-vet-code.sql`.  
+1. Apply `/Users/diana/Documents/GitHub/Build-with-AI-BASICS/schema-v3-auth.sql (file later removed or moved, see README migration table)` if not already applied.  
+2. Apply `/Users/diana/Documents/GitHub/Build-with-AI-BASICS/schema-v4-vet-code.sql (file later removed or moved, see README migration table)`.  
 3. Set Edge Function secret `VET_INVITE_CODE` in the Supabase dashboard (value never committed).  
 4. Deploy the Edge Function.  
 5. Re-run tests with `VET_INVITE_CODE` in the environment for Edge checks.

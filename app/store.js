@@ -1,5 +1,5 @@
 // Moo — data layer.
-// Primary: Supabase Postgres with Row Level Security (see supabase/schema.sql),
+// Primary: Supabase Postgres with Row Level Security (see supabase/sql/001_baseline.sql),
 // so animals, posts, messages, and profiles are shared across phones.
 // Fallback: browser localStorage so the app still runs with zero setup.
 
@@ -763,7 +763,7 @@ async function getLeaderboard() {
   }
 }
 
-// ---- slots / bookings (localStorage when schema-v2 not applied) ----
+// ---- slots / bookings (localStorage when sql/002 not applied) ----
 const KEY_SLOTS = 'moo_slots';
 const KEY_BOOKINGS = 'moo_bookings';
 

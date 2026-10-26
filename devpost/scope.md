@@ -28,10 +28,10 @@ Auth screen with a short "What is Moo?" welcome. Demo or real account opens a fa
 In:
 
 - Auth gate: email/password Sign in / Sign up for everyone, plus Try demo; collapsible welcome block on the auth screen.
-- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function `submit-vet-application`; admin reviews manually (`schema-v3-auth.sql`, `schema-v4-vet-code.sql`).
+- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function `submit-vet-application`; admin reviews manually (`supabase/sql/003_auth_roles_vet_applications.sql`, `supabase/sql/004_vet_code_and_masking.sql`).
 - Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal.
 - FMD status badges (green / yellow / orange / red / grey); reminders at 30 / 7 / 1 days.
-- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified (`schema-v2.sql`).
+- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified (`supabase/sql/002_booking_vaccinations.sql`).
 - Farmer cabinet tabs: Home, Animals, Feed, Chat, Map, Rating.
 - Vet cabinet tabs: Today (queue), Map, Broadcasts, Chats, Stats.
 - Private vet chat; categorized feed; muzzle recognition (honest matching + species gate).

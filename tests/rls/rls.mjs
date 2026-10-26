@@ -294,11 +294,11 @@ async function main() {
       const notesLeak = pubNotes.data && pubNotes.data.notes != null && pubNotes.data.notes !== '';
       const remLeak = pubNotes.data && pubNotes.data.reminders != null
         && !(Array.isArray(pubNotes.data.reminders) && pubNotes.data.reminders.length === 0);
-      // After schema-v4: notes/reminders columns exist and are null for neighbours.
+      // After sql/004: notes/reminders columns exist and are null for neighbours.
       // Before v4: columns may be absent → treat as pass if undefined/null.
       const redacted = !notesLeak && (pubNotes.data?.reminders == null || pubNotes.data?.reminders === null || !remLeak);
       if (pubNotes.error && /column|does not exist/i.test(pubNotes.error.message)) {
-        log('8-neighbour-notes-reminders-null', null, 'schema-v4 animals_public notes/reminders not applied yet');
+        log('8-neighbour-notes-reminders-null', null, '004 animals_public notes/reminders not applied yet');
       } else {
         log(
           '8-neighbour-notes-reminders-null',
@@ -316,7 +316,7 @@ async function main() {
     try {
       const tableProbe = await a.c.from('vet_applications').select('id').limit(1);
       if (tableProbe.error && /does not exist|schema cache|relation/i.test(tableProbe.error.message)) {
-        log('8-vet-app-table', null, 'vet_applications missing — apply schema-v3 then v4');
+        log('8-vet-app-table', null, 'vet_applications missing — apply supabase/sql/003 then 004');
       } else {
         const directIns = await a.c.from('vet_applications').insert({
           user_id: a.user.id,

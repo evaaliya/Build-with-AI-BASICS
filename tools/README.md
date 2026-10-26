@@ -45,3 +45,15 @@ const MATCH_MARGIN = /* measured */;
 MobileNet is a classifier, not a face-ID model, so different individuals of the
 same species can be close in embedding space. Measuring the genuine/impostor gap
 is how we keep the demo honest and pick numbers from data, not magic.
+
+## Village map data (`prep_village_data.py`)
+
+Converts a local `export.geojson` (repo root, gitignored) into a `data.json` blob
+for the `D` constant in `app/village-map.html`.
+
+```bash
+# from the repo root, with export.geojson present
+python3 tools/prep_village_data.py
+```
+
+Then paste the generated data into `app/village-map.html` as described in the README.

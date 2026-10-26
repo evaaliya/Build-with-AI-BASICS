@@ -224,9 +224,9 @@ __marimo__/
 # Devpost learner context — personal notes kept out of commits by default
 /devpost/learner-profile.md
 
-# Village data prep (kept locally, not committed)
-/prep village data.py
+# Village data prep inputs/outputs (script is tracked: tools/prep_village_data.py)
 /export.geojson
+/data.json
 /moo-glass-kit
 
 # macOS Finder noise

@@ -2,7 +2,7 @@
 
 Date: 2026-10-24  
 Project: Supabase Moo (`rvhhmpnpggtfufwpgdaw`). No secrets in this report.  
-Migration `schema-v3-auth.sql` is **written but not applied** (waiting for Eva).
+Migration `schema-v3-auth.sql (file later removed or moved, see README migration table)` is **written but not applied** (waiting for Eva).
 
 Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
 
@@ -11,7 +11,7 @@ Veterinarians receive an individual access code and their applications are revie
 ## 1. Summary (three lines)
 
 1. **Auth gate works in the app:** first screen is Sign in / Sign up / Try demo; demo keeps the role switch; real accounts hide it and show a personal cabinet with Sign out.  
-2. **Critical RLS still green** after the client changes; vet-application checks are ready but marked “not run” until you apply `schema-v3-auth.sql` (and promote an admin via SQL).  
+2. **Critical RLS still green** after the client changes; vet-application checks are ready but marked “not run” until you apply `schema-v3-auth.sql (file later removed or moved, see README migration table)` (and promote an admin via SQL).  
 3. **Offline map mirror is fixed** in the service worker (`moo-v25`): iframe requests no longer fall back to `index.html`; e2e `4-offline-map-no-mirror` passed.
 
 ---
@@ -52,7 +52,7 @@ Veterinarians receive an individual access code and their applications are revie
 
 ## 4. What I fixed
 
-- `schema-v3-auth.sql` — `admin` role, `vet_applications`, storage `vet-licenses`, `submit_vet_application` / `review_vet_application`, updated `protect_profile_role` with `moo.allow_role_change`
+- `schema-v3-auth.sql (file later removed or moved, see README migration table)` — `admin` role, `vet_applications`, storage `vet-licenses`, `submit_vet_application` / `review_vet_application`, updated `protect_profile_role` with `moo.allow_role_change`
 - Auth UI, farmer onboarding, pending-vet banner, admin approval screen
 - Personal cabinet (name, email, role, house, animals, points, rank, sign out)
 - Map `postMessage` protocol; outbreak legend under 3D map
@@ -62,7 +62,7 @@ Veterinarians receive an individual access code and their applications are revie
 
 ## 5. What you must decide / run
 
-1. **Apply** `schema-v3-auth.sql` in the Supabase SQL editor (do not apply from the agent).  
+1. **Apply** `schema-v3-auth.sql (file later removed or moved, see README migration table)` in the Supabase SQL editor (do not apply from the agent).  
 2. **Dashboard → Authentication → Providers → Email:** disable “Confirm email” for the demo.  
 3. **Create the first admin** after that user signs up:
    ```sql

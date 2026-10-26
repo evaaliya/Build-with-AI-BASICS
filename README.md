@@ -74,7 +74,7 @@ flowchart LR
 
 ## Roles and permissions
 
-Derived from RLS policies in `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`.
+Derived from RLS policies in `supabase/sql/002_booking_vaccinations.sql`, `supabase/sql/003_auth_roles_vet_applications.sql`, `supabase/sql/004_vet_code_and_masking.sql`.
 
 | Resource | Farmer | Vet | Admin |
 | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ Derived from RLS policies in `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-v
 ## Security model
 
 - **RLS** on every public table; anon cannot read sensitive rows (verified by `tests/rls/rls.mjs`).
-- **`animals_public` view** masks neighbour `notes` / `reminders`; `vaccinations` / `health` only for owner or vet (`schema-v4-vet-code.sql`).
+- **`animals_public` view** masks neighbour `notes` / `reminders`; `vaccinations` / `health` only for owner or vet (`supabase/sql/004_vet_code_and_masking.sql`).
 - **`protect_profile_role` trigger** forces new profiles to `farmer` and blocks client role changes unless `moo.allow_role_change` is set inside `review_vet_application`. Clients can never set `admin`.
 - **Vet invite code** lives only as Edge Function secret `VET_INVITE_CODE` (set in Supabase Dashboard → Edge Functions → Secrets). Compared with a constant-time check; failed attempts rate-limited (5 / hour) in `vet_code_attempts` (service role only).
 - **License photos** in private bucket `vet-licenses`.
@@ -120,10 +120,10 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Use **Try demo** or Sign up
 
 Apply SQL in order (SQL editor or `psql`):
 
-1. `supabase/schema.sql` — baseline (profiles, animals, posts, messages, activity_log) if the project is empty.
-2. `schema-v2.sql` — slots, bookings, vaccinations, broadcasts, `book_slot`, points trigger.
-3. `schema-v3-auth.sql` — admin role, `vet_applications`, `vet-licenses` bucket, `review_vet_application`, `protect_profile_role`.
-4. `schema-v4-vet-code.sql` — `vet_code_attempts`, drop client `submit_vet_application` RPC, `animals_public` masking.
+1. `supabase/sql/001_baseline.sql` — baseline (profiles, animals, posts, messages, activity_log) if the project is empty.
+2. `supabase/sql/002_booking_vaccinations.sql` — slots, bookings, vaccinations, broadcasts, `book_slot`, points trigger.
+3. `supabase/sql/003_auth_roles_vet_applications.sql` — admin role, `vet_applications`, `vet-licenses` bucket, `review_vet_application`, `protect_profile_role`.
+4. `supabase/sql/004_vet_code_and_masking.sql` — `vet_code_attempts`, drop client `submit_vet_application` RPC, `animals_public` masking.
 
 Deploy the Edge Function:
 
@@ -186,13 +186,24 @@ Additional scripts (run with `node`):
 
 Reports: `tests/TEST-REPORT.md` … `tests/TEST-REPORT-4.md`. Playwright writes generated screenshots under `tests/screens/` (gitignored; recreated by the e2e scripts). README images live in `docs/screenshots/`.
 
-**What the runs found:** two critical RLS holes — clients could self-promote to `vet`, and neighbours could read vaccination history — fixed with `protect_profile_role` and `animals_public` (see `tests/TEST-REPORT.md`, working SQL in `schema-v4-vet-code.sql`).
+**What the runs found:** two critical RLS holes — clients could self-promote to `vet`, and neighbours could read vaccination history — fixed with `protect_profile_role` and `animals_public` (see `tests/TEST-REPORT.md`, working SQL in `supabase/sql/004_vet_code_and_masking.sql`).
+
+### Migration file history
+
+| Old path | New path |
+| --- | --- |
+| `supabase/schema.sql` | `supabase/sql/001_baseline.sql` |
+| `schema-v2.sql` | `supabase/sql/002_booking_vaccinations.sql` |
+| `schema-v3-auth.sql` | `supabase/sql/003_auth_roles_vet_applications.sql` |
+| `schema-v4-vet-code.sql` | `supabase/sql/004_vet_code_and_masking.sql` |
+
+Files live under `supabase/sql/` (not `supabase/migrations/`) so the Supabase CLI does not treat them as timestamped migrations. SQL contents are unchanged from what was applied live.
 
 ## Deployment
 
 Hosted on **Vercel** as static files from `app/` (live: [mooo-nine.vercel.app](https://mooo-nine.vercel.app)). There is no `vercel.json` in the repo — set the project Root Directory to `app` in the Vercel dashboard (or equivalent CLI link). Redeploy by pushing to the connected Git branch or triggering a dashboard redeploy.
 
-Service worker (`app/sw.js`, cache `moo-v33`) network-first caches the app shell, including `village-map.html` and `three.min.js`. It never falls back iframe navigations to `index.html` (avoids the offline “mirror tunnel”).
+Service worker (`app/sw.js`, cache `moo-v34`) network-first caches the app shell, including `village-map.html` and `three.min.js`. It never falls back iframe navigations to `index.html` (avoids the offline “mirror tunnel”).
 
 ## Recognition
 
@@ -228,48 +239,62 @@ The Map tab loads `app/village-map.html` in an iframe (local `three.min.js`). Th
 
 To swap the village:
 
-1. Place GeoJSON as `export.geojson` next to `prep village data.py`.
-2. Run `python3 "prep village data.py"` → `data.json` (`D` constant).
+1. Place GeoJSON as `export.geojson` in the **repo root** (gitignored).
+2. From the repo root run `python3 tools/prep_village_data.py` → writes `data.json` (gitignored; the `D` constant).
 3. Replace `D = {…}` in `app/village-map.html` and update labels as needed.
 
 ## Project structure
 
 ```
+README.md
+LICENSE
+scope.md
+prd.md
+spec.md
+skills-lock.json
+.env.example
+.gitignore
 app/                          # PWA (Vercel root)
-├── index.html                # shell; auth-first; iframe nest guard
-├── styles.css                # design system (glass.css is a stub)
-├── app.js                    # routing, cabinets, auth UI, booking, vDone
-├── store.js                  # Supabase + localStorage; animals_public reads
-├── logic.js                  # status, points, booking pure helpers
-├── auth-logic.js             # roles, demo flag, map overlay builder
-├── rewards.js                # trophies / reminders for verified only
-├── recognition.js            # MobileNet embeddings + match constants
-├── vet.js                    # role helpers, demo/real map pins & outbreaks
-├── mock.js                   # demo animals + feed helpers
+├── index.html
+├── styles.css                # design system
+├── app.js
+├── store.js
+├── logic.js
+├── auth-logic.js
+├── rewards.js
+├── recognition.js
+├── vet.js
+├── mock.js
 ├── camera.js, loader.js, i18n.js, supabase.js, supabase-config.js
 ├── village-map.html, three.min.js
 ├── sw.js, manifest.webmanifest, icons/, img/
-schema-v2.sql                 # slots, bookings, vaccinations, book_slot
-schema-v3-auth.sql            # admin, vet_applications, review RPC
-schema-v4-vet-code.sql        # invite-code path, animals_public
+├── package.json
 supabase/
-├── schema.sql                # baseline tables + RLS
-├── config.toml               # Edge Function verify_jwt
-└── functions/submit-vet-application/
+├── config.toml
+├── functions/submit-vet-application/
+└── sql/
+    ├── 001_baseline.sql
+    ├── 002_booking_vaccinations.sql
+    ├── 003_auth_roles_vet_applications.sql
+    └── 004_vet_code_and_masking.sql
 tests/
-├── unit/                     # logic + auth unit tests
-├── rls/                      # RLS harness
-├── e2e/                      # Playwright demos
-├── screens/                  # captured screenshots
-└── TEST-REPORT*.md
-tools/
-├── calibrate.html            # measure recognition thresholds
+├── unit/
+├── rls/
+├── e2e/
+├── screens/                  # generated by e2e (gitignored)
+├── TEST-REPORT*.md
+├── package.json
 └── README.md
-docs/screenshots/             # README screenshots
-scope.md, prd.md, spec.md     # planning docs (keep in sync with devpost/)
-devpost/                      # Skill Pack workspace (checklist, app-map, copies)
-.env.example                  # VET_INVITE_CODE name only
-LICENSE, skills-lock.json
+tools/
+├── calibrate.html
+├── prep_village_data.py
+└── README.md
+docs/
+└── screenshots/
+devpost/
+agent/
+.claude/
+.agents/
 ```
 
 ## i18n, PWA, accessibility

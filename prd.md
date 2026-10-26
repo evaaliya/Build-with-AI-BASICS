@@ -25,7 +25,7 @@ Implements: `scope.md > The Core Loop`. Source: `app/app.js` (`renderAuth`, `con
 - On Sign up, choose farmer or veterinarian. Vets additionally submit a license photo and an **individual access code** issued by the project owner. Applications go to `vet_applications` via Edge Function `submit-vet-application`; the owner (admin) reviews them manually until the project receives funding. Pending vets use the farmer cabinet with an under-review banner.
 - Roles: `farmer` | `vet` | `admin` on `profiles.role`. Demo role switch farmer↔vet appears only in demo mode.
 
-Implements: `scope.md > POC Boundary` (auth / roles). Source: `app/app.js`, `app/store.js`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`, `supabase/functions/submit-vet-application/`.
+Implements: `scope.md > POC Boundary` (auth / roles). Source: `app/app.js`, `app/store.js`, `supabase/sql/003_auth_roles_vet_applications.sql`, `supabase/sql/004_vet_code_and_masking.sql`, `supabase/functions/submit-vet-application/`.
 
 ## Booking and queue
 
@@ -33,7 +33,7 @@ Implements: `scope.md > POC Boundary` (auth / roles). Source: `app/app.js`, `app
 - Farmer books from Feed/Home → selects animals → `book_slot` assigns a queue number under capacity.
 - Farmer sees "my booking"; can cancel. Vet marks done or no-show.
 
-Implements: `scope.md > The Unique Kernel`. Source: `app/store.js` (`bookSlot`), `schema-v2.sql` (`book_slot`), `app/logic.js`.
+Implements: `scope.md > The Unique Kernel`. Source: `app/store.js` (`bookSlot`), `supabase/sql/002_booking_vaccinations.sql` (`book_slot`), `app/logic.js`.
 
 ## Screens and Layout
 
