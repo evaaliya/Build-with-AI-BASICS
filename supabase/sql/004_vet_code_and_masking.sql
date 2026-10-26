@@ -1,5 +1,6 @@
 -- Moo v4 — vet invite code path (Edge Function only).
--- Run AFTER schema-v3-auth.sql. Idempotent / safe to re-run.
+-- File: supabase/sql/004_vet_code_and_masking.sql (formerly schema-v4-vet-code.sql).
+-- Run AFTER supabase/sql/003_auth_roles_vet_applications.sql. Idempotent / safe to re-run.
 -- Applications are inserted only by the Edge Function (service role).
 -- review_vet_application and moo.allow_role_change stay unchanged.
 
@@ -22,7 +23,7 @@ revoke all on public.vet_code_attempts from anon, authenticated, public;
 
 -- ---------------------------------------------------------------------------
 -- 2. Revoke / drop client-callable submit_vet_application from schema-v3
---    Signature from schema-v3-auth.sql: (text, text, text)
+--    Signature from 003_auth_roles_vet_applications.sql: (text, text, text)
 -- ---------------------------------------------------------------------------
 revoke execute on function public.submit_vet_application(text, text, text)
   from anon, authenticated, public;

@@ -1,7 +1,8 @@
 -- Moo v3 — auth, admin role, vet applications, license storage.
+-- File: supabase/sql/003_auth_roles_vet_applications.sql (formerly schema-v3-auth.sql).
 -- Idempotent / safe to re-run. Does NOT recreate animals_public (column order
--- is fixed in schema-v4-vet-code.sql to match the live view).
--- Prerequisite: schema-v2.sql + protect_profile_role + animals_public baseline.
+-- is fixed in supabase/sql/004_vet_code_and_masking.sql to match the live view).
+-- Prerequisite: supabase/sql/002_booking_vaccinations.sql + protect_profile_role + animals_public baseline.
 
 -- ---------------------------------------------------------------------------
 -- 1. profiles: allow role 'admin'; add email + house_id

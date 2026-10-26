@@ -1,5 +1,7 @@
 -- Moo — Supabase Postgres schema + Row Level Security.
+-- File: supabase/sql/001_baseline.sql (formerly supabase/schema.sql).
 -- Run this once in the Supabase SQL editor (or psql) after creating the project.
+-- Apply order: 001 → 002 → 003 → 004.
 --
 -- Tables: profiles, animals (with the averaged muzzle fingerprint), posts
 -- (comments stored inline as jsonb), and messages. Every table has RLS so a

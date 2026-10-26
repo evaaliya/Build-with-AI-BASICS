@@ -1,7 +1,8 @@
 -- Moo v2 — schema (applied to Supabase project Moo / rvhhmpnpggtfufwpgdaw
 -- as migration moo_v2_cabinets_slots_bookings). Keep this file as the source of truth.
 -- Cabinets, slots, bookings, vaccinations, broadcasts, book_slot, points trigger.
--- Existing baseline: supabase/schema.sql (later: supabase/sql/001_baseline.sql).
+-- File: supabase/sql/002_booking_vaccinations.sql (formerly schema-v2.sql).
+-- Prerequisite: supabase/sql/001_baseline.sql.
 -- App falls back to localStorage when tables/columns are missing (isSchemaError).
 
 -- ---------------------------------------------------------------------------
