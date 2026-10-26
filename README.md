@@ -159,11 +159,12 @@ Without Supabase, or if tables are missing, `app/store.js` falls back to `localS
 
 **Try demo** sets `moo_demo_mode` and forces local mode — it never writes to Supabase.
 
-Seeded (fictional):
+Seeded (fictional), **localized for the current UI language** (`app/demo-content.js` + `app/mock.js`):
 
-- Four animals covering green / yellow / orange / red (`app/mock.js` `demoAnimals`, photos under `app/img/demo-*.jpg`).
+- Four animals covering green / yellow / orange / red (photos under `app/img/demo-*.jpg`); English names e.g. Zorka, Burenka, Karakat, Keremet.
+- Demo farmers, feed posts, chats, places, and the vet display name follow ru / ky / en.
 - One reception slot on the feed; farmer↔vet role switch in the header.
-- Vet map: 16 house pins on real building footprints + outbreaks (`app/vet.js` `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS`).
+- Vet map: 16 house pins on real building footprints + outbreaks (`app/vet.js` `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS`); map chrome and place labels follow `moo:lang`.
 
 ## Testing
 
@@ -188,6 +189,8 @@ Additional scripts (run with `node`):
 - `e2e/auth-welcome.mjs` — auth welcome block screenshots → `tests/screens/auth-welcome/`
 - `e2e/demo-statuses.mjs` — status colors → `tests/screens/demo-statuses/`
 - `e2e/demo-map-placement.mjs` — demo map pins on houses → `tests/screens/demo-map/`
+- `e2e/en-no-cyrillic.mjs` — English demo UI must contain no Cyrillic (all tabs + map iframe); RU still has Cyrillic
+- `e2e/readme-screenshots.mjs` — regenerate README PNGs in `docs/screenshots/`
 
 Reports: `tests/TEST-REPORT.md` … `tests/TEST-REPORT-4.md`. Playwright writes generated screenshots under `tests/screens/` (gitignored; recreated by the e2e scripts). README images live in `docs/screenshots/`.
 
@@ -269,7 +272,7 @@ app/                          # PWA (Vercel root)
 ├── rewards.js
 ├── recognition.js
 ├── vet.js
-├── mock.js
+├── mock.js, demo-content.js
 ├── camera.js, loader.js, i18n.js, supabase.js, supabase-config.js
 ├── village-map.html, three.min.js
 ├── sw.js, manifest.webmanifest, icons/, img/
@@ -303,8 +306,8 @@ devpost/
 
 ## i18n, PWA, accessibility
 
-- Languages: Russian (default), Kyrgyz, English (`app/i18n.js` `LANGS`).
-- PWA: `manifest.webmanifest` + service worker registered on boot; network-first offline shell.
+- Languages: Russian (default), Kyrgyz, English (`app/i18n.js` `LANGS`). Demo fiction and the 3D map UI track the same language; English place labels are transliterated (geometry data unchanged).
+- PWA: `manifest.webmanifest` + service worker registered on boot; network-first offline shell (`moo-v35`).
 - Accessibility present in code: `aria-label` / `aria-checked` on chrome controls, `role="status"` toasts, `role="progressbar"` on the village bar, `prefers-reduced-motion` on the map.
 
 ## Limitations and roadmap

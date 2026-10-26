@@ -41,6 +41,10 @@ Extra scripts (same pattern, own ports):
 | `node e2e/auth-welcome.mjs` | Auth “What is Moo?” block, locales, themes | `tests/screens/auth-welcome/` |
 | `node e2e/demo-statuses.mjs` | Four demo animals / status colors | `tests/screens/demo-statuses/` |
 | `node e2e/demo-map-placement.mjs` | Demo pins on real house footprints | `tests/screens/demo-map/` |
+| `node e2e/en-no-cyrillic.mjs` | Demo EN UI has no Cyrillic (all screens + map iframe); RU still has Cyrillic | `tests/screens/en-no-cyrillic/` |
+| `node e2e/readme-screenshots.mjs` | Regenerate `docs/screenshots/*.png` (EN, light, 780×1688) | `docs/screenshots/` |
+
+Demo people, animals, places, feed, chats, and map chrome are localized per language (`app/demo-content.js` + map `moo:lang`).
 
 ## Reports
 

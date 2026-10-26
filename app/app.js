@@ -15,6 +15,10 @@ import {
 } from './vet.js';
 import { resolveAppRole, authErrorKey, isDemoModeFlag } from './auth-logic.js';
 import { demoAnimals, vaccinationStatus, daysFromNow } from './mock.js';
+import {
+  demoMe, demoFarmers, demoPool, demoFreshAnimals, demoFeedPosts, demoThreads,
+  localizeAnimalByTag, demoAnimalMeta,
+} from './demo-content.js';
 import { runRewards, applyVerifiedVaccination, loadState, activeCount, levelOf, rt } from './rewards.js';
 import { startCamera as startCamDevice, stopCamera as stopCamDevice, captureSquare } from './camera.js';
 import { fingerprintOf, findMatch, prefetchModel, MATCH_THRESHOLD, MATCH_MARGIN } from './recognition.js';
@@ -107,26 +111,10 @@ import * as supabase from './supabase.js';
     never: { w: 3, col: '#cfd8dc', name: t('lvNever') },
     overdue: { w: 4, col: '#ff4a3d', name: t('lvOverdue') }
   });
-  // Demo village farmers: house id = DEMO_HOUSE_PINS id. Mix: 6 ok, 3 soon, 2 urgent, 3 overdue, 2 never.
-  // me (house 0) = overdue — worst of demo animals Зорька/Бурёнка/Каракат/Керемет.
-  const FARM = [
-    { id: 'n1', name: 'Бакыт Орозов', emoji: '🧑‍🌾', house: 1, all: 940, week: 300 },
-    { id: 'n2', name: 'Гульнара Сыдыкова', emoji: '👩‍🌾', house: 2, all: 820, week: 100 },
-    { id: 'n3', name: 'Талгат Мамытов', emoji: '🧑‍🌾', house: 3, all: 610, week: 200 },
-    { id: 'n4', name: 'Айгуль Касымова', emoji: '👩‍🌾', house: 4, all: 540, week: 0 },
-    { id: 'n5', name: 'Нурбек Турдубеков', emoji: '🧑‍🌾', house: 5, all: 330, week: 100 },
-    { id: 'n6', name: 'Мээрим Жумабаева', emoji: '👩‍🌾', house: 6, all: 210, week: 0 },
-    { id: 'n7', name: 'Эрмек Садыков', emoji: '🧑‍🌾', house: 7, all: 90, week: 0 },
-    { id: 'n8', name: 'Жылдыз Абдыкадырова', emoji: '👩‍🌾', house: 8, all: 480, week: 100 },
-    { id: 'n9', name: 'Данияр Кубатов', emoji: '🧑‍🌾', house: 9, all: 150, week: 0 },
-    { id: 'n10', name: 'Айнура Бекова', emoji: '👩‍🌾', house: 10, all: 400, week: 80 },
-    { id: 'n11', name: 'Самат Исаков', emoji: '🧑‍🌾', house: 11, all: 360, week: 40 },
-    { id: 'n12', name: 'Асель Рыскулова', emoji: '👩‍🌾', house: 12, all: 290, week: 20 },
-    { id: 'n13', name: 'Кубанычбек Тойчуев', emoji: '🧑‍🌾', house: 13, all: 270, week: 10 },
-    { id: 'n14', name: 'Чолпон Алымкулова', emoji: '👩‍🌾', house: 14, all: 80, week: 0 },
-    { id: 'n15', name: 'Улан Жеенбеков', emoji: '🧑‍🌾', house: 15, all: 310, week: 50 }
-  ];
-  const ME = { id: 'me', name: 'Айбек Токтогулов', emoji: '👨‍🌾', house: 0 };
+  // Demo village farmers: house id = DEMO_HOUSE_PINS id. Names come from demo-content (ru/ky/en).
+  // me (house 0) = overdue — worst of demo animals Zorka/Burenka/Karakat/Keremet.
+  let FARM = demoFarmers();
+  let ME = demoMe();
   // dues relative to S.today → animalStatus colors that match DEMO_HOUSE_PINS statuses
   const DUES = {
     n1: [340, 280, 200],
@@ -145,7 +133,7 @@ import * as supabase from './supabase.js';
     n14: [null],
     n15: [310, 220]
   };
-  const POOL = ['Алтын', 'Ак-Кыз', 'Сары', 'Тору', 'Боз', 'Кара', 'Аргымак', 'Лейла', 'Майя'];
+  let POOL = demoPool();
   const HOUSES = [[60, 70], [112, 112], [150, 58], [232, 98], [292, 66], [70, 168], [200, 162], [262, 204], [112, 244], [314, 252]];
   const OUT = () => {
     if (isDemoModeFlag()) {
@@ -171,12 +159,7 @@ import * as supabase from './supabase.js';
   });
   const BASE = new Date();
 
-  const freshAnimals = () => [
-    { id: 'm1', name: 'Зорька', type: 'cow', tag: 'KG-0001', photo: 'img/demo-zorka.jpg', due: 70, earned: true, streak: 2, stage: 0, lostShown: false },
-    { id: 'm2', name: 'Бурёнка', type: 'cow', tag: 'KG-0002', photo: 'img/demo-burenka.jpg', due: 18, earned: true, streak: 1, stage: 1, lostShown: false },
-    { id: 'm3', name: 'Каракат', type: 'horse', tag: 'KG-0003', photo: 'img/demo-karakat.jpg', due: 4, earned: true, streak: 3, stage: 2, lostShown: false },
-    { id: 'm4', name: 'Керемет', type: 'sheep', tag: 'KG-0004', photo: 'img/demo-keremet.jpg', due: -30, earned: true, streak: 1, stage: 0, lostShown: true }
-  ];
+  const freshAnimals = () => demoFreshAnimals();
   const mkA = (fid, dues) => dues.map((d, i) => ({ id: fid + 'a' + i, name: POOL[i % POOL.length], type: TYPES[i % 3], tag: 'KG-' + (100 + i * 7 + fid.charCodeAt(1) * 3), due: d }));
 
   const S = { view: 'home', role: 'farmer', thread: null, vthread: null, filter: 'all', period: 'week', composing: false, draft: '', draftCat: 'ask',
@@ -191,6 +174,9 @@ import * as supabase from './supabase.js';
   };
 
   function reset() {
+    FARM = demoFarmers();
+    ME = demoMe();
+    POOL = demoPool();
     S.today = 0; S.animals = freshAnimals(); S.vil = {};
     FARM.forEach((f) => { S.vil[f.id] = mkA(f.id, DUES[f.id]); });
     S.slots = [
@@ -201,29 +187,58 @@ import * as supabase from './supabase.js';
     S.hist = [2, 4, 3, 5, 6, 2, 3];
     [['n2', ['n2a8', 'n2a7'], 1], ['n4', ['n4a5', 'n4a6', 'n4a4'], 1], ['n5', ['n5a3', 'n5a4', 'n5a5'], 1], ['n3', ['n3a4'], 1], ['n6', ['n6a2', 'n6a3'], 1], ['n7', ['n7a0', 'n7a1', 'n7a2'], 1], ['n8', ['n8a4', 'n8a3'], 2], ['n9', ['n9a2', 'n9a3'], 2]]
       .forEach((b) => addBooking(b[0], b[1], b[2]));
-    S.posts = [
-      { id: 1, slot: 1, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: [] },
-      { id: 2, slot: 2, author: t('vetName'), vet: true, cat: 'slot', time: t('yesterday'), likes: 0, comments: [] },
-      { id: 3, author: 'Гульнара Сыдыкова', cat: 'ads', text: 'Продаю трёх ягнят, по четыре месяца. Все привиты. Звоните вечером, договоримся о цене.', time: t('hoursAgo', { n: '5' }), likes: 9, liked: false, comments: [
-        { id: 'c1', from: 'Бакыт', text: 'Какая цена за голову?', t: '10:12' },
-        { id: 'c2', from: 'Айгуль', text: 'Ещё есть?', t: '11:02' },
-        { id: 'c3', from: 'Гульнара', text: 'Да, пишите в личку.', t: '11:20' }
-      ] },
-      { id: 4, author: 'Бакыт Орозов', cat: 'ask', text: 'Чем лучше подкормить корову после отёла? Зорька стала хуже есть.', time: t('yesterday'), likes: 6, liked: false, comments: [
-        { id: 'c4', from: 'Нурлан', vet: true, text: 'Тёплая вода + сено люцерны, следите за жвачкой.', t: '18:40' },
-        { id: 'c5', from: 'Гульнара', text: 'У нас помог свёкольный жом.', t: '19:05' }
-      ] },
-      { id: 5, author: 'Moo', sys: true, cat: 'news', text: 'Кубок за прививку держится год. Мы напомним трижды: за 30, за 7 и за 1 день до срока. Не потеряй его!', time: t('yesterday'), likes: 31, liked: false, comments: [] }
-    ];
+    S.posts = demoFeedPosts(t);
     S.msgs = { village: [] };
-    S.threads = {
-      me: [{ from: 'Нурлан', vet: true, text: t('demoHelloVet'), t: '08:30' }],
-      n1: [{ from: 'Бакыт', text: 'Айбек, завтра в райцентр поедешь?', t: '09:18' }],
-      n2: [{ from: 'Гульнара', text: 'Нурлан, у Зорьки кашель. Посмотрите?', t: '08:10' }, { from: 'Гульнара', text: 'Айбек, сено ещё нужно?', t: '12:40' }],
-      n4: [{ from: 'Айгуль', text: 'Можно записать на приём трёх овец?', t: '08:44' }]
-    };
+    S.threads = demoThreads(t);
     S.vun = { n2: 1, n4: 1 };
     S.thread = null;
+  }
+
+  /** Refresh demo display strings after language change (ids / dues / bookings unchanged). */
+  function relocalizeDemoContent() {
+    if (!isDemoModeFlag()) return;
+    const prevMeId = ME.id;
+    const house = ME.house;
+    FARM = demoFarmers();
+    ME = demoMe();
+    ME.house = house;
+    POOL = demoPool();
+    // Keep user display name aligned with demo locale when still on the demo profile
+    if (S.user && (S.user.id === 'demo-farmer' || /demo/i.test(String(S.user.email || '')))) {
+      S.user.name = t('demoName');
+      ME.name = t('demoName');
+    } else if (S.user && S.user.name) {
+      ME.name = S.user.name;
+    }
+    const nameByTag = Object.fromEntries(demoFreshAnimals().map((a) => [a.tag, a.name]));
+    S.animals.forEach((a) => {
+      if (nameByTag[a.tag]) a.name = nameByTag[a.tag];
+      localizeAnimalByTag(a);
+      if (a._raw) {
+        localizeAnimalByTag(a._raw);
+        const meta = demoAnimalMeta(a.tag || a._raw.tagNumber);
+        if (meta) {
+          a._raw.breed = meta.breed;
+          if (Array.isArray(a._raw.health) && meta.healthNote) {
+            a._raw.health.forEach((h) => { if (h && h.note != null) h.note = meta.healthNote; });
+          }
+          try { updateAnimal(a._raw); } catch {}
+        }
+      }
+    });
+    Object.keys(S.vil || {}).forEach((fid) => {
+      (S.vil[fid] || []).forEach((a, i) => {
+        a.name = POOL[i % POOL.length];
+      });
+    });
+    if (S.slots) {
+      const places = [t('placeFarm2'), t('placeSquare')];
+      S.slots.forEach((s, i) => { s.place = places[i] || s.place; s.disease = diseaseName(); });
+    }
+    if (S.cast) { S.cast.text = t(S.cast.seg === 'urgent' ? 'tplUrgent' : S.cast.seg === 'soon' ? 'tplSoon' : S.cast.seg === 'never' ? 'tplNever' : S.cast.seg === 'all' ? 'tplAll' : 'tplOverdue'); }
+    S.posts = demoFeedPosts(t);
+    S.threads = demoThreads(t);
+    void prevMeId;
   }
 
   /* ---------- helpers ---------- */
@@ -331,8 +346,9 @@ import * as supabase from './supabase.js';
 
   /* ---------- threads ---------- */
   function thr(k) { if (!S.threads[k]) S.threads[k] = []; return S.threads[k]; }
+  const vetFirstName = () => String(t('vetName') || '').split(' ')[0] || 'Nurlan';
   function vetSay(fid, text) {
-    thr(fid).push({ from: 'Нурлан', vet: true, text: text, t: hhmm() });
+    thr(fid).push({ from: vetFirstName(), vet: true, text: text, t: hhmm() });
     if (fid === 'me' && !(S.role === 'farmer' && S.view === 'chat' && S.thread === 'vet')) S.unread++;
     afterMsg();
   }
@@ -698,11 +714,21 @@ import * as supabase from './supabase.js';
     }));
   }
 
+  function sendMapLang(frame) {
+    const win = frame && frame.contentWindow;
+    if (!win) return;
+    const msg = { type: 'moo:lang', lang: getLang() };
+    try { win.postMessage(msg, window.location.origin); } catch {
+      try { win.postMessage(msg, '*'); } catch {}
+    }
+  }
+
   function syncMap3d() {
     const frame = $('#map3d');
     const ph = $('#mapPlaceholder');
     if (!frame) return;
     const send = () => {
+      sendMapLang(frame);
       sendMapOverlay(frame, {
         role: S.role === 'vet' ? 'vet' : 'farmer',
         houses: buildHouseOverlayList(),
@@ -1688,7 +1714,7 @@ import * as supabase from './supabase.js';
       if (String(e.message) === 'no_capacity') { toast('warn', t('noCapacity'), 'bell'); return; }
     }
     S.sheet = null; drawSheet();
-    thr('me').push({ from: 'Нурлан', vet: true, text: t('bookedYouMsg', { day: dayLabel(s.day).toLowerCase(), from: s.from, place: s.place, q: String(b.q), eta: eta(s, b.q) }), t: hhmm() });
+    thr('me').push({ from: vetFirstName(), vet: true, text: t('bookedYouMsg', { day: dayLabel(s.day).toLowerCase(), from: s.from, place: s.place, q: String(b.q), eta: eta(s, b.q) }), t: hhmm() });
     S.unread++;
     renderAll(true);
     toast('good', t('bookedToast', { q: String(b.q) }), 'check');
@@ -1713,7 +1739,7 @@ import * as supabase from './supabase.js';
     S.hist[S.hist.length - 1] += b.heads;
     if (b.fid === 'me') {
       S.pending.push({ names: list.map((a) => a.name), renewed: wasAny.every(Boolean), p0: p0, p1: myPos(), gain: myPoints() - pt0 });
-      thr('me').push({ from: 'Нурлан', vet: true, text: t('vaxConfirmedMsg', { names: list.map((a) => a.name).join(', ') }), t: hhmm() });
+      thr('me').push({ from: vetFirstName(), vet: true, text: t('vaxConfirmedMsg', { names: list.map((a) => a.name).join(', ') }), t: hhmm() });
       S.unread++;
     }
     renderAll(true);
@@ -1723,7 +1749,7 @@ import * as supabase from './supabase.js';
     const b = S.bookings.find((x) => x.id === id);
     if (!b || b.status !== 'booked') return;
     b.status = 'no_show';
-    if (b.fid === 'me') { thr('me').push({ from: 'Нурлан', vet: true, text: t('noShowMsg'), t: hhmm() }); S.unread++; }
+    if (b.fid === 'me') { thr('me').push({ from: vetFirstName(), vet: true, text: t('noShowMsg'), t: hhmm() }); S.unread++; }
     renderAll(true);
     toast('info', t('spotFreed'), 'x');
   }
@@ -1783,13 +1809,17 @@ import * as supabase from './supabase.js';
     if (hasImg) return t('vetReplyPhoto');
     return t('vetReplyDefault');
   }
-  const NEIGHBOR = () => [['Бакыт', t('neighborReply1')], ['Гульнара', t('neighborReply2')], ['Бакыт', t('neighborReply3')]];
+  const NEIGHBOR = () => {
+    const bakyt = firstName(FARM[0] || { name: 'Bakyt' });
+    const gulnara = firstName(FARM[1] || { name: 'Gulnara' });
+    return [[bakyt, t('neighborReply1')], [gulnara, t('neighborReply2')], [bakyt, t('neighborReply3')]];
+  };
   function sendMsg(text, img) {
     text = (text || '').trim();
     if (!text && !img) return;
     if (S.role === 'vet') {
       if (!S.vthread) return;
-      thr(S.vthread).push({ from: 'Нурлан', vet: true, text: text, img: img || null, t: hhmm() });
+      thr(S.vthread).push({ from: vetFirstName(), vet: true, text: text, img: img || null, t: hhmm() });
       if (S.vthread === 'me') S.unread++;
       refreshChat(); renderNav();
       return;
@@ -1801,7 +1831,7 @@ import * as supabase from './supabase.js';
       S.typing = true; refreshChat();
       setTimeout(() => {
         S.typing = false;
-        thr('me').push({ from: 'Нурлан', vet: true, text: vetReply(text, !!img), t: hhmm() });
+        thr('me').push({ from: vetFirstName(), vet: true, text: vetReply(text, !!img), t: hhmm() });
         if (S.role === 'farmer' && S.view === 'chat' && S.thread === 'vet') refreshChat(); else { S.unread++; renderNav(); }
       }, 1700);
       return;
@@ -2252,6 +2282,7 @@ import * as supabase from './supabase.js';
           due = S.today + days;
         } else if (st.status === 'never') due = null;
         const pack = decodePhotoPack(a.photo || '');
+        if (isDemoModeFlag()) localizeAnimalByTag(a);
         return {
           id: a.id, name: a.name, type: a.type, tag: a.tagNumber || '',
           photo: pack.photos[pack.avatar] || pack.photos[0] || '',
@@ -2290,8 +2321,8 @@ import * as supabase from './supabase.js';
 
     if (opts.demo) {
       try {
-        // v3: photos + all vaccination status colors. Demo-only; never runs for real accounts.
-        if (!localStorage.getItem('moo_demo_seeded_v3')) {
+        // v4: localized demo animal names/notes for current UI language. Demo-only.
+        if (!localStorage.getItem('moo_demo_seeded_v4')) {
           const existing = await getAnimals();
           for (const a of existing.filter((x) => x.ownerId === user.id)) {
             await deleteAnimal(a.id);
@@ -2300,7 +2331,8 @@ import * as supabase from './supabase.js';
           for (const a of demoAnimals(user.id)) await addAnimal(a);
           try {
             localStorage.removeItem('moo_demo_seeded_v2');
-            localStorage.setItem('moo_demo_seeded_v3', '1');
+            localStorage.removeItem('moo_demo_seeded_v3');
+            localStorage.setItem('moo_demo_seeded_v4', '1');
           } catch {}
         }
       } catch (e) { console.warn(e); }
@@ -2368,8 +2400,11 @@ import * as supabase from './supabase.js';
         const idx = LANGS.findIndex((l) => l.code === getLang());
         setLang(LANGS[(idx + 1) % LANGS.length].code);
         langBtn.textContent = getLang().toUpperCase();
+        document.documentElement.lang = getLang();
         applyI18n();
+        relocalizeDemoContent();
         renderAll(true);
+        if (S.view === 'map') setTimeout(syncMap3d, 0);
       });
     }
     document.documentElement.lang = getLang();

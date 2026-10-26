@@ -157,40 +157,18 @@ async function prepFarmerHomeShot(page) {
 }
 
 async function prepMapEnglish(page) {
-  // Translate place labels + chrome inside the village-map iframe (baked Cyrillic).
+  // Parent posts moo:lang; map applies EN chrome + transliterated place labels.
   await page.evaluate(() => {
-    const map = {
-      'Нижнечуйское': 'Nizhny-Chuy',
-      'Гагарина': 'Gagarin St',
-      'Фрунзе': 'Frunze St',
-      'Новый квартал': 'New quarter',
-      'Детский сад': 'Kindergarten',
-      'Площадка': 'Playground',
-      'Футбольное поле': 'Football field',
-      'Всё село': 'Whole village',
-      'Повернуть': 'Rotate',
-      'Я здесь': "I'm here",
-    };
     const f = document.querySelector('#map3d');
-    if (!f || !f.contentDocument) return;
+    if (!f || !f.contentWindow) return;
+    try { f.contentWindow.postMessage({ type: 'moo:lang', lang: 'en' }, '*'); } catch {}
     const doc = f.contentDocument;
-    const w = f.contentWindow;
+    if (!doc) return;
     doc.documentElement.setAttribute('data-theme', 'light');
-    doc.documentElement.setAttribute('lang', 'en');
     const hint = doc.getElementById('hint');
     if (hint) hint.style.display = 'none';
-    const bar = doc.getElementById('bar');
-    if (bar) bar.style.display = 'none'; // hide map chrome so labels stay clean
-    for (const btn of doc.querySelectorAll('.tag')) {
-      const n = btn.textContent.trim();
-      if (map[n]) btn.textContent = map[n];
-    }
-    // Focus camera on the village center (outbreak + demo house cluster), then hide the long title tag
-    const village = [...doc.querySelectorAll('.tag')].find((t) => /Nizhny-Chuy|Нижнечуй/.test(t.textContent));
-    if (village) {
-      village.click(); // sets goal to village + zoom 2
-      village.style.visibility = 'hidden';
-    }
+    const village = [...doc.querySelectorAll('.tag')].find((t) => /Nizhny|Нижнечуй|Nizhnechuys/i.test(t.textContent));
+    if (village) village.click();
   });
   await page.waitForTimeout(1400);
 }
@@ -252,8 +230,16 @@ async function main() {
     if (lost < 1) throw new Error('expected lost trophy');
     await shot(page, 'trophies.png');
 
-    // 4) Vet map
+    // 4b) Vet Today (queue) — extra shot for localization report
     await ensureVet(page);
+    await page.locator('[data-go="vtoday"]').click().catch(() => {});
+    await page.waitForTimeout(800);
+    await clearToasts(page);
+    await forceLight(page);
+    await page.addStyleTag({ content: '#toasts { display: none !important; }' });
+    await shot(page, 'vet-today.png');
+
+    // 4) Vet map
     await page.locator('[data-go="map"]').click();
     await page.waitForTimeout(2800);
     await page.evaluate(() => {

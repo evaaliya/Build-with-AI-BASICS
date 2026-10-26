@@ -1,6 +1,7 @@
 // Moo — demo data. User-visible copy uses i18n keys (no mixed languages).
 
 import { animalStatus } from './logic.js';
+import { demoAnimalMeta } from './demo-content.js';
 
 export const VET = {
   id: 'vet-nurlan',
@@ -43,36 +44,37 @@ export function vaccinationStatus(a, now = Date.now()) {
 /**
  * Fixed fictional herd for "Try demo" only.
  * Dates are relative to load time so status colors stay correct.
- * validUntil = vaccination date + 365 days; color comes from animalStatus().
- * Four photos → green / yellow / orange / red (no second green / never).
+ * Names/breeds/notes follow the current UI language.
  */
 export function demoAnimals(ownerId) {
+  const meta = (tag) => demoAnimalMeta(tag) || { name: tag, breed: '', healthNote: '' };
+  const z = meta('KG-0001');
+  const b = meta('KG-0002');
+  const k = meta('KG-0003');
+  const r = meta('KG-0004');
   return [
     {
-      // green (ok): ~70 days left
-      ownerId, name: 'Зорька', type: 'cow', breed: 'Алатау', tagNumber: 'KG-0001',
+      ownerId, name: z.name, type: 'cow', breed: z.breed, tagNumber: 'KG-0001',
       photo: 'img/demo-zorka.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
         { id: 'v1', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-295), validUntil: daysFromNow(70), status: 'verified', note: '' },
       ],
       health: [
-        { id: 'h1', type: 'milk', date: daysFromNow(-2), note: 'Удой 18 л', value: 18 },
+        { id: 'h1', type: 'milk', date: daysFromNow(-2), note: z.healthNote, value: 18 },
       ],
     },
     {
-      // yellow (soon): ~18 days left → reminder banner
-      ownerId, name: 'Бурёнка', type: 'cow', breed: 'Голштин', tagNumber: 'KG-0002',
+      ownerId, name: b.name, type: 'cow', breed: b.breed, tagNumber: 'KG-0002',
       photo: 'img/demo-burenka.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
         { id: 'v2', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-347), validUntil: daysFromNow(18), status: 'verified', note: '' },
       ],
       health: [
-        { id: 'h2', type: 'milk', date: daysFromNow(-1), note: 'Удой 15 л', value: 15 },
+        { id: 'h2', type: 'milk', date: daysFromNow(-1), note: b.healthNote, value: 15 },
       ],
     },
     {
-      // orange (urgent): ~4 days left → reminder banner
-      ownerId, name: 'Каракат', type: 'horse', breed: 'Кыргызская', tagNumber: 'KG-0003',
+      ownerId, name: k.name, type: 'horse', breed: k.breed, tagNumber: 'KG-0003',
       photo: 'img/demo-karakat.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
         { id: 'v3', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-361), validUntil: daysFromNow(4), status: 'verified', note: '' },
@@ -80,14 +82,13 @@ export function demoAnimals(ownerId) {
       health: [],
     },
     {
-      // red (overdue): expired ~30 days ago → lost trophy
-      ownerId, name: 'Керемет', type: 'sheep', breed: 'Гиссар', tagNumber: 'KG-0004',
+      ownerId, name: r.name, type: 'sheep', breed: r.breed, tagNumber: 'KG-0004',
       photo: 'img/demo-keremet.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
         { id: 'v4', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-395), validUntil: daysFromNow(-30), status: 'verified', note: '' },
       ],
       health: [
-        { id: 'h4', type: 'note', date: daysFromNow(-5), note: 'Аппетит в норме', value: null },
+        { id: 'h4', type: 'note', date: daysFromNow(-5), note: r.healthNote, value: null },
       ],
     },
   ];

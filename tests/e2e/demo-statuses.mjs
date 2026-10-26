@@ -123,7 +123,7 @@ async function main() {
     // Seed flag + local animals only under demo
     const seedInfo = await page.evaluate(() => ({
       demo: localStorage.getItem('moo_demo_mode'),
-      seeded: localStorage.getItem('moo_demo_seeded_v3'),
+      seeded: localStorage.getItem('moo_demo_seeded_v4') || localStorage.getItem('moo_demo_seeded_v3'),
       animalKeys: Object.keys(localStorage).filter((k) => /animal/i.test(k)),
     }));
     assert.equal(seedInfo.demo, '1');

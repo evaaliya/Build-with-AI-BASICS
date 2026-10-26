@@ -152,6 +152,7 @@ Activity mode: recap / prior practice connected
 
 ## Revisions
 
+- **English demo + map UI localization** — demo farmers/animals/feed/chats and the 3D map chrome follow `moo_lang` (ru/ky/en); English uses Latin names and transliterated place labels; outbreak tags no longer overlap when zoomed out (`app/demo-content.js`, `app/village-map.html`, `tests/e2e/en-no-cyrillic.mjs`).
 - **Local-first storage instead of Firebase** — the spec assumed a Firebase backend, but the build made the data layer `localStorage`-only so the POC runs with zero setup and is verifiable without keys. Firebase is the documented multi-user swap-in (`README.md`, `spec.md > What Was Simplified and Why`).
 - **Single-camera handoff between views** — phones allow only one active camera, so `show()` stops one view's camera before starting another (`app/app.js`).
 - **Shell/integration briefly stuck mid-build** — recovered; all slices committed and pushed to GitHub.

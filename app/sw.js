@@ -1,5 +1,5 @@
 // Moo — service worker: network-first offline + Web Push for vaccination reminders.
-const CACHE = 'moo-v34';
+const CACHE = 'moo-v35';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
   './app.js',
   './store.js',
   './mock.js',
+  './demo-content.js',
   './logic.js',
   './camera.js',
   './recognition.js',
@@ -70,7 +71,7 @@ self.addEventListener('fetch', (e) => {
 
 // Vaccination reminders (payload from app or future push server).
 self.addEventListener('push', (e) => {
-  let data = { title: 'Moo', body: 'Напоминание о прививке' };
+  let data = { title: 'Moo', body: 'Vaccination reminder' };
   try {
     if (e.data) data = { ...data, ...e.data.json() };
   } catch {
