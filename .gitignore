@@ -229,4 +229,9 @@ __marimo__/
 /export.geojson
 /moo-glass-kit
 
-.DB_Store
+# macOS Finder noise
+.DS_Store
+**/.DS_Store
+
+# Playwright / e2e generated screenshots (recreate with tests/e2e/*.mjs)
+tests/screens/
