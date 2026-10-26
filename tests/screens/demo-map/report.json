@@ -1,0 +1,61 @@
+{
+  "placement": {
+    "ok": true,
+    "fails": [],
+    "mix": {
+      "overdue": 3,
+      "ok": 6,
+      "soon": 3,
+      "urgent": 2,
+      "never": 2
+    }
+  },
+  "screens": [
+    "vet-map-all-light.png",
+    "vet-map-filter-overdue-light.png",
+    "vet-map-filter-soon-light.png",
+    "vet-map-filter-ok-light.png",
+    "vet-map-filter-all-light.png",
+    "vet-map-all-dark.png"
+  ],
+  "console": [],
+  "farmerClean": true,
+  "iframeOverlay": {
+    "ok": true,
+    "canvas": true,
+    "houseCount": 16,
+    "outbreakLabels": [
+      "Ящур · 2",
+      "Ящур · 1",
+      "Бруцеллёз · 1"
+    ],
+    "sample": [
+      {
+        "id": 0,
+        "status": "overdue",
+        "x": -15.45,
+        "z": 10.22,
+        "sx": -15.45,
+        "sz": 10.22
+      },
+      {
+        "id": 1,
+        "status": "ok",
+        "x": -15.86,
+        "z": 5.34,
+        "sx": -15.86,
+        "sz": 5.34
+      },
+      {
+        "id": 2,
+        "status": "overdue",
+        "x": -17.25,
+        "z": 14.28,
+        "sx": -17.25,
+        "sz": 14.28
+      }
+    ],
+    "demoFlag": "1",
+    "reason": "village-map loaded"
+  }
+}

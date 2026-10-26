@@ -11,7 +11,7 @@ import {
 import { t, setLang, getLang, applyI18n, LANGS, plLang } from './i18n.js';
 import {
   isDemoRoleSwitchEnabled, getRole, setDemoRole, isVet,
-  outbreaksFor, sendMapOverlay, HOUSE_PINS, vt, DEMO_MODE_KEY,
+  outbreaksFor, sendMapOverlay, housePinsForOverlay, DEMO_OUTBREAKS, vt, DEMO_MODE_KEY,
 } from './vet.js';
 import { resolveAppRole, authErrorKey, isDemoModeFlag } from './auth-logic.js';
 import { demoAnimals, vaccinationStatus, daysFromNow } from './mock.js';
@@ -107,26 +107,64 @@ import * as supabase from './supabase.js';
     never: { w: 3, col: '#cfd8dc', name: t('lvNever') },
     overdue: { w: 4, col: '#ff4a3d', name: t('lvOverdue') }
   });
+  // Demo village farmers: house id = DEMO_HOUSE_PINS id. Mix: 6 ok, 3 soon, 2 urgent, 3 overdue, 2 never.
+  // me (house 0) = overdue — worst of demo animals Зорька/Бурёнка/Каракат/Керемет.
   const FARM = [
-    { id: 'n1', name: 'Бакыт Орозов', emoji: '🧑‍🌾', house: 0, all: 940, week: 300 },
-    { id: 'n2', name: 'Гульнара Сыдыкова', emoji: '👩‍🌾', house: 1, all: 820, week: 100 },
-    { id: 'n3', name: 'Талгат Мамытов', emoji: '🧑‍🌾', house: 2, all: 610, week: 200 },
-    { id: 'n4', name: 'Айгуль Касымова', emoji: '👩‍🌾', house: 3, all: 540, week: 0 },
-    { id: 'n5', name: 'Нурбек Турдубеков', emoji: '🧑‍🌾', house: 4, all: 330, week: 100 },
-    { id: 'n6', name: 'Мээрим Жумабаева', emoji: '👩‍🌾', house: 5, all: 210, week: 0 },
+    { id: 'n1', name: 'Бакыт Орозов', emoji: '🧑‍🌾', house: 1, all: 940, week: 300 },
+    { id: 'n2', name: 'Гульнара Сыдыкова', emoji: '👩‍🌾', house: 2, all: 820, week: 100 },
+    { id: 'n3', name: 'Талгат Мамытов', emoji: '🧑‍🌾', house: 3, all: 610, week: 200 },
+    { id: 'n4', name: 'Айгуль Касымова', emoji: '👩‍🌾', house: 4, all: 540, week: 0 },
+    { id: 'n5', name: 'Нурбек Турдубеков', emoji: '🧑‍🌾', house: 5, all: 330, week: 100 },
+    { id: 'n6', name: 'Мээрим Жумабаева', emoji: '👩‍🌾', house: 6, all: 210, week: 0 },
     { id: 'n7', name: 'Эрмек Садыков', emoji: '🧑‍🌾', house: 7, all: 90, week: 0 },
     { id: 'n8', name: 'Жылдыз Абдыкадырова', emoji: '👩‍🌾', house: 8, all: 480, week: 100 },
-    { id: 'n9', name: 'Данияр Кубатов', emoji: '🧑‍🌾', house: 9, all: 150, week: 0 }
+    { id: 'n9', name: 'Данияр Кубатов', emoji: '🧑‍🌾', house: 9, all: 150, week: 0 },
+    { id: 'n10', name: 'Айнура Бекова', emoji: '👩‍🌾', house: 10, all: 400, week: 80 },
+    { id: 'n11', name: 'Самат Исаков', emoji: '🧑‍🌾', house: 11, all: 360, week: 40 },
+    { id: 'n12', name: 'Асель Рыскулова', emoji: '👩‍🌾', house: 12, all: 290, week: 20 },
+    { id: 'n13', name: 'Кубанычбек Тойчуев', emoji: '🧑‍🌾', house: 13, all: 270, week: 10 },
+    { id: 'n14', name: 'Чолпон Алымкулова', emoji: '👩‍🌾', house: 14, all: 80, week: 0 },
+    { id: 'n15', name: 'Улан Жеенбеков', emoji: '🧑‍🌾', house: 15, all: 310, week: 50 }
   ];
-  const ME = { id: 'me', name: 'Айбек Токтогулов', emoji: '👨‍🌾', house: 6 };
-  const DUES = { n1: [340, 280, 200, 150, 361, 120], n2: [300, 250, 220, 180, 90, 45, 12, 5, -20], n3: [330, 260, 100, 28, -8], n4: [200, 150, 60, 25, 10, -15, null], n5: [310, 150, 22, -40, null, null], n6: [250, 18, null, -5], n7: [null, null, -60], n8: [350, 359, 15, 6, -3], n9: [200, 10, null, null] };
+  const ME = { id: 'me', name: 'Айбек Токтогулов', emoji: '👨‍🌾', house: 0 };
+  // dues relative to S.today → animalStatus colors that match DEMO_HOUSE_PINS statuses
+  const DUES = {
+    n1: [340, 280, 200],
+    n2: [300, -22],
+    n3: [330, 18],
+    n4: [200, 5],
+    n5: [310, -35],
+    n6: [250, 22],
+    n7: [null, null],
+    n8: [350, 3],
+    n9: [200, 12],
+    n10: [280, 200],
+    n11: [300, 150],
+    n12: [320, 180],
+    n13: [290, 100],
+    n14: [null],
+    n15: [310, 220]
+  };
   const POOL = ['Алтын', 'Ак-Кыз', 'Сары', 'Тору', 'Боз', 'Кара', 'Аргымак', 'Лейла', 'Майя'];
   const HOUSES = [[60, 70], [112, 112], [150, 58], [232, 98], [292, 66], [70, 168], [200, 162], [262, 204], [112, 244], [314, 252]];
-  const OUT = () => [
-    { x: 112, y: 112, d: t('fmd'), c: 2, s: t('sector3') },
-    { x: 232, y: 98, d: t('brucellosis'), c: 1, s: t('sector3') },
-    { x: 262, y: 204, d: t('deaths'), c: 1, s: t('sector5') }
-  ];
+  const OUT = () => {
+    if (isDemoModeFlag()) {
+      return DEMO_OUTBREAKS.map((o) => ({
+        x: o.sx, y: o.sz, d: shortOutbreakLabel(o), c: o.cases, s: t(o.sectorKey || 'sector3'),
+      }));
+    }
+    return [
+      { x: 112, y: 112, d: t('fmd'), c: 2, s: t('sector3') },
+      { x: 232, y: 98, d: t('brucellosis'), c: 1, s: t('sector3') },
+      { x: 262, y: 204, d: t('deaths'), c: 1, s: t('sector5') }
+    ];
+  };
+  function shortOutbreakLabel(o) {
+    // Short so 3D tags are not clipped at the phone edge
+    const key = o.diseaseKey || 'fmd';
+    const short = key === 'fmd' ? t('fmd') : key === 'brucellosis' ? t('brucellosis') : t('deaths');
+    return short + ' · ' + o.cases;
+  }
   const SEGS = () => [['overdue', t('segOverdue'), '🔴'], ['urgent', t('segUrgent'), '🟠'], ['soon', t('segSoon'), '🟡'], ['never', t('segNever'), '⚪'], ['all', t('segAll'), '🏡']];
   const TPL = () => ({
     overdue: t('tplOverdue'), urgent: t('tplUrgent'), soon: t('tplSoon'), never: t('tplNever'), all: t('tplAll')
@@ -618,22 +656,43 @@ import * as supabase from './supabase.js';
     if (S.role !== 'vet') return [];
     const owners = {};
     farmers().forEach((f) => { owners[f.house] = f; });
-    return HOUSE_PINS.map((pin) => {
+    const pins = housePinsForOverlay();
+    return pins.map((pin) => {
       const f = owners[pin.id];
-      const status = f ? worst(f) : 'never';
-      return { id: pin.id, status, lat: pin.lat, lng: pin.lng, dim: f ? !housePass(f) : true };
+      // Demo pins carry intended status; still prefer live worst() when farmer animals exist.
+      const status = f ? worst(f) : (pin.status || 'never');
+      return {
+        id: pin.id,
+        status,
+        lat: pin.lat,
+        lng: pin.lng,
+        sx: pin.sx,
+        sz: pin.sz,
+        dim: f ? !housePass(f) : !demoStatusPass(status),
+      };
     });
+  }
+
+  function demoStatusPass(status) {
+    if (S.mf === 'all') return true;
+    if (S.mf === 'bad') return status === 'overdue' || status === 'never';
+    if (S.mf === 'soon') return status === 'soon' || status === 'urgent';
+    if (S.mf === 'ok') return status === 'ok';
+    if (S.mf === 'recent') return status === 'ok' || status === 'soon' || status === 'urgent';
+    return true;
   }
 
   function buildOutbreakOverlayList() {
     if (S.role !== 'vet') return [];
-    const labels = OUT();
-    return outbreaksFor({ role: 'vet' }).map((o, i) => ({
+    return outbreaksFor({ role: 'vet' }).map((o) => ({
       id: o.id,
-      disease: (labels[i] && labels[i].d) || o.diseaseKey,
+      disease: shortOutbreakLabel(o),
       cases: o.cases,
       lat: o.lat,
       lng: o.lng,
+      sx: o.sx,
+      sz: o.sz,
+      radius: o.radius,
       x: o.x,
       y: o.y,
     }));

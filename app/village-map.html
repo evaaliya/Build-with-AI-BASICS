@@ -253,18 +253,24 @@ function clearOutbreaks(){
   while(outbreakGroup.children.length)outbreakGroup.remove(outbreakGroup.children[0]);
   outbreakLabels.forEach(el=>{try{el.remove()}catch(_){}});outbreakLabels.length=0;
 }
+function overlayXZ(o){
+  // Prefer scene coords (sx/sz) when provided — lands exactly on building centroids.
+  if(o.sx!=null&&o.sz!=null)return [o.sx,o.sz];
+  if(o.lng!=null&&o.lat!=null)return toScene(o.lng,o.lat);
+  if(o.x!=null&&o.y!=null)return toScene(D.lon0+(o.x-180)/D.kx*0.02,D.lat0-(o.y-155)/D.kz*0.02);
+  return null;
+}
 function setOutbreaks(list){
   clearOutbreaks();
   (Array.isArray(list)?list:[]).forEach(o=>{
-    let x,z;
-    if(o.lng!=null&&o.lat!=null){[x,z]=toScene(o.lng,o.lat)}
-    else if(o.x!=null&&o.y!=null){[x,z]=toScene(D.lon0+(o.x-180)/D.kx*0.02,D.lat0-(o.y-155)/D.kz*0.02)}
-    else return;
+    const xz=overlayXZ(o);if(!xz)return;
+    const [x,z]=xz;
+    const R0=typeof o.radius==='number'?o.radius:2.4;
     const g=new THREE.Group();g.position.set(x,BY,z);
-    const zone=new THREE.Mesh(new THREE.CircleGeometry(2.4,28),
+    const zone=new THREE.Mesh(new THREE.CircleGeometry(R0,28),
       new THREE.MeshBasicMaterial({color:0xff4a3d,transparent:true,opacity:.22,side:THREE.DoubleSide}));
     zone.rotation.x=-Math.PI/2;zone.position.y=.03;g.add(zone);
-    const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.3,28),
+    const ring=new THREE.Mesh(new THREE.RingGeometry(Math.max(.45,R0*.55),Math.max(.7,R0*.85),28),
       new THREE.MeshBasicMaterial({color:0xff4a3d,transparent:true,opacity:.55,side:THREE.DoubleSide}));
     ring.rotation.x=-Math.PI/2;ring.position.y=.04;g.add(ring);
     const pole=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,1.7,8),M('#ff4a3d'));
@@ -273,9 +279,11 @@ function setOutbreaks(list){
     cap.position.y=1.8;cap.castShadow=true;g.add(cap);
     g.userData.ring=ring;outbreakGroup.add(g);
     if(o.disease){
-      const lab=document.createElement('div');lab.className='tag sub';lab.textContent=o.disease+(o.cases?' · '+o.cases:'');
+      // Disease string may already include " · N" from the parent — avoid double cases.
+      const lab=document.createElement('div');lab.className='tag sub';
+      lab.textContent=/·/.test(String(o.disease))?String(o.disease):(o.disease+(o.cases?' · '+o.cases:''));
       lab.style.pointerEvents='none';document.body.appendChild(lab);
-      outbreakLabels.push(lab);g.userData.label=lab;g.userData.labelY=3.2;
+      outbreakLabels.push(lab);g.userData.label=lab;g.userData.labelY=3.4;
     }
   });
 }
@@ -283,14 +291,15 @@ function clearHouseOverlays(){while(houseOverlayGroup.children.length)houseOverl
 function setHouseOverlays(houses){
   clearHouseOverlays();
   (Array.isArray(houses)?houses:[]).forEach(h=>{
-    if(h.lat==null||h.lng==null)return;
-    const [x,z]=toScene(h.lng,h.lat);
+    const xz=overlayXZ(h);if(!xz)return;
+    const [x,z]=xz;
     const col=STATUS_COL[h.status]||STATUS_COL.never;
     const g=new THREE.Group();g.position.set(x,BY,z);g.userData.houseId=h.id;
-    const marker=new THREE.Mesh(new THREE.SphereGeometry(.55,12,10),new THREE.MeshBasicMaterial({color:col}));
-    marker.position.y=2.4;g.add(marker);
+    // Roof-height marker (above ordinary house wall+roof ≈ 2.0–2.6 above BY)
+    const marker=new THREE.Mesh(new THREE.SphereGeometry(.5,12,10),new THREE.MeshBasicMaterial({color:col}));
+    marker.position.y=typeof h.roofY==='number'?h.roofY:2.55;g.add(marker);
     if(h.status==='never'||h.status==='overdue'){
-      const outline=new THREE.Mesh(new THREE.RingGeometry(.7,.95,20),
+      const outline=new THREE.Mesh(new THREE.RingGeometry(.55,.78,20),
         new THREE.MeshBasicMaterial({color:0xff4a3d,side:THREE.DoubleSide,transparent:true,opacity:.9}));
       outline.rotation.x=-Math.PI/2;outline.position.y=.06;g.add(outline);
     }
@@ -300,9 +309,15 @@ function setHouseOverlays(houses){
 }
 function applyOverlay(m){
   // Farmers: never apply status/outbreak data even if somehow present
-  if(!m||m.role!=='vet'){clearOutbreaks();clearHouseOverlays();return}
+  if(!m||m.role!=='vet'){clearOutbreaks();clearHouseOverlays();window.__mooOverlay=null;return}
   setHouseOverlays(m.houses||[]);
   setOutbreaks(m.outbreaks||[]);
+  // Debug snapshot for e2e (scene positions after placement)
+  window.__mooOverlay={
+    role:m.role,
+    houses:(m.houses||[]).map(h=>{const xz=overlayXZ(h);return{id:h.id,status:h.status,x:xz&&xz[0],z:xz&&xz[1],sx:h.sx,sz:h.sz}}),
+    outbreaks:(m.outbreaks||[]).map(o=>{const xz=overlayXZ(o);return{id:o.id,disease:o.disease,x:xz&&xz[0],z:xz&&xz[1],sx:o.sx,sz:o.sz}}),
+  };
 }
 function onFix(lon,lat){
   const [x,z]=toScene(lon,lat);if(Math.abs(x)>HX||Math.abs(z)>HZ)return;
@@ -418,9 +433,14 @@ function loop(){
   outbreakGroup.children.forEach((g,i)=>{
     const s=1+Math.sin(t*3+i)*.18;if(g.userData.ring)g.userData.ring.scale.set(s,s,s);
     if(g.userData.label){
-      v3.set(g.position.x,g.userData.labelY||3.2,g.position.z).project(cam);
+      v3.set(g.position.x,g.userData.labelY||3.4,g.position.z).project(cam);
       const st=g.userData.label.style;
-      st.left=(v3.x*.5+.5)*innerWidth+'px';st.top=(-v3.y*.5+.5)*innerHeight+'px';
+      // Clamp so Cyrillic tags are never cut off at the phone edge
+      const pad=14;
+      let lx=(v3.x*.5+.5)*innerWidth, ly=(-v3.y*.5+.5)*innerHeight;
+      lx=Math.max(pad,Math.min(innerWidth-pad,lx));
+      ly=Math.max(pad+10,Math.min(innerHeight-pad,ly));
+      st.left=lx+'px';st.top=ly+'px';
       st.display=v3.z<1?'':'none';
     }
   });
