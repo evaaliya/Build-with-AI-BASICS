@@ -10,9 +10,14 @@ Livestock biosecurity PWA — digital vet passports, FMD vaccination deadlines, 
 
 ## Screenshots
 
-| Auth | Farmer home | Vet map | Trophies |
-| --- | --- | --- | --- |
-| ![Auth screen with What is Moo welcome](docs/screenshots/auth.png) | ![Farmer home with vaccination statuses](docs/screenshots/farmer-home.png) | ![Vet 3D map with house statuses](docs/screenshots/vet-map.png) | ![Trophy shelf](docs/screenshots/trophies.png) |
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/auth.png" width="200" alt="Auth screen with the What is Moo welcome block"><br><sub>Sign in</sub></td>
+    <td align="center"><img src="docs/screenshots/farmer-home.png" width="200" alt="Farmer home with four demo animals and status chips"><br><sub>Farmer home</sub></td>
+    <td align="center"><img src="docs/screenshots/vet-map.png" width="200" alt="Vet map with house markers and outbreak rings"><br><sub>Vet map</sub></td>
+    <td align="center"><img src="docs/screenshots/trophies.png" width="200" alt="Trophies tab with active trophies and one lost"><br><sub>Trophies</sub></td>
+  </tr>
+</table>
 
 ## Table of contents
 
