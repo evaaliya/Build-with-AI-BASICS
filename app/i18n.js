@@ -9,9 +9,9 @@ const STRINGS = {
     ky: 'Moo ар бир жаныбардын эмдөө мөөнөтүн сактап, бүтөөрүнөн мурун эскертет.'
   },
   welcomeStatus: {
-    en: "Farmers: see each animal's status (green / yellow / red), get reminders 30, 7 and 1 days before the deadline.",
-    ru: 'Фермерам: статус каждого животного (зелёный / жёлтый / красный) и напоминания за 30, 7 и 1 день до срока.',
-    ky: 'Фермерлерге: ар бир жаныбардын статусу (жашыл / сары / кызыл) жана мөөнөттөн 30, 7 жана 1 күн мурун эскертме.'
+    en: "Farmers: see each animal's status (green / yellow / orange / red / grey), get reminders 30, 7 and 1 days before the deadline.",
+    ru: 'Фермерам: статус каждого животного (зелёный / жёлтый / оранжевый / красный / серый) и напоминания за 30, 7 и 1 день до срока.',
+    ky: 'Фермерлерге: ар бир жаныбардын статусу (жашыл / сары / кызгылт сары / кызыл / боз) жана мөөнөттөн 30, 7 жана 1 күн мурун эскертме.'
   },
   welcomeBook: {
     en: 'Book a visit with the village vet and see your place in the queue.',

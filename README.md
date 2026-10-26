@@ -184,9 +184,9 @@ Additional scripts (run with `node`):
 - `e2e/demo-statuses.mjs` — status colors → `tests/screens/demo-statuses/`
 - `e2e/demo-map-placement.mjs` — demo map pins on houses → `tests/screens/demo-map/`
 
-Reports: `tests/TEST-REPORT.md` … `tests/TEST-REPORT-4.md`. Screenshots also under `tests/screens/`.
+Reports: `tests/TEST-REPORT.md` … `tests/TEST-REPORT-4.md`. Playwright writes generated screenshots under `tests/screens/` (gitignored; recreated by the e2e scripts). README images live in `docs/screenshots/`.
 
-**What the runs found:** two critical RLS holes — clients could self-promote to `vet`, and neighbours could read vaccination history — fixed with `protect_profile_role` and `animals_public` (see `tests/TEST-REPORT.md`, `tests/rls-fixes-proposed.sql`, `schema-v4-vet-code.sql`).
+**What the runs found:** two critical RLS holes — clients could self-promote to `vet`, and neighbours could read vaccination history — fixed with `protect_profile_role` and `animals_public` (see `tests/TEST-REPORT.md`, working SQL in `schema-v4-vet-code.sql`).
 
 ## Deployment
 

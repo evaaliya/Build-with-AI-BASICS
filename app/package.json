@@ -2,7 +2,7 @@
   "name": "moo",
   "private": true,
   "type": "module",
-  "description": "Moo — identify a stray cow, sheep, or horse by its face and find its owner.",
+  "description": "Moo — livestock vaccination biosecurity PWA (digital vet passports, booking, verified trophies).",
   "scripts": {
     "start": "python3 -m http.server 8000 --bind 127.0.0.1"
   }
