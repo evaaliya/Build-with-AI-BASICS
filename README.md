@@ -1,160 +1,299 @@
 # Moo 🐄
 
-> Livestock biosecurity & digital vet passports for a village — vaccination tracking, a veterinarian hotline, and outbreak awareness.
+Livestock biosecurity PWA — digital vet passports, FMD vaccination deadlines, booking with the village vet, and trophies only for vet-confirmed vaccinations.
 
-**Moo** is a mobile-first progressive web app (PWA) that helps smallholders protect their herds. It keeps a **digital vet passport** for every animal (ear tag, vaccination history, next re-vaccination date, milk/expense/illness log), flags **Foot-and-Mouth Disease (Ящур)** vaccination status at a glance (green = protected, yellow = due, red = overdue), gives direct access to a **private chat with the village veterinarian**, rewards on-time vaccination with **trophies**, and shows **outbreak markers** on a village map (vet only).
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![PWA](https://img.shields.io/badge/PWA-yes-1e4d2b.svg)
+![Stack](https://img.shields.io/badge/stack-vanilla%20JS%20%7C%20Supabase%20%7C%20TF.js%20%7C%20Three.js-informational.svg)
 
-The UI is a glassmorphism layer over painted meadow backdrops (one per tab). It also keeps the original muzzle-recognition feature: point the camera at an animal's muzzle (nose pad) to identify it and its owner.
+**Live demo:** [https://mooo-nine.vercel.app](https://mooo-nine.vercel.app) — tap **Try demo (no account)**. All users and animals in the demo are fictional.
 
-Built as a proof of concept for the **Build with AI: Basics** hackathon.
+## Screenshots
 
-## The 90-second demo
+| Auth | Farmer home | Vet map | Trophies |
+| --- | --- | --- | --- |
+| ![Auth screen with What is Moo welcome](docs/screenshots/auth.png) | ![Farmer home with vaccination statuses](docs/screenshots/farmer-home.png) | ![Vet 3D map with house statuses](docs/screenshots/vet-map.png) | ![Trophy shelf](docs/screenshots/trophies.png) |
 
-1. Open the app → **auth screen** (Sign in / Sign up / Try demo) with a short "What is Moo?" welcome. Tap **Try demo (no account)** for a seeded farm, or sign in with email/password.
-2. **Home / Animals** — FMD status badges (green / yellow / red); book a vaccination slot and see your queue number.
-3. **Feed** — categorized posts and open reception slots.
-4. **Chat** — private conversation with the village veterinarian.
-5. **Rating / trophies** — trophies and points appear only after the vet confirms a vaccination; reminders at 30 / 7 / 1 days.
-6. **Map** — 3D village map; house statuses and outbreak markers appear only for the vet role.
-7. **Profile** — personal cabinet; demo mode can switch farmer ↔ vet in the header.
+## Table of contents
 
-Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
+1. [What it does](#what-it-does)
+2. [How it works](#how-it-works)
+3. [Roles and permissions](#roles-and-permissions)
+4. [Security model](#security-model)
+5. [Getting started](#getting-started)
+6. [Demo mode](#demo-mode)
+7. [Testing](#testing)
+8. [Deployment](#deployment)
+9. [Recognition](#recognition)
+10. [3D village map](#3d-village-map)
+11. [Project structure](#project-structure)
+12. [i18n, PWA, accessibility](#i18n-pwa-accessibility)
+13. [Limitations and roadmap](#limitations-and-roadmap)
+14. [Devpost Learn Skill Pack](#built-with-the-devpost-learn-skill-pack)
+15. [License](#license)
 
-## Features
+## What it does
 
-- **Digital vet passport** — per animal: photo, ear tag, vaccination history, next re-vaccination date, and a health journal (milk yield, expenses, illness, death).
-- **Vaccination status (FMD)** — green `Protected` / yellow `Due` / red `Overdue`, shown on every animal card and on the scan plaque.
-- **Private vet chat** — a farmer's "Vet" tab is their own thread (`thread = farmer id`); the vet sees an **Appeals** inbox of all farmer threads. Village chat is no longer shown.
-- **Vet hotline & broadcasts** — pinned vet profile with an emergency call button and top-level broadcast alerts (e.g. scheduled FMD vaccination, quarantine).
-- **Village health stats** — aggregated suspected-FMD / brucellosis / deaths / vaccinated-this-week counts.
-- **Outbreak map (vet only)** — red outbreak markers appear only after the vet role is enabled.
-- **Rewards** — trophies and points only for vaccinations confirmed by the vet (`verified`); reminders at 30 / 7 / 1 days; a trophy is lost if a vaccination lapses.
-- **Categorized feed** — feed & hay, machinery & herders, quarantine, and lost & found.
-- **Muzzle recognition** — register with 3–5 averaged frames; later scans identify the animal and owner (honest matching + species gate).
-- **i18n** — Russian (default), Kyrgyz, English; light/dark + glass theme.
+### Farmer
 
-## Vet role
+- Digital vet passport per animal (photo, ear tag, vaccination history, health journal).
+- FMD status at a glance: green / yellow / orange / red / grey (`ok` / `soon` / `urgent` / `overdue` / `never`).
+- Reminders at 30 / 7 / 1 days before expiry; book a reception slot and get a queue number.
+- Private chat with the vet; village feed; muzzle scan to identify an animal; trophies only after vet confirmation.
 
-Everyone signs up with email/password. Choosing "I am a veterinarian" on Sign up also asks for a license photo and an individual access code. Applications are stored for admin review; until approved, the account stays on the farmer cabinet. Roles live in `profiles.role` (`farmer` / `vet` / `admin`), not a client-side flag.
+### Vet
 
-Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
+- Today queue (mark Vaccinated / No-show); publish slots; segment broadcasts; farmer chats; village stats.
+- 3D map with house vaccination colors and outbreak markers (vet only).
 
-## How the recognition works (and how we measured it)
+### Admin (project owner)
 
-There is no free "animal Face ID" API. Moo uses a **MobileNet v2** model (TensorFlow.js) that runs in the browser and turns a close-up of the muzzle/nose pad into a 1280-number embedding — its "fingerprint." Livestock nose-print has long been used as a biometric, so we ask for a close-up.
+- Reviews pending vet applications (approve → `profiles.role = vet`, or reject).
 
-- **Registration** averages 3–5 frames into one fingerprint for stability.
-- **Species gate** — `mobilenet.classify` labels the image; if it disagrees strongly with the chosen type we warn, and at scan time we only compare against the detected species.
-- **Match rule** — cosine similarity must be ≥ **threshold** *and* the best candidate must be ≥ **margin** above the second-best. Below threshold we show no phone and instead offer "publish to feed."
+### Vet application (once)
 
-Current shipped thresholds (see `app/recognition.js`), measured on **real animal muzzle photos** (one cow + other livestock), not village scenery:
+Everyone signs up with email + password. Choosing “I am a veterinarian” also requires a license photo and an individual access code issued by the project owner. The Edge Function checks the code server-side; the admin reviews the application manually until the project receives funding. Until approved, the account uses the farmer cabinet with an under-review banner.
 
-| Constant | Value | Meaning |
-| --- | --- | --- |
-| `MATCH_THRESHOLD` | 0.53 | cosine similarity required for "found it" |
-| `MATCH_MARGIN` | 0.05 | best candidate must beat 2nd best by this |
-| `SPECIES_CONFIDENCE` | 0.35 | `mobilenet.classify` score to trust the species |
-| `FRAMES_TO_CAPTURE` | 3 | frames averaged at registration |
+## How it works
 
-### Calibration run (animal photos)
+```mermaid
+flowchart LR
+  Browser["Browser PWA\n(vanilla JS)"]
+  Vercel["Vercel\n(static app/)"]
+  SB["Supabase\nAuth · Postgres+RLS\nStorage · Edge Function"]
+  Map["Three.js map\n(iframe)"]
+  TF["TensorFlow.js\nMobileNet in browser"]
 
-Photos: **6** of the **same cow** (different angles), **5** of **other animals**.
+  Browser --> Vercel
+  Browser --> SB
+  Browser --> Map
+  Browser --> TF
+```
 
-| Distribution | n | min | median | mean | max |
-| --- | --- | --- | --- | --- | --- |
-| Genuine (same animal) | 15 | 0.5192 | 0.6552 | 0.6572 | 0.9004 |
-| Impostor (different) | 30 | 0.2997 | 0.4174 | 0.4170 | 0.5205 |
+**Core flow:** farmer books a slot → gets a queue number → vet marks Vaccinated → a `verified` vaccination is written → status turns green and a trophy / points are awarded. Self-mark is `claimed` only and awards zero points.
 
-Tool midpoint was ~0.520 with gap ≈ 0 (tails touch). Shipped **0.53 / 0.05** — slightly above impostor max so a different cow is less likely to win. Re-run `tools/calibrate.html` with more animal photos anytime.
+## Roles and permissions
 
-### What we learned about MobileNet (limitations)
+Derived from RLS policies in `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`.
 
-MobileNet is an image **classifier**, not a face-ID/metric model. Its embeddings cluster by *category*, so two different cows can be closer than the same cow under different lighting/angle. We measured this and counter it with (1) a species classification gate, (2) a high similarity threshold, (3) a required margin over the runner-up, and (4) averaging multiple frames. The honest result: it works for a village-scale demo, not for a national registry.
+| Resource | Farmer | Vet | Admin |
+| --- | --- | --- | --- |
+| Own profile | read/write (role change blocked) | same | same |
+| `profiles.role` | cannot self-promote | cannot self-promote | set via `review_vet_application` or SQL |
+| Animals | CRUD own; read others via `animals_public` | same + see vaccinations/health | — |
+| Slots | read; book | create/update own | — |
+| Bookings | own read/insert/update | read/update all for slots | — |
+| Vaccinations | insert `claimed` for own animals | insert/update `verified` | — |
+| Broadcasts | read | insert | — |
+| Messages | village + own vet thread | all threads | — |
+| `vet_applications` | read own (insert via Edge Function only) | — | read + review |
+| `vet-licenses` Storage | upload/read own folder | — | read all |
+| Admin UI | — | — | pending applications |
 
-## Tech stack
+## Security model
 
-- Vanilla **JavaScript** (ES modules) — no build step.
-- **TensorFlow.js + MobileNet v2** — muzzle embeddings + species classification.
-- **Supabase** — Auth + Postgres (RLS) for animals, fingerprints, posts, messages, profiles (optional; see below).
-- **Three.js** — 3D village map in an iframe (`village-map.html`).
-- **PWA** — manifest + service worker (registered on boot; network-first cache).
+- **RLS** on every public table; anon cannot read sensitive rows (verified by `tests/rls/rls.mjs`).
+- **`animals_public` view** masks neighbour `notes` / `reminders`; `vaccinations` / `health` only for owner or vet (`schema-v4-vet-code.sql`).
+- **`protect_profile_role` trigger** forces new profiles to `farmer` and blocks client role changes unless `moo.allow_role_change` is set inside `review_vet_application`. Clients can never set `admin`.
+- **Vet invite code** lives only as Edge Function secret `VET_INVITE_CODE` (set in Supabase Dashboard → Edge Functions → Secrets). Compared with a constant-time check; failed attempts rate-limited (5 / hour) in `vet_code_attempts` (service role only).
+- **License photos** in private bucket `vet-licenses`.
+- **No secrets in the repo.** `app/supabase-config.js` holds the public project URL and publishable (anon) key; RLS protects data. Honest limits: animal photos are often data URLs in Postgres; outbreak pins are demo constants, not a table.
 
 ## Getting started
 
 ### Prerequisites
 
 - Python 3 (or any static file server).
-- A camera (phone or webcam); internet on first load (model + fonts).
+- Camera (phone or webcam) and internet on first load (MobileNet CDN + Supabase).
 
-### 1. Run locally
+### Run locally
 
 ```bash
 cd app
-python3 -m http.server 8000 --bind 127.0.0.1
+npm start
+# same as: python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open `http://localhost:8000`. You land on the auth screen; use **Try demo** or Sign up / Sign in. To open from a phone on the same Wi-Fi, drop `--bind 127.0.0.1` and visit `http://<your-mac-ip>:8000`.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Use **Try demo** or Sign up / Sign in.
 
-### 2. (Optional) Supabase for shared data across devices
+### Supabase setup
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. Apply migrations in order: `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql` (and deploy Edge Function `submit-vet-application`). Older `supabase/schema.sql` is a baseline only.
-3. Copy the **Project URL** and **publishable (anon) key** into `app/supabase-config.js`.
-4. Promote an admin in the SQL editor after that user signs up: `update public.profiles set role = 'admin' where id = '<uuid>';`. Vet access uses the application + invite-code path (a special code is issued by the project owner).
+Apply SQL in order (SQL editor or `psql`):
 
-If Supabase isn't configured, or its tables are missing, the app **automatically falls back to per-device `localStorage`** and demo mode.
+1. `supabase/schema.sql` — baseline (profiles, animals, posts, messages, activity_log) if the project is empty.
+2. `schema-v2.sql` — slots, bookings, vaccinations, broadcasts, `book_slot`, points trigger.
+3. `schema-v3-auth.sql` — admin role, `vet_applications`, `vet-licenses` bucket, `review_vet_application`, `protect_profile_role`.
+4. `schema-v4-vet-code.sql` — `vet_code_attempts`, drop client `submit_vet_application` RPC, `animals_public` masking.
+
+Deploy the Edge Function:
+
+```bash
+# from a machine with Supabase CLI linked to the project
+supabase functions deploy submit-vet-application
+```
+
+Set secret name `VET_INVITE_CODE` in the dashboard (value issued by the project owner — never commit it). Put the project URL and publishable anon key in `app/supabase-config.js`.
+
+Promote the first admin after that user signs up (SQL editor / service role):
+
+```sql
+update public.profiles set role = 'admin' where id = '<user-uuid>';
+```
+
+Without Supabase, or if tables are missing, `app/store.js` falls back to `localStorage`.
+
+### Config: public vs secret
+
+| Name | Where | Public? |
+| --- | --- | --- |
+| Supabase URL + anon/publishable key | `app/supabase-config.js` | Yes (browser) |
+| `VET_INVITE_CODE` | Edge Function secrets; documented in `.env.example` for local tests | No |
+| Service role key | Supabase only (Edge Function runtime) | No |
+
+## Demo mode
+
+**Try demo** sets `moo_demo_mode` and forces local mode — it never writes to Supabase.
+
+Seeded (fictional):
+
+- Four animals covering green / yellow / orange / red (`app/mock.js` `demoAnimals`, photos under `app/img/demo-*.jpg`).
+- One reception slot on the feed; farmer↔vet role switch in the header.
+- Vet map: 16 house pins on real building footprints + outbreaks (`app/vet.js` `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS`).
+
+## Testing
+
+From `tests/` (after `npm install` there):
+
+```bash
+cd tests
+npm install
+
+# Pure logic + auth helpers (no network)
+npm run unit
+
+# Supabase RLS (needs project + test users; no secrets printed)
+npm run rls
+
+# Playwright smoke against a local server (system Chrome; skips browser download)
+npm run e2e
+```
+
+Additional scripts (run with `node`):
+
+- `e2e/auth-welcome.mjs` — auth welcome block screenshots → `tests/screens/auth-welcome/`
+- `e2e/demo-statuses.mjs` — status colors → `tests/screens/demo-statuses/`
+- `e2e/demo-map-placement.mjs` — demo map pins on houses → `tests/screens/demo-map/`
+
+Reports: `tests/TEST-REPORT.md` … `tests/TEST-REPORT-4.md`. Screenshots also under `tests/screens/`.
+
+**What the runs found:** two critical RLS holes — clients could self-promote to `vet`, and neighbours could read vaccination history — fixed with `protect_profile_role` and `animals_public` (see `tests/TEST-REPORT.md`, `tests/rls-fixes-proposed.sql`, `schema-v4-vet-code.sql`).
+
+## Deployment
+
+Hosted on **Vercel** as static files from `app/` (live: [mooo-nine.vercel.app](https://mooo-nine.vercel.app)). There is no `vercel.json` in the repo — set the project Root Directory to `app` in the Vercel dashboard (or equivalent CLI link). Redeploy by pushing to the connected Git branch or triggering a dashboard redeploy.
+
+Service worker (`app/sw.js`, cache `moo-v33`) network-first caches the app shell, including `village-map.html` and `three.min.js`. It never falls back iframe navigations to `index.html` (avoids the offline “mirror tunnel”).
+
+## Recognition
+
+There is no free animal Face-ID API. Moo uses **MobileNet v2** (TensorFlow.js) in the browser: a muzzle close-up → 1280-number embedding. Registration averages frames; a species gate reduces cow/sheep/horse mix-ups; a match needs similarity ≥ threshold **and** margin over the second-best candidate.
+
+Constants in `app/recognition.js` (measured with `tools/calibrate.html` on real animal photos):
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `MATCH_THRESHOLD` | 0.53 | cosine similarity for “found it” |
+| `MATCH_MARGIN` | 0.05 | best must beat 2nd best |
+| `SPECIES_CONFIDENCE` | 0.35 | trust `mobilenet.classify` species |
+| `FRAMES_TO_CAPTURE` | 3 | frames averaged at registration |
+
+### Calibration (animal photos)
+
+Photos: **6** of the **same cow** (angles), **5** of **other animals**.
+
+| Distribution | n | min | median | mean | max |
+| --- | --- | --- | --- | --- | --- |
+| Genuine (same animal) | 15 | 0.5192 | 0.6552 | 0.6572 | 0.9004 |
+| Impostor (different) | 30 | 0.2997 | 0.4174 | 0.4170 | 0.5205 |
+
+Tails nearly touch (genuine min ≈ impostor max). Shipped **0.53 / 0.05** prefers fewer false IDs. Re-run `tools/calibrate.html` anytime.
+
+### Limitations
+
+MobileNet is a classifier, not a metric face model. Different individuals of the same species can be close in embedding space. The demo is honest for village scale, not a national registry.
 
 ## 3D village map
 
-The **Map** tab shows an interactive 3D village (Three.js, local `three.min.js`) inside an iframe (`app/village-map.html?nogps`). The app feeds the user's GPS position into it via `postMessage({type:'gps', lon, lat})` — throttled to once per second and only when the point moved more than 2 meters — and the map plots a marker plus a trail. The map ignores points outside the village frame (~2.4 × 2.9 km around `74.3485, 43.1919`).
+The Map tab loads `app/village-map.html` in an iframe (local `three.min.js`). The parent sends GPS via `postMessage({ type: 'gps', lon, lat })` and vet overlays via `moo:overlay` (`app/vet.js` `sendMapOverlay`). Farmers receive empty house/outbreak lists.
 
-To switch to a different village:
+To swap the village:
 
-1. Put the village's GeoJSON as `export.geojson` next to `prep village data.py`.
-2. Run `python3 "prep village data.py"` — it generates `data.json` (the `D` constant) and prints labels.
-3. Replace the `D = {…}` object in `app/village-map.html` with the generated data and update the labels/title as needed.
+1. Place GeoJSON as `export.geojson` next to `prep village data.py`.
+2. Run `python3 "prep village data.py"` → `data.json` (`D` constant).
+3. Replace `D = {…}` in `app/village-map.html` and update labels as needed.
 
 ## Project structure
 
 ```
-app/                  # the PWA
-├── index.html
-├── styles.css        # base design system (AgTech / Nature)
-├── glass.css         # glassmorphism layer + per-tab backgrounds (loaded after styles.css)
-├── img/              # background photos (home, feed, chat, map, rewards)
-├── app.js            # routing, state, features
-├── store.js          # Supabase (RLS) + localStorage fallback data layer
-├── mock.js           # demo data: vet, alerts, feed categories, map points, demo farm
-├── rewards.js        # trophies for vaccination
-├── vet.js            # veterinarian role + outbreak markers
-├── camera.js
-├── recognition.js    # MobileNet embeddings, species gate, matching
-├── supabase.js, supabase-config.js
-├── i18n.js, loader.js
-├── manifest.webmanifest, sw.js, icons/
+app/                          # PWA (Vercel root)
+├── index.html                # shell; auth-first; iframe nest guard
+├── styles.css                # design system (glass.css is a stub)
+├── app.js                    # routing, cabinets, auth UI, booking, vDone
+├── store.js                  # Supabase + localStorage; animals_public reads
+├── logic.js                  # status, points, booking pure helpers
+├── auth-logic.js             # roles, demo flag, map overlay builder
+├── rewards.js                # trophies / reminders for verified only
+├── recognition.js            # MobileNet embeddings + match constants
+├── vet.js                    # role helpers, demo/real map pins & outbreaks
+├── mock.js                   # demo animals + feed helpers
+├── camera.js, loader.js, i18n.js, supabase.js, supabase-config.js
+├── village-map.html, three.min.js
+├── sw.js, manifest.webmanifest, icons/, img/
+schema-v2.sql                 # slots, bookings, vaccinations, book_slot
+schema-v3-auth.sql            # admin, vet_applications, review RPC
+schema-v4-vet-code.sql        # invite-code path, animals_public
 supabase/
-└── schema.sql        # Postgres tables + Row Level Security (incl. vet chat)
+├── schema.sql                # baseline tables + RLS
+├── config.toml               # Edge Function verify_jwt
+└── functions/submit-vet-application/
+tests/
+├── unit/                     # logic + auth unit tests
+├── rls/                      # RLS harness
+├── e2e/                      # Playwright demos
+├── screens/                  # captured screenshots
+└── TEST-REPORT*.md
 tools/
-├── calibrate.html    # measure threshold/margin on real photos
+├── calibrate.html            # measure recognition thresholds
 └── README.md
-scope.md, prd.md, spec.md   # canonical planning docs
-devpost/              # hackathon learning workspace (app-map, checklist, learner profile)
+docs/screenshots/             # README screenshots
+scope.md, prd.md, spec.md     # planning docs (keep in sync with devpost/)
+devpost/                      # Skill Pack workspace (checklist, app-map, copies)
+.env.example                  # VET_INVITE_CODE name only
+LICENSE, skills-lock.json
 ```
 
-Keep the root copies of `scope.md`, `prd.md`, and `spec.md` byte-identical to `devpost/scope.md`, `devpost/prd.md`, and `devpost/spec.md` — the pack's skills read `devpost/`, so drift there silently breaks planning.
+## i18n, PWA, accessibility
 
-## Scope, limitations, and next steps
+- Languages: Russian (default), Kyrgyz, English (`app/i18n.js` `LANGS`).
+- PWA: `manifest.webmanifest` + service worker registered on boot; network-first offline shell.
+- Accessibility present in code: `aria-label` / `aria-checked` on chrome controls, `role="status"` toasts, `role="progressbar"` on the village bar, `prefers-reduced-motion` on the map.
 
-Known limitations:
+## Limitations and roadmap
 
-- Photos for animals are often stored as data URLs in Postgres (`text`); move to Supabase Storage for scale (vet license photos already use the `vet-licenses` bucket).
-- Recognition is honest but bounded by MobileNet (see above); threshold/margin are defaults to re-measure with `tools/calibrate.html`.
-- Veterinarians receive an individual access code and their applications are reviewed manually by the project owner. This process stays manual until the project receives funding.
-- Outbreak markers are demo constants in `app/vet.js` (not a database table); map overlays are vet-only.
-- Offline: shell/cache after first visit; the 3D map needs a connection the first time; chat is not a full offline client.
-- No native app, no automated admin agent for issuing vet codes, no production push-notification server yet.
+- Outbreak markers are constants in `app/vet.js`, not a database table.
+- Animal photos often stored as data URLs in Postgres (license photos already use Storage).
+- No production push server (SW has a push/notification stub only).
+- No native app; offline chat is not a full offline client; map needs a connection the first time.
+- Vet access codes are issued and applications reviewed manually by the project owner until funding.
 
-Roadmap: Supabase Storage for all photos, offline recognition, native app, admin assistant for vet codes, real push notifications, outbreaks table + RLS.
+**Later:** Storage for all photos; outbreaks table + RLS; offline recognition; admin assistant for codes; real push; native app.
+
+## Built with the Devpost Learn Skill Pack
+
+Planning followed the Devpost Learn “Build With AI: Basics” skills (`skills-lock.json`). Working copies of the planning docs live under `devpost/` — keep them **byte-identical** to the root `scope.md`, `prd.md`, and `spec.md`.
+
+- [`devpost/scope.md`](devpost/scope.md) · [`devpost/prd.md`](devpost/prd.md) · [`devpost/spec.md`](devpost/spec.md)
+- [`devpost/checklist.md`](devpost/checklist.md) · [`devpost/app-map.html`](devpost/app-map.html)
 
 ## License
 
