@@ -297,7 +297,6 @@ tools/
 docs/
 └── screenshots/
 devpost/
-agent/
 .claude/
 .agents/
 ```
