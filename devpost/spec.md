@@ -7,7 +7,7 @@ status: approved
 
 ## How This Works, In Plain Language
 
-Moo is a PWA (no build step). Users hit an auth screen, then a farmer or vet cabinet. Animals and vaccinations live in Supabase Postgres with RLS (localStorage fallback). Farmers book slots through SQL `book_slot`. The vet marks a booking done; that writes a `verified` vaccination; rewards (`app/rewards.js`) grant trophies only for verified records. Muzzle recognition uses MobileNet embeddings in the browser. The 3D map runs in an iframe and receives vet-only overlays by `postMessage`.
+Moo is a PWA (no build step). Users hit an auth screen, then a farmer or vet cabinet. Animals and vaccinations live in Supabase Postgres with RLS (localStorage fallback). Farmers book slots through SQL `book_slot`. The vet marks a booking done; that writes a `verified` vaccination; rewards (`app/rewards.js`) grant trophies only for verified records. Muzzle recognition uses MobileNet embeddings in the browser. The 3D map runs in an iframe and receives vet-only overlays by `postMessage`. The app is hosted on Vercel from `app/`.
 
 ## The Core Journey Through the System
 
@@ -27,8 +27,8 @@ PRD ref: `prd.md > Auth and roles`.
 
 - Supabase Auth email/password; `app/store.js` `signIn` / `signUp`; session restore on boot.
 - `profiles.role`: farmer | vet | admin (`schema-v3-auth.sql`). Trigger `protect_profile_role` blocks client self-promotion; admin promote via SQL editor or `review_vet_application` with `moo.allow_role_change`.
-- Vet apply: license upload to Storage `vet-licenses`; code checked only in the Edge Function against a server-side invite secret (a special code is issued by the project owner — never stored in the client or in docs). Rate limit table `vet_code_attempts` (`schema-v4-vet-code.sql`).
-- Demo: `moo_demo_mode`; role switch only then (`app/vet.js`).
+- Vet apply: license upload to Storage `vet-licenses`; code checked only in the Edge Function against server secret `VET_INVITE_CODE` (issued by the project owner — never stored in the client or in docs). Rate limit table `vet_code_attempts` (`schema-v4-vet-code.sql`).
+- Demo: `moo_demo_mode` + `setLocalMode(true)` so demo never writes to Supabase; seeds `demoAnimals` (four status colors); role switch only then (`app/vet.js`, `app/mock.js`).
 
 ## Booking and queue
 
@@ -39,7 +39,7 @@ PRD ref: `prd.md > Booking and queue`.
 
 ## Vet cabinet
 
-PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `vDone` / cast / chats in `app/app.js`.
+PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `vDone` / cast / chats in `app/app.js`. Demo house pins: `DEMO_HOUSE_PINS` / `DEMO_OUTBREAKS` in `app/vet.js`.
 
 ## Stack
 
@@ -47,27 +47,30 @@ PRD ref: `prd.md > Features and Behavior` (Vet cabinet). Source: `navVet()` / `v
 - TensorFlow.js + MobileNet v2 (CDN) for recognition.
 - Supabase Auth + Postgres + Storage + Edge Functions.
 - Three.js (`app/three.min.js`) in `village-map.html`.
-- PWA: `manifest.webmanifest` + `sw.js` (registered on boot; cache `moo-v30`).
-- Run: any static server from `app/`.
+- PWA: `manifest.webmanifest` + `sw.js` (cache `moo-v33`).
+- Hosting: Vercel static from `app/` (no `vercel.json` in repo).
+- Run: any static server from `app/` (`npm start` → Python `http.server` on `127.0.0.1:8000`).
 
 ## Where It Runs and How Someone Tries It
 
 - Phone or desktop browser; camera + internet on first load (model, Supabase).
-- Start: `cd app && python3 -m http.server 8000 --bind 127.0.0.1`, open `http://localhost:8000`.
+- Start: `cd app && npm start`, open `http://127.0.0.1:8000`.
+- Live: `https://mooo-nine.vercel.app`.
 - First screen is auth; use **Try demo** for a seeded farm without an account, or Sign up / Sign in.
-- DB: apply `schema-v2.sql`, then `schema-v3-auth.sql`, then `schema-v4-vet-code.sql`; put URL + anon key in `app/supabase-config.js`; deploy Edge Function `submit-vet-application`; promote admin via SQL. A special vet access code is issued by the project owner (server secret).
+- DB: apply `supabase/schema.sql` (if empty), then `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`; put URL + anon key in `app/supabase-config.js`; deploy Edge Function `submit-vet-application`; set secret `VET_INVITE_CODE`; promote admin via SQL.
 
 ## Components
 
-- `app/app.js` — routing, cabinets, auth UI, booking, `vDone`, welcome block.
+- `app/app.js` — routing, cabinets, auth UI, booking, `vDone`, welcome block, demo seed.
 - `app/store.js` — Supabase + localStorage; `animals_public` reads; booking; vet applications.
 - `app/auth-logic.js` — `resolveAppRole`, overlay builder, demo flag.
 - `app/rewards.js` — trophies/reminders for verified only; `applyVerifiedVaccination`.
 - `app/logic.js` — status, points, booking pure functions.
 - `app/recognition.js` — embeddings, species gate, matching constants.
-- `app/vet.js` — demo role switch, outbreak demo data, map overlay send.
+- `app/vet.js` — demo role switch, outbreak/house demo data, map overlay send.
 - `app/mock.js`, `app/camera.js`, `app/i18n.js`, `app/supabase.js`, `app/sw.js`.
 - Schemas: `schema-v2.sql`, `schema-v3-auth.sql`, `schema-v4-vet-code.sql`; function `supabase/functions/submit-vet-application/`.
+- Tests: `tests/unit/`, `tests/rls/`, `tests/e2e/`, `tests/TEST-REPORT*.md`.
 
 PRD refs: `prd.md > Features and Behavior`, `prd.md > Auth and roles`.
 
@@ -86,12 +89,14 @@ RLS: owners write own rows; role changes blocked for clients; vet verify paths r
 ## File Structure
 
 ```
-app/                 # PWA
+app/                 # PWA (Vercel root)
 schema-v2.sql … v4   # migrations
-supabase/functions/  # submit-vet-application
-tests/               # unit, rls, e2e
+supabase/            # baseline schema + Edge Function
+tests/               # unit, rls, e2e, reports, screens
+tools/               # calibrate.html
+docs/screenshots/    # README screenshots
 scope.md prd.md spec.md
-devpost/             # pack workspace (copies of planning docs + checklist + app-map)
+devpost/             # pack workspace (copies + checklist + app-map)
 ```
 
 ## Recognition Constants
@@ -127,4 +132,4 @@ Source: `app/recognition.js`; measured with `tools/calibrate.html`.
 - Roles live in `profiles.role` (not `is_vet` / localStorage for real accounts).
 - Trophies only for `verified`.
 - Telegram login dropped.
-- Still open: admin promote for a real owner account; dashboard secret for invite code; phone smoke checklist in test reports.
+- Still open: phone smoke checklist in test reports; production push server; outbreaks table.

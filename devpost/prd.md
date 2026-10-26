@@ -10,7 +10,7 @@ One line: Moo is a livestock-biosecurity PWA — digital vet passports, FMD vacc
 ## The Core Journey
 
 1. Open Moo → **auth screen** (Sign in / Sign up / Try demo) with a compact "What is Moo?" welcome.
-2. Enter as farmer (account or demo) → Home shows animals with FMD status badges (green / yellow / red).
+2. Enter as farmer (account or demo) → Home shows animals with FMD status badges (green / yellow / orange / red; grey = never vaccinated).
 3. Book a vaccination slot → pick animals → receive a **queue number**.
 4. Vet opens Today → sees the queue → marks **Vaccinated** → animal becomes protected and the farmer gets a **trophy + points** (verified only).
 5. Reminders at 30 / 7 / 1 days before the next deadline; a lapsed vaccination loses the trophy.
@@ -21,7 +21,7 @@ Implements: `scope.md > The Core Loop`. Source: `app/app.js` (`renderAuth`, `con
 
 ## Auth and roles
 
-- Everyone signs up the same way (email + password). "Try demo (no account)" seeds a local demo farm.
+- Everyone signs up the same way (email + password). "Try demo (no account)" seeds a local demo farm (four fictional animals covering status colors; never writes to Supabase).
 - On Sign up, choose farmer or veterinarian. Vets additionally submit a license photo and an **individual access code** issued by the project owner. Applications go to `vet_applications` via Edge Function `submit-vet-application`; the owner (admin) reviews them manually until the project receives funding. Pending vets use the farmer cabinet with an under-review banner.
 - Roles: `farmer` | `vet` | `admin` on `profiles.role`. Demo role switch farmer↔vet appears only in demo mode.
 
@@ -37,7 +37,7 @@ Implements: `scope.md > The Unique Kernel`. Source: `app/store.js` (`bookSlot`),
 
 ## Screens and Layout
 
-- **Auth** — logo, tagline, "What is Moo?" card, Sign in / Sign up tabs, form, Try demo; language + day/night in the top bar.
+- **Auth** — logo, tagline, collapsible "What is Moo?" card, Sign in / Sign up tabs, form, Try demo; language + day/night in the top bar.
 - **Farmer:** Home, Animals, Feed, Chat, Map, Rating (+ profile, camera/register sheets).
 - **Vet:** Today (queue), Map, Broadcasts, Chats, Stats (+ profile).
 - **Admin:** pending vet applications (approve / reject).
@@ -46,7 +46,7 @@ Implements: `scope.md > The Unique Kernel`. Source: `app/store.js` (`bookSlot`),
 
 ## Look and Feel
 
-Glassmorphism over painted meadow backdrops. Big rounded controls, status colors green / yellow / red. i18n: Russian (default), Kyrgyz, English; light + dark theme.
+Glassmorphism over painted meadow backdrops. Big rounded controls, status colors green / yellow / orange / red / grey. i18n: Russian (default), Kyrgyz, English; light + dark theme.
 
 ## Features and Behavior
 
@@ -54,7 +54,7 @@ Glassmorphism over painted meadow backdrops. Big rounded controls, status colors
 Per animal: photo(s), ear tag, vaccination history, next re-vaccination, health journal. Implements: `scope.md > POC Boundary`.
 
 ### Vaccination status (FMD)
-Green = protected, yellow = soon, red = overdue / urgent; also `never` and `claimed` (self-mark, not verified). Shown on cards and the scan plaque. Source: `app/logic.js` → `animalStatus`.
+Green = protected (`ok`, >30 days), yellow = soon (8–30), orange = urgent (0–7), red = overdue, grey = never; also `claimed` (self-mark, not verified). Shown on cards and the scan plaque. Source: `app/logic.js` → `animalStatus`.
 
 ### Booking
 See **Booking and queue**.
@@ -63,7 +63,7 @@ See **Booking and queue**.
 Trophies and points **only** for vaccinations with `status = verified` (vet confirmed). Self-mark is `claimed` and awards 0 points. Reminders at 30 / 7 / 1 days; trophy lost when validity lapses. Source: `app/rewards.js`, `app/logic.js` → `pointsForVaccinationRecord`.
 
 ### Vet cabinet
-Queue with Vaccinated / No-show; map overlays; broadcast segments; farmer chats; village stats. Source: `navVet()` in `app/app.js`.
+Queue with Vaccinated / No-show; map overlays (demo pins on real house footprints); broadcast segments; farmer chats; village stats. Source: `navVet()` in `app/app.js`, `DEMO_HOUSE_PINS` in `app/vet.js`.
 
 ### Private vet chat
 Farmer↔vet threads; vet inbox of farmer threads. Village-wide chat removed.
@@ -77,6 +77,9 @@ Register with averaged frames; scan matches by cosine similarity with species ga
 ### Map
 3D village map in an iframe. Vet sees house statuses + demo outbreaks; farmers do not. Offline: shell/cache after first load; map needs a connection the first time; SW must not inject the app into the map iframe.
 
+### Hosting and tests
+Static host on Vercel from `app/`. Automated coverage under `tests/` (unit, RLS, Playwright e2e) with reports in `tests/TEST-REPORT*.md`.
+
 ## States and Boundaries
 
 - Auth screen first; demo is opt-in via Try demo.
@@ -88,7 +91,7 @@ Register with averaged frames; scan matches by cosine similarity with species ga
 ## Product Decisions
 
 - **PWA, not native.**
-- **Supabase (free tier)** for Auth + Postgres (RLS); localStorage fallback.
+- **Supabase (free tier)** for Auth + Postgres (RLS) + Storage + Edge Functions; localStorage fallback.
 - **Name "Moo".**
 - **Everyone signs up by email the same way;** vets additionally apply with a license and an individual code; the project owner reviews applications manually until funding.
 - **Trophies only for vet-confirmed (`verified`) vaccinations.**
@@ -97,7 +100,7 @@ Register with averaged frames; scan matches by cosine similarity with species ga
 
 ## What We're Building
 
-The full core loop above: auth + roles, passports, statuses, booking/queue, vet confirmation → trophies, cabinets, map, feed, recognition, glass, i18n, PWA.
+The full core loop above: auth + roles, passports, statuses, booking/queue, vet confirmation → trophies, cabinets, map, feed, recognition, glass, i18n, PWA, Vercel host, test harness.
 
 ## Non-Goals
 

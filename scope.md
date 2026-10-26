@@ -9,7 +9,7 @@ One line: a livestock-biosecurity PWA for a village — digital vet passports, F
 
 ## The Unique Kernel
 
-A village-wide biosecurity layer: every animal has a **vet passport** and an **FMD status** at a glance (green / yellow / red). Farmers **book a visit** with the village vet and see their **queue number**. The vet **confirms** the vaccination; only then do **trophies and points** appear. Farmers chat privately with the vet; only the vet sees **outbreak markers** on the map.
+A village-wide biosecurity layer: every animal has a **vet passport** and an **FMD status** at a glance (green / yellow / orange / red / grey). Farmers **book a visit** with the village vet and see their **queue number**. The vet **confirms** the vaccination; only then do **trophies and points** appear. Farmers chat privately with the vet; only the vet sees **outbreak markers** on the map.
 
 ## Who It's For
 
@@ -21,22 +21,23 @@ Sign in (or Try demo) → see animals with FMD statuses → book a slot → get 
 
 ## What "Working" Looks Like
 
-Auth screen with a short "What is Moo?" welcome. Demo or real account opens a farm with green / yellow / red badges. Booking produces a queue place. Vet «Привит» / Vaccinated sets `verified` and awards a trophy. Vet map shows house statuses and outbreak pins; farmer map does not.
+Auth screen with a short "What is Moo?" welcome. Demo or real account opens a farm with green / yellow / orange / red badges (demo seeds four fictional animals). Booking produces a queue place. Vet Vaccinated sets `verified` and awards a trophy. Vet map shows house statuses on real footprints (demo) and outbreak pins; farmer map does not.
 
 ## POC Boundary (frozen)
 
 In:
 
-- Auth gate: email/password Sign in / Sign up for everyone, plus Try demo; welcome block on the auth screen.
-- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function; admin reviews manually.
+- Auth gate: email/password Sign in / Sign up for everyone, plus Try demo; collapsible welcome block on the auth screen.
+- Roles in `profiles.role`: farmer / vet / admin; vet application (license photo + individual access code issued by the project owner) via Edge Function `submit-vet-application`; admin reviews manually (`schema-v3-auth.sql`, `schema-v4-vet-code.sql`).
 - Digital vet passport: ear tag, vaccination history, next re-vaccination, health journal.
-- FMD status badges (green / yellow / red); reminders at 30 / 7 / 1 days.
-- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified.
+- FMD status badges (green / yellow / orange / red / grey); reminders at 30 / 7 / 1 days.
+- Vaccination slots, `book_slot` queue numbers, vet confirmation (`verified`); trophies/points only for verified (`schema-v2.sql`).
 - Farmer cabinet tabs: Home, Animals, Feed, Chat, Map, Rating.
 - Vet cabinet tabs: Today (queue), Map, Broadcasts, Chats, Stats.
 - Private vet chat; categorized feed; muzzle recognition (honest matching + species gate).
-- 3D village map; vet-only overlays; glass UI; i18n (ru / ky / en); PWA service worker.
+- 3D village map; vet-only overlays; demo map pins on real house footprints; glass UI; i18n (ru / ky / en); PWA service worker.
 - Privacy: RLS + `animals_public` masking private neighbour fields.
+- Hosted on Vercel (static `app/`); unit / RLS / Playwright tests under `tests/`.
 
 ## Later
 
