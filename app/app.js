@@ -134,11 +134,10 @@ import * as supabase from './supabase.js';
   const BASE = new Date();
 
   const freshAnimals = () => [
-    { id: 'm1', name: 'Зорька', type: 'cow', tag: 'KG-0142', due: 200, earned: true, streak: 2, stage: 0, lostShown: false },
-    { id: 'm2', name: 'Бурёнка', type: 'cow', tag: 'KG-0157', due: 20, earned: true, streak: 1, stage: 1, lostShown: false },
-    { id: 'm3', name: 'Каракат', type: 'horse', tag: 'KG-0213', due: 3, earned: true, streak: 3, stage: 2, lostShown: false },
-    { id: 'm4', name: 'Белянка', type: 'sheep', tag: 'KG-0318', due: null, earned: false, streak: 0, stage: 0, lostShown: false },
-    { id: 'm5', name: 'Керемет', type: 'sheep', tag: 'KG-0322', due: -12, earned: true, streak: 1, stage: 0, lostShown: true }
+    { id: 'm1', name: 'Зорька', type: 'cow', tag: 'KG-0001', photo: 'img/demo-zorka.jpg', due: 70, earned: true, streak: 2, stage: 0, lostShown: false },
+    { id: 'm2', name: 'Бурёнка', type: 'cow', tag: 'KG-0002', photo: 'img/demo-burenka.jpg', due: 18, earned: true, streak: 1, stage: 1, lostShown: false },
+    { id: 'm3', name: 'Каракат', type: 'horse', tag: 'KG-0003', photo: 'img/demo-karakat.jpg', due: 4, earned: true, streak: 3, stage: 2, lostShown: false },
+    { id: 'm4', name: 'Керемет', type: 'sheep', tag: 'KG-0004', photo: 'img/demo-keremet.jpg', due: -30, earned: true, streak: 1, stage: 0, lostShown: true }
   ];
   const mkA = (fid, dues) => dues.map((d, i) => ({ id: fid + 'a' + i, name: POOL[i % POOL.length], type: TYPES[i % 3], tag: 'KG-' + (100 + i * 7 + fid.charCodeAt(1) * 3), due: d }));
 
@@ -427,7 +426,8 @@ import * as supabase from './supabase.js';
     const alert = need ? `<button class="glass alert" data-act="bookfirst"><span class="ico">${ic('bell', 24)}</span><span><b>${esc(t('needVaccAlert', { n: String(need), unit: anu(need) }))}</b><small>${esc(t('needVaccHint'))}</small></span>${ic('chev', 22)}</button>` : '';
     const st = stats();
     const r = rankOf(active().length);
-    return `<div class="hrow"><div><h1>${hi}, ${esc(firstDisplayName())}</h1><p class="sub">${esc(t('villageLine', { n: String(S.animals.length) }))}</p></div><button class="glass avbtn" style="width:46px;height:46px;flex:none" data-go="profile" aria-label="${esc(t('profileAria'))}"><span aria-hidden="true">${S.role === 'vet' ? '🩺' : S.role === 'admin' ? '🛡️' : '👨‍🌾'}</span></button></div>
+    const demoNote = isDemoModeFlag() ? `<p class="sub demo-fictional">${esc(t('demoFictionalNote'))}</p>` : '';
+    return `<div class="hrow"><div><h1>${hi}, ${esc(firstDisplayName())}</h1><p class="sub">${esc(t('villageLine', { n: String(S.animals.length) }))}</p>${demoNote}</div><button class="glass avbtn" style="width:46px;height:46px;flex:none" data-go="profile" aria-label="${esc(t('profileAria'))}"><span aria-hidden="true">${S.role === 'vet' ? '🩺' : S.role === 'admin' ? '🛡️' : '👨‍🌾'}</span></button></div>
       ${alert}${book}
       <button class="glass scan" data-go="camera"><span class="ic-wrap">${ic('cam', 32)}</span><span><b>${esc(t('findAnimal'))}</b><small>${esc(t('findAnimalHint'))}</small></span></button>
       <h2 class="sec">${esc(t('myAnimalsDue'))}</h2><div class="stack">${list.map(trackHtml).join('')}</div>
@@ -2231,12 +2231,18 @@ import * as supabase from './supabase.js';
 
     if (opts.demo) {
       try {
-        if (!localStorage.getItem('moo_demo_seeded_v2')) {
+        // v3: photos + all vaccination status colors. Demo-only; never runs for real accounts.
+        if (!localStorage.getItem('moo_demo_seeded_v3')) {
           const existing = await getAnimals();
-          if (!existing.some((a) => a.ownerId === user.id)) {
-            for (const a of demoAnimals(user.id)) await addAnimal(a);
+          for (const a of existing.filter((x) => x.ownerId === user.id)) {
+            await deleteAnimal(a.id);
           }
-          localStorage.setItem('moo_demo_seeded_v2', '1');
+          try { localStorage.removeItem('moo_rewards_' + user.id); } catch {}
+          for (const a of demoAnimals(user.id)) await addAnimal(a);
+          try {
+            localStorage.removeItem('moo_demo_seeded_v2');
+            localStorage.setItem('moo_demo_seeded_v3', '1');
+          } catch {}
         }
       } catch (e) { console.warn(e); }
     }

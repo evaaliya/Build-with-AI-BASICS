@@ -40,45 +40,55 @@ export function vaccinationStatus(a, now = Date.now()) {
   return animalStatus(a, now);
 }
 
+/**
+ * Fixed fictional herd for "Try demo" only.
+ * Dates are relative to load time so status colors stay correct.
+ * validUntil = vaccination date + 365 days; color comes from animalStatus().
+ * Four photos → green / yellow / orange / red (no second green / never).
+ */
 export function demoAnimals(ownerId) {
   return [
     {
-      ownerId, name: 'Зорька', type: 'cow', breed: 'Алатау', tagNumber: 'KG-0142',
-      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
+      // green (ok): ~70 days left
+      ownerId, name: 'Зорька', type: 'cow', breed: 'Алатау', tagNumber: 'KG-0001',
+      photo: 'img/demo-zorka.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
-        { id: 'v1', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-165), validUntil: daysFromNow(200), status: 'verified', note: '' },
+        { id: 'v1', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-295), validUntil: daysFromNow(70), status: 'verified', note: '' },
+      ],
+      health: [
+        { id: 'h1', type: 'milk', date: daysFromNow(-2), note: 'Удой 18 л', value: 18 },
+      ],
+    },
+    {
+      // yellow (soon): ~18 days left → reminder banner
+      ownerId, name: 'Бурёнка', type: 'cow', breed: 'Голштин', tagNumber: 'KG-0002',
+      photo: 'img/demo-burenka.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
+      vaccinations: [
+        { id: 'v2', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-347), validUntil: daysFromNow(18), status: 'verified', note: '' },
+      ],
+      health: [
+        { id: 'h2', type: 'milk', date: daysFromNow(-1), note: 'Удой 15 л', value: 15 },
+      ],
+    },
+    {
+      // orange (urgent): ~4 days left → reminder banner
+      ownerId, name: 'Каракат', type: 'horse', breed: 'Кыргызская', tagNumber: 'KG-0003',
+      photo: 'img/demo-karakat.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
+      vaccinations: [
+        { id: 'v3', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-361), validUntil: daysFromNow(4), status: 'verified', note: '' },
       ],
       health: [],
     },
     {
-      ownerId, name: 'Бурёнка', type: 'cow', breed: 'Голштин', tagNumber: 'KG-0157',
-      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
+      // red (overdue): expired ~30 days ago → lost trophy
+      ownerId, name: 'Керемет', type: 'sheep', breed: 'Гиссар', tagNumber: 'KG-0004',
+      photo: 'img/demo-keremet.jpg', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
       vaccinations: [
-        { id: 'v3', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-345), validUntil: daysFromNow(20), status: 'verified', note: '' },
+        { id: 'v4', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-395), validUntil: daysFromNow(-30), status: 'verified', note: '' },
       ],
-      health: [],
-    },
-    {
-      ownerId, name: 'Каракат', type: 'horse', breed: 'Кыргызская', tagNumber: 'KG-0213',
-      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
-      vaccinations: [
-        { id: 'v5', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-362), validUntil: daysFromNow(3), status: 'verified', note: '' },
+      health: [
+        { id: 'h4', type: 'note', date: daysFromNow(-5), note: 'Аппетит в норме', value: null },
       ],
-      health: [],
-    },
-    {
-      ownerId, name: 'Белянка', type: 'sheep', breed: 'Гиссар', tagNumber: 'KG-0318',
-      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
-      vaccinations: [],
-      health: [],
-    },
-    {
-      ownerId, name: 'Керемет', type: 'sheep', breed: 'Эдильбай', tagNumber: 'KG-0322',
-      photo: '', fingerprint: [], frames: 1, reminders: [], createdAt: Date.now(),
-      vaccinations: [
-        { id: 'v6', disease: 'FMD', diseaseCode: 'fmd', date: daysFromNow(-377), validUntil: daysFromNow(-12), status: 'verified', note: '' },
-      ],
-      health: [],
     },
   ];
 }

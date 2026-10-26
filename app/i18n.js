@@ -444,6 +444,7 @@ const STRINGS = {
   today: { en: 'Today', ru: 'Сегодня', ky: 'Бүгүн' },
   tomorrow: { en: 'Tomorrow', ru: 'Завтра', ky: 'Эртең' },
   pastDay: { en: 'Past', ru: 'Прошёл', ky: 'Өттү' },
+  demoFictionalNote: { en: 'Demo data — all animals and people are fictional.', ru: 'Демо-данные — все животные и люди вымышлены.', ky: 'Демо-маалымат — бардык жаныбарлар жана адамдар ойдон чыгарылган.' },
   demoTimeTitle: { en: 'Demo: rewind time', ru: 'Демо: перемотка времени', ky: 'Демо: убакытты жылдыруу' },
   demoTimeBody: { en: 'Today is {date}{extra}. Miss the deadline and the trophy is gone.', ru: 'Сегодня {date}{extra}. Пропусти срок, и кубок исчезнет.', ky: 'Бүгүн {date}{extra}. Мөөнөттү өткөрүп жиберсеңиз, кубок жоголот.' },
   demoDaysPassed: { en: ' · {n} {unit} passed', ru: ' · прошло {n} {unit}', ky: ' · {n} {unit} өттү' },
