@@ -93,7 +93,7 @@ Build mode: fast
   Becomes usable: Glassmorphism UI with per-tab backdrops and a floating 5-tab nav (Find, Feed, Chat, Map, Trophies).
   Why now: The requested premium look, plus a dedicated trophies tab.
   PRD ref: `prd.md > Look and Feel`, `prd.md > Screens and Layout`
-  Spec ref: `spec.md > Components` (glass.css, img/)
+  Spec ref: `spec.md > Components` (glass.css, img/) (file later removed or moved, see README migration table)
   Build: Add glass.css + img/ backdrops, the day/night switch, per-tab backgrounds, and the 5-item nav.
   Verify (mechanical): Confirm the nav is centered at 390px and desktop widths, and no content overlaps the nav.
   Learner check: Switch tabs and day/night; confirm nothing overlaps.
@@ -160,12 +160,14 @@ Activity mode: recap / prior practice connected
 - **Honest, measurable recognition** — registration averages 4 muzzle frames; a MobileNet species gate prevents sheep↔horse mix-ups; matching requires a similarity threshold *and* a separation margin over the runner-up. Below threshold the app shows no phone and offers "publish to feed" instead. Thresholds are tunable with `tools/calibrate.html`.
 - **Scope frozen for the demo** — the 90-second demo covers register → scan-on-second-phone → owner found → "not found" → feed. Chat, map, and reminders are implemented but not demoed.
 - **Pivot to livestock biosecurity (AgTech / Animal Health)** — the product moved from "find a stray animal by its muzzle" to a digital vet passport with FMD vaccination tracking, a private vet hotline, trophies for on-time vaccination, and a vet-only outbreak map. The planning docs (`scope.md`, `prd.md`, `spec.md`) were updated to match.
-- **Glass design layer** — `glass.css` + per-tab backdrops replace the earlier cartoon layer; the bottom nav became 5 tabs (Find, Feed, Chat, Map, Trophies).
+- **Glass design layer** — `glass.css` + per-tab backdrops replace the earlier cartoon layer; the bottom nav became 5 tabs (Find, Feed, Chat, Map, Trophies) (file later removed or moved, see README migration table).
 - **Private vet chat** — messages gained a `thread` column; farmers see their own vet thread, the vet sees an "Appeals" inbox. Village chat was removed.
 - **Code and README translated to English** — Russian remains only in the i18n dictionaries (ru/ky/en).
 - [Booking + queue + vet confirmation replaced self-marking for rewards] — [the build discovered that farmer self-mark trophies were not trustworthy for biosecurity; slots, `book_slot` queue numbers, and `vaccinations.status=verified` (vet «Привит») are the real reward path (`schema-v2.sql`, `app/app.js` `vDone`, `app/rewards.js`).]
 - [Email sign-up for all roles + vet application with license and individual code, reviewed manually by the owner] — [a localStorage / demo `is_vet` flag was not enough for shared Supabase data; roles are `profiles.role` farmer|vet|admin, applications go through Edge Function `submit-vet-application` + `vet_applications` / `vet-licenses`, owner reviews until funding (`schema-v3-auth.sql`, `schema-v4-vet-code.sql`, `tests/TEST-REPORT-2.md`, `tests/TEST-REPORT-4.md`).]
-- [Two critical RLS holes found by the test run and fixed] — [clients could self-promote to vet, and neighbours could read vaccination history; fixed with `protect_profile_role` and `animals_public` masking — evidence `tests/TEST-REPORT.md`, `tests/rls-fixes-proposed.sql`, later `schema-v4-vet-code.sql`.]
+- [Two critical RLS holes found by the test run and fixed] — [clients could self-promote to vet, and neighbours could read vaccination history; fixed with `protect_profile_role` and `animals_public` masking — evidence `tests/TEST-REPORT.md`, `tests/rls-fixes-proposed.sql` (file later removed or moved, see README migration table), later `schema-v4-vet-code.sql`.]
+- [Glass CSS stub removed; styles live in `styles.css`] — [`glass.css` / `cartoon.css` were superseded and unused at runtime; service worker cache list updated (`app/sw.js`).]
+- [Obsolete kit and agent prompts removed] — [`moo-kit-v2/`, `agent-prompt-v2.md`, and root `architecture.md` were implementation scaffolds; product truth is `scope.md` / `prd.md` / `spec.md` / `README.md`.]
 - [Private fields masked through `animals_public`] — [raw `animals` SELECT leaked notes/reminders/vaccinations across farmers; the app reads the view that nulls neighbour private fields (`schema-v4-vet-code.sql`, `app/store.js` `getAnimals`).]
 - [Welcome block added to the auth screen] — [new visitors saw only a logo and form and did not understand the product; a collapsible "What is Moo?" card sits between the tagline and Sign in / Sign up (`app/app.js` `welcomeBlock`, `app/i18n.js`).]
 - [Demo herd covers all vaccination status colors] — [a single green animal hid yellow/orange/red paths from the jury path; Try demo now seeds four fictional animals with relative dates so `animalStatus` shows ok / soon / urgent / overdue (`app/mock.js` `demoAnimals`, photos `app/img/demo-*.jpg`).]

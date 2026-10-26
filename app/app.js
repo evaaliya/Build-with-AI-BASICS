@@ -1,4 +1,4 @@
-// Moo v2 — farmer & vet cabinets (from moo-kit-v2/reference-prototype.html).
+// Moo v2 — farmer & vet cabinets (glass UI + booking / rewards loop).
 import {
   getSession, setSession, signUp, signIn, signOut, getTheme, setTheme,
   getAnimals, addAnimal, updateAnimal, deleteAnimal, getUsers, upsertProfile,

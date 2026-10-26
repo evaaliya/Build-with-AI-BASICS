@@ -1,10 +1,9 @@
 // Moo — service worker: network-first offline + Web Push for vaccination reminders.
-const CACHE = 'moo-v33';
+const CACHE = 'moo-v34';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
-  './glass.css',
   './app.js',
   './store.js',
   './mock.js',

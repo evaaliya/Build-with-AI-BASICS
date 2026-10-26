@@ -21,7 +21,7 @@
 | health | jsonb |
 | created_at | timestamptz |
 
-В view из `rls-fixes-proposed.sql` не хватает `notes` и `reminders` — в применённой Part C они добавлены (файл SQL не менялся).
+В view из `rls-fixes-proposed.sql` не хватает `notes` и `reminders` — в применённой Part C они добавлены (файл SQL не менялся) (file later removed or moved, see README migration table).
 
 ## Ключевые SELECT-политики (после Part C)
 

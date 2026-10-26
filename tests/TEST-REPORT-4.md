@@ -29,7 +29,7 @@ Cause of `ERROR: 42P16: cannot change name of view column "notes" to "tag_number
 ## 2. SQL file fixes (repo)
 
 - `schema-v4-vet-code.sql` — `CREATE OR REPLACE VIEW public.animals_public` rewritten to the **exact** live column order with owner-only `notes`/`reminders` and owner-or-vet `vaccinations`/`health`.
-- `tests/rls-fixes-proposed.sql` — same view order/masks (so a re-run cannot reopen the leak or hit 42P16).
+- `tests/rls-fixes-proposed.sql` — same view order/masks (so a re-run cannot reopen the leak or hit 42P16) (file later removed or moved, see README migration table).
 - `schema-v3-auth.sql` — comment only (still does not recreate the view).
 
 ---

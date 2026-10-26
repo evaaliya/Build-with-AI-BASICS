@@ -138,4 +138,4 @@ PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 node e2e/demo.mjs
 - `tests/unit/logic.test.js` — 20/20 green  
 - `tests/rls/rls.mjs` — критические FAIL зафиксированы  
 - `tests/e2e/demo.mjs` + `tests/screens/*.png`  
-- `tests/rls-fixes-proposed.sql` — ждать подтверждения
+- `tests/rls-fixes-proposed.sql` — ждать подтверждения (file later removed or moved, see README migration table)

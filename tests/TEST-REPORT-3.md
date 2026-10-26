@@ -57,7 +57,7 @@ rg -n 'VET_CODE\s*=' --glob '!tests/node_modules/**'
 
 Results after cleanup:
 
-- `VET-2026` remains only in **prompt files** (not edited per instruction): `agent-prompt-v2.md`, `moo-kit-v2/AGENT-PROMPT.md` (they instruct removing the code; they are not product UI).  
+- `VET-2026` remains only in **prompt files** (not edited per instruction): `agent-prompt-v2.md`, `moo-kit-v2/AGENT-PROMPT.md` (they instruct removing the code; they are not product UI) (file later removed or moved, see README migration table).  
 - No “village administration” matches left in `app/`.  
 - No `VET_CODE =` assignment in app code.
 
